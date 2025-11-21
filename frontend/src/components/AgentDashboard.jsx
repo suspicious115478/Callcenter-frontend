@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
 import io from "socket.io-client";
 import { BACKEND_URL } from "../config";
+// 🚨 NEW IMPORT: Component to display individual calls
+import CallCard from "./CallCard"; 
 
 export default function AgentDashboard() {
   const [status, setStatus] = useState("offline");
-  // State is now used only for temporary display/notification before redirection
-  const [incomingCall, setIncomingCall] = useState(null); 
+  // 🚨 CHANGE: incomingCalls is now an array to hold multiple pending calls
+  const [incomingCalls, setIncomingCalls] = useState([]); 
 
   useEffect(() => {
     // 1. Initial status fetch
@@ -17,27 +19,37 @@ export default function AgentDashboard() {
     const socket = io(BACKEND_URL);
     
     socket.on("incoming-call", (callData) => {
-      // Set state for a quick notification display (optional)
-      setIncomingCall(callData);
-
-      const { dashboardLink, subscriptionStatus, name, caller } = callData;
-
-      // Notify the agent about the incoming call
-      alert(`🔔 Incoming Call: ${name || caller} | Status: ${subscriptionStatus}`);
-
-      // **CORE LOGIC: Check and Redirect (Screen Pop)**
-      if (dashboardLink) {
-          console.log(`Redirecting agent to: ${dashboardLink}`);
-          // Redirect the agent's browser window to the user dashboard or search page
-          window.location.href = dashboardLink;
-      }
+      console.log("New call received, showing card:", callData.caller);
+      
+      // 🚨 CORE LOGIC CHANGE: Add the new call to the array state
+      setIncomingCalls(prevCalls => [
+        // Add a unique ID to manage the list (necessary for array state and React keys)
+        { ...callData, id: Date.now() }, 
+        ...prevCalls // Optionally display newer calls at the top
+      ]);
+      
+      // Removed: alert() and automatic window.location.href
     });
 
     // Cleanup socket listener on component unmount
     return () => {
         socket.off("incoming-call");
     };
-  }, []); // Run only once on component mount
+  }, []); 
+
+  // 🚨 NEW FUNCTION: Handles the acceptance click from a CallCard
+  const handleCallAccept = (acceptedCall) => {
+    // 1. Redirect the agent immediately (The "Screen Pop")
+    if (acceptedCall.dashboardLink) {
+      console.log(`Call accepted. Redirecting agent to: ${acceptedCall.dashboardLink}`);
+      window.location.href = acceptedCall.dashboardLink;
+    }
+
+    // 2. Remove the accepted call from the list, so the card disappears
+    setIncomingCalls(prevCalls => 
+      prevCalls.filter(call => call.id !== acceptedCall.id)
+    );
+  };
 
   const toggleStatus = () => {
     const newStatus = status === "offline" ? "online" : "offline";
@@ -57,24 +69,21 @@ export default function AgentDashboard() {
         Go {status === "offline" ? "Online" : "Offline"}
       </button>
 
-      {/* This display block will show the call information briefly before redirection */}
-      {incomingCall && (
-        <div 
-          style={{
-            marginTop: 20, 
-            padding: 10, 
-            border: "2px solid",
-            // Highlight verified calls
-            borderColor: incomingCall.subscriptionStatus === "Verified" ? "green" : "gray",
-            backgroundColor: incomingCall.subscriptionStatus === "Verified" ? "#e6ffe6" : "#fff"
-          }}
-        >
-          <h3>Incoming Call</h3>
-          <p>From: <strong>{incomingCall.caller}</strong> ({incomingCall.name})</p>
-          <p>Status: <strong style={{color: incomingCall.subscriptionStatus === "Verified" ? "green" : "red"}}>{incomingCall.subscriptionStatus}</strong></p>
-          <p>Ticket Info: {incomingCall.ticket}</p>
-        </div>
-      )}
+      {/* 🚨 RENDER CALL CARDS */}
+      <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        <h3>
+            Pending Calls ({incomingCalls.length})
+            {incomingCalls.length > 0 && " - Click 'Accept' to process."}
+        </h3>
+        {/* Map over the array and render a CallCard for each pending call */}
+        {incomingCalls.map(call => (
+          <CallCard 
+            key={call.id} 
+            callData={call} 
+            onAccept={handleCallAccept} // Pass the handler function
+          />
+        ))}
+      </div>
     </div>
   );
 }
