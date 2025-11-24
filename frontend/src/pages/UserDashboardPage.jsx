@@ -1,5 +1,66 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { PlusCircle, Trash2, TrendingUp, TrendingDown, DollarSign, Phone, Users, LogOut } from 'lucide-react';
+
+// --- Inline SVG Icon Definitions (Replacing lucide-react) ---
+
+// PlusCircle (24x24)
+const PlusCircle = ({ size = 24, className = "", style = {} }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 8v8" />
+        <path d="M8 12h8" />
+    </svg>
+);
+
+// Trash2 (16x16 or 24x24)
+const Trash2 = ({ size = 24, className = "", style = {} }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+        <path d="M3 6h18" />
+        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+        <path d="M10 11v6" />
+        <path d="M14 11v6" />
+        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+    </svg>
+);
+
+// TrendingUp (24x24)
+const TrendingUp = ({ size = 24, className = "", style = {} }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+        <polyline points="22 7 13.5 15.5 10.5 12.5 2 21" />
+        <polyline points="18 7 22 7 22 11" />
+    </svg>
+);
+
+// TrendingDown (24x24)
+const TrendingDown = ({ size = 24, className = "", style = {} }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+        <polyline points="22 17 13.5 8.5 10.5 11.5 2 3" />
+        <polyline points="18 17 22 17 22 13" />
+    </svg>
+);
+
+// DollarSign (24x24)
+const DollarSign = ({ size = 24, className = "", style = {} }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+);
+
+// Phone (20x20 or 24x24)
+const Phone = ({ size = 24, className = "", style = {} }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+    </svg>
+);
+
+// LogOut (20x20 or 24x24)
+const LogOut = ({ size = 24, className = "", style = {} }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+        <polyline points="16 17 21 12 16 7" />
+        <line x1="21" x2="9" y1="12" y2="12" />
+    </svg>
+);
+
 
 // --- MOCKED BACKEND URL ---
 // Note: This URL is used for demonstrating the fetch call logic.
@@ -194,7 +255,8 @@ const UserServicePage = ({ onGoBack }) => {
 
 const UserDashboardPage = ({ onServiceRedirect }) => {
     // State to simulate the dynamically accepted phone number
-    const [callNumber, setCallNumber] = useState("555-0123-4567");
+    const [callNumber, setCallNumber] = useState("555-0123-4567"); // Initial mock value
+    // NOTE: In a real app, this would be set by an external telephony service hook.
 
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
     
@@ -213,7 +275,10 @@ const UserDashboardPage = ({ onServiceRedirect }) => {
         e.preventDefault();
         setError(null);
         
-        if (!notes.trim() || !callNumber.trim()) {
+        // Use the actual number from the input field/state
+        const phoneNumberToSend = callNumber.trim(); 
+
+        if (!notes.trim() || !phoneNumberToSend) {
             setError("Please enter a call number and notes before saving.");
             return;
         }
@@ -230,7 +295,7 @@ const UserDashboardPage = ({ onServiceRedirect }) => {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        phone: callNumber, // Use actual state number
+                        phone: phoneNumberToSend, // Using the actual state number
                         category: category,
                         notes: notes,
                         agentName: "Agent JD"  
@@ -329,10 +394,10 @@ const UserDashboardPage = ({ onServiceRedirect }) => {
                         <div className="p-6">
                             {error && <div style={styles.errorBox(isSuccess)}>{error}</div>}
                             <form onSubmit={handleSaveNotes}>
-                                {/* Call Number Input (Simulated dynamic input) */}
+                                {/* Call Number Input (Using actual state number) */}
                                 <div className="mb-5">
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Active Call Number (Simulated Dynamic Source)
+                                        Active Call Number
                                     </label>
                                     <input
                                         type="text"
