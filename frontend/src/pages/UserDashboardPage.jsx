@@ -31,6 +31,7 @@ export default function UserDashboardPage() {
         setIsSaving(true);
 
         try {
+            // --- LIVE BACKEND CALL RE-ENABLED ---
             const response = await fetch(`${BACKEND_URL}api/logs/save`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -52,11 +53,18 @@ export default function UserDashboardPage() {
             // 2. Safely attempt to parse JSON response
             let result;
             try {
-                result = await response.json();
+                // Check for empty body before trying to parse (common for 204 No Content, but sometimes sent on 200)
+                const text = await response.text();
+                if (!text) {
+                    throw new Error("Received a successful status code but the response body was empty.");
+                }
+                result = JSON.parse(text);
+
             } catch (e) {
-                // Catches the 'Unexpected end of JSON input' error
-                throw new Error("Received an unexpected or empty response from the server.");
+                // Catches the 'Unexpected end of JSON input' or the custom empty body error
+                throw new Error(`Response data error: ${e.message}`);
             }
+            // --- END LIVE BACKEND CALL ---
             
             // 3. Check for application-level success flag
             if (result.success) {
