@@ -1,6 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { BACKEND_URL } from "../config";
+
+// NOTE: The external import for BACKEND_URL has been removed 
+// as files must be self-contained. Assuming root path for API calls.
+const BACKEND_URL = "https://callcenter-baclend.onrender.com"; 
 
 export default function UserDashboardPage() {
     const { phoneNumber } = useParams();
@@ -17,7 +21,7 @@ export default function UserDashboardPage() {
         return () => clearInterval(timer);
     }, []);
 
-    // Sends data to backend
+    // Sends data to backend with robust error handling for empty/malformed responses
     const handleSaveNotes = async (e) => {
         e.preventDefault();
         setError(null); // Clear previous errors
@@ -30,31 +34,56 @@ export default function UserDashboardPage() {
         setIsSaving(true);
 
         try {
-            const response = await fetch(`${BACKEND_URL}/api/logs/save`, {
+            const response = await fetch(`${BACKEND_URL}api/logs/save`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     phone: phoneNumber,
                     category: category,
                     notes: notes,
-                    agentName: "Agent JD" // You can make this dynamic later based on login
+                    agentName: "Agent JD" 
                 })
             });
 
-            const result = await response.json();
+            // 1. Check for non-200 status codes first
+            if (!response.ok) {
+                const errorDetail = await response.text();
+                const errorMessage = errorDetail ? errorDetail.substring(0, 100) : "No error details provided.";
+                throw new Error(`Server Error (${response.status}): ${errorMessage}...`);
+            }
 
+            // 2. Safely handle JSON parsing or empty body (Supabase/Serverless fix)
+            let result;
+            const text = await response.text();
+
+            if (!text) {
+                // If the server returns a successful status (e.g., 201 Created or 204 No Content) 
+                // but with an empty body, we assume success.
+                result = { success: true, message: "No content returned, assuming successful save." };
+                console.warn("Received successful status with empty body. Assuming success and proceeding.");
+            } else {
+                // If content exists, attempt to parse it as JSON
+                try {
+                    result = JSON.parse(text);
+                } catch (e) {
+                    throw new Error(`Invalid JSON format in response: ${e.message}`);
+                }
+            }
+            
+            // 3. Check for application-level success flag
             if (result.success) {
                 console.log("Request logged successfully. Navigating to services page.");
                 const encodedNotes = encodeURIComponent(notes);
-                // 🚨 SUCCESS ACTION: Redirect to the new User Services page, passing the phone, category, and notes
+                // SUCCESS ACTION: Redirect to the new User Services page
                 window.location.href = `/user/services/${phoneNumber}?category=${category}&notes=${encodedNotes}`; 
             } else {
+                // Handle cases where the server returned JSON but with success: false
                 console.error("Failed to save log:", result.message);
-                setError("❌ Failed to save log: " + result.message);
+                setError("❌ Failed to save log: " + (result.message || "Unknown error occurred."));
             }
         } catch (err) {
-            console.error("Save Error:", err);
-            setError("❌ Network error. Could not save log.");
+            console.error("Save Error:", err.message);
+            setError(`❌ ${err.message}`);
         } finally {
             setIsSaving(false);
         }
