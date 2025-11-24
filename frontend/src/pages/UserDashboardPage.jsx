@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { BACKEND_URL } from "../config";
+// The config import caused an error; defining the variable locally.
+// In a production environment, this should be set via environment variables.
+const BACKEND_URL = "/"; // Assumes the frontend and backend are served from the same domain root or proxy
 
 export default function UserDashboardPage() {
     const { phoneNumber } = useParams();
@@ -10,6 +12,7 @@ export default function UserDashboardPage() {
     const [notes, setNotes] = useState("");
     const [category, setCategory] = useState("support");
     const [isSaving, setIsSaving] = useState(false); // For button loading state
+    const [error, setError] = useState(null); // For custom error notification
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
@@ -19,16 +22,18 @@ export default function UserDashboardPage() {
     // Sends data to backend
     const handleSaveNotes = async (e) => {
         e.preventDefault();
+        setError(null); // Clear previous errors
         
         if (!notes.trim()) {
-            alert("Please enter some notes before saving.");
+            setError("Please enter some notes before saving.");
             return;
         }
 
         setIsSaving(true);
 
         try {
-            const response = await fetch(`${BACKEND_URL}/api/logs/save`, {
+            // Use the locally defined BACKEND_URL
+            const response = await fetch(`${BACKEND_URL}api/logs/save`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -42,14 +47,17 @@ export default function UserDashboardPage() {
             const result = await response.json();
 
             if (result.success) {
-                alert("✅ Request logged successfully!");
-                setNotes(""); // Clear form
+                console.log("Request logged successfully. Navigating to services page.");
+                const encodedNotes = encodeURIComponent(notes);
+                // 🚨 SUCCESS ACTION: Redirect to the new User Services page, passing the phone, category, and notes
+                window.location.href = `/user/services/${phoneNumber}?category=${category}&notes=${encodedNotes}`; 
             } else {
-                alert("❌ Failed to save log: " + result.message);
+                console.error("Failed to save log:", result.message);
+                setError("❌ Failed to save log: " + result.message);
             }
-        } catch (error) {
-            console.error("Save Error:", error);
-            alert("❌ Network error. Could not save log.");
+        } catch (err) {
+            console.error("Save Error:", err);
+            setError("❌ Network error. Could not save log.");
         } finally {
             setIsSaving(false);
         }
@@ -231,6 +239,15 @@ export default function UserDashboardPage() {
             fontSize: '0.75rem',
             color: '#9ca3af',
             marginBottom: '4px',
+        },
+        errorBox: {
+            backgroundColor: '#fef2f2',
+            border: '1px solid #fca5a5',
+            color: '#dc2626',
+            padding: '12px',
+            borderRadius: '6px',
+            marginBottom: '20px',
+            fontSize: '0.9rem',
         }
     };
 
@@ -261,6 +278,7 @@ export default function UserDashboardPage() {
                             </div>
                         </div>
                         <div style={styles.cardBody}>
+                            {error && <div style={styles.errorBox}>{error}</div>}
                             <form onSubmit={handleSaveNotes}>
                                 <div style={styles.formGroup}>
                                     <label style={styles.label}>Request Category</label>
@@ -294,7 +312,7 @@ export default function UserDashboardPage() {
                                     onMouseOver={(e) => !isSaving && (e.currentTarget.style.backgroundColor = '#1d4ed8')}
                                     onMouseOut={(e) => !isSaving && (e.currentTarget.style.backgroundColor = '#2563eb')}
                                 >
-                                    {isSaving ? "Saving..." : "Save Request Log"}
+                                    {isSaving ? "Saving..." : "Save Request Log & Select Service"}
                                 </button>
                             </form>
                         </div>
