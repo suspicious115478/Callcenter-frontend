@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-// The config import was removed in the previous fix.
-const BACKEND_URL = "/"; // Assumes the frontend and backend are served from the same domain root or proxy
+import { BACKEND_URL } from "../config";
 
 export default function UserDashboardPage() {
     const { phoneNumber } = useParams();
@@ -18,7 +17,7 @@ export default function UserDashboardPage() {
         return () => clearInterval(timer);
     }, []);
 
-    // Sends data to backend with improved error handling
+    // Sends data to backend
     const handleSaveNotes = async (e) => {
         e.preventDefault();
         setError(null); // Clear previous errors
@@ -31,61 +30,31 @@ export default function UserDashboardPage() {
         setIsSaving(true);
 
         try {
-            // --- LIVE BACKEND CALL ---
-            const response = await fetch(`${BACKEND_URL}api/logs/save`, {
+            const response = await fetch(`${BACKEND_URL}/api/logs/save`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     phone: phoneNumber,
                     category: category,
                     notes: notes,
-                    agentName: "Agent JD" 
+                    agentName: "Agent JD" // You can make this dynamic later based on login
                 })
             });
 
-            // 1. Check for non-200 status codes first
-            if (!response.ok) {
-                // If response is not ok, read the response body as text to get error details
-                const errorDetail = await response.text();
-                // Check if the server provided a useful error message, otherwise default.
-                const errorMessage = errorDetail ? errorDetail.substring(0, 100) : "No error details provided.";
-                throw new Error(`Server Error (${response.status}): ${errorMessage}...`);
-            }
+            const result = await response.json();
 
-            // 2. Safely handle JSON parsing or empty body
-            let result;
-            const text = await response.text();
-
-            if (!text) {
-                // IMPORTANT FIX: If the response is successful (response.ok is true) 
-                // but the body is empty (e.g., 204 No Content or a successful Supabase INSERT), 
-                // we assume the save was successful and mock the required success object.
-                result = { success: true, message: "No content returned, assuming successful save." };
-                console.warn("Received successful status with empty body. Assuming success and proceeding.");
-            } else {
-                // If content exists, attempt to parse it as JSON
-                try {
-                    result = JSON.parse(text);
-                } catch (e) {
-                    throw new Error(`Invalid JSON format in response: ${e.message}`);
-                }
-            }
-            // --- END LIVE BACKEND CALL ---
-            
-            // 3. Check for application-level success flag
             if (result.success) {
                 console.log("Request logged successfully. Navigating to services page.");
                 const encodedNotes = encodeURIComponent(notes);
-                // SUCCESS ACTION: Redirect to the new User Services page
+                // 🚨 SUCCESS ACTION: Redirect to the new User Services page, passing the phone, category, and notes
                 window.location.href = `/user/services/${phoneNumber}?category=${category}&notes=${encodedNotes}`; 
             } else {
-                // Handle cases where the server returned JSON but with success: false
                 console.error("Failed to save log:", result.message);
-                setError("❌ Failed to save log: " + (result.message || "Unknown error occurred."));
+                setError("❌ Failed to save log: " + result.message);
             }
         } catch (err) {
-            console.error("Save Error:", err.message);
-            setError(`❌ ${err.message}`);
+            console.error("Save Error:", err);
+            setError("❌ Network error. Could not save log.");
         } finally {
             setIsSaving(false);
         }
