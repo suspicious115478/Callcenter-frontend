@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-// The config import caused an error; defining the variable locally.
-// In a production environment, this should be set via environment variables.
+// The config import was removed in the previous fix.
 const BACKEND_URL = "/"; // Assumes the frontend and backend are served from the same domain root or proxy
 
 export default function UserDashboardPage() {
@@ -19,7 +18,7 @@ export default function UserDashboardPage() {
         return () => clearInterval(timer);
     }, []);
 
-    // Sends data to backend
+    // Sends data to backend with improved error handling
     const handleSaveNotes = async (e) => {
         e.preventDefault();
         setError(null); // Clear previous errors
@@ -32,7 +31,6 @@ export default function UserDashboardPage() {
         setIsSaving(true);
 
         try {
-            // Use the locally defined BACKEND_URL
             const response = await fetch(`${BACKEND_URL}api/logs/save`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -40,24 +38,39 @@ export default function UserDashboardPage() {
                     phone: phoneNumber,
                     category: category,
                     notes: notes,
-                    agentName: "Agent JD" // You can make this dynamic later based on login
+                    agentName: "Agent JD" 
                 })
             });
 
-            const result = await response.json();
+            // 1. Check for non-200 status codes first
+            if (!response.ok) {
+                // If response is not ok, read the response body as text to get error details
+                const errorDetail = await response.text();
+                throw new Error(`Server Error (${response.status}): ${errorDetail.substring(0, 100)}...`);
+            }
 
+            // 2. Safely attempt to parse JSON response
+            let result;
+            try {
+                result = await response.json();
+            } catch (e) {
+                // Catches the 'Unexpected end of JSON input' error
+                throw new Error("Received an unexpected or empty response from the server.");
+            }
+            
+            // 3. Check for application-level success flag
             if (result.success) {
                 console.log("Request logged successfully. Navigating to services page.");
                 const encodedNotes = encodeURIComponent(notes);
-                // 🚨 SUCCESS ACTION: Redirect to the new User Services page, passing the phone, category, and notes
+                // SUCCESS ACTION: Redirect to the new User Services page
                 window.location.href = `/user/services/${phoneNumber}?category=${category}&notes=${encodedNotes}`; 
             } else {
                 console.error("Failed to save log:", result.message);
-                setError("❌ Failed to save log: " + result.message);
+                setError("❌ Failed to save log: " + (result.message || "Unknown error occurred."));
             }
         } catch (err) {
-            console.error("Save Error:", err);
-            setError("❌ Network error. Could not save log.");
+            console.error("Save Error:", err.message);
+            setError(`❌ ${err.message}`);
         } finally {
             setIsSaving(false);
         }
