@@ -5,7 +5,7 @@ import { useParams } from 'react-router-dom';
 
 // NOTE: The external import for BACKEND_URL has been removed 
 // as files must be self-contained. Assuming root path for API calls.
-const BACKEND_URL = "https://callcenter-baclend.onrender.com"; 
+const BACKEND_URL = "https://callcenter-baclend.onrender.com/"; 
 
 export default function UserDashboardPage() {
     const { phoneNumber } = useParams();
@@ -398,3 +398,4 @@ export default function UserDashboardPage() {
         </div>
     );
 }
+
