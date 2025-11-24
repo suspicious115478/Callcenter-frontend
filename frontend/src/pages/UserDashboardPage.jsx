@@ -1,23 +1,58 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { BACKEND_URL } from "../config";
 
 export default function UserDashboardPage() {
     const { phoneNumber } = useParams();
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
     
-    // Form state for call notes
+    // Form state
     const [notes, setNotes] = useState("");
     const [category, setCategory] = useState("support");
+    const [isSaving, setIsSaving] = useState(false); // For button loading state
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
         return () => clearInterval(timer);
     }, []);
 
-    const handleSaveNotes = (e) => {
+    // Sends data to backend
+    const handleSaveNotes = async (e) => {
         e.preventDefault();
-        alert(`Notes saved for ${phoneNumber}:\n[${category.toUpperCase()}] ${notes}`);
-        // Here you would typically send this data to your backend
+        
+        if (!notes.trim()) {
+            alert("Please enter some notes before saving.");
+            return;
+        }
+
+        setIsSaving(true);
+
+        try {
+            const response = await fetch(`${BACKEND_URL}/api/logs/save`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    phone: phoneNumber,
+                    category: category,
+                    notes: notes,
+                    agentName: "Agent JD" // You can make this dynamic later based on login
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
+                alert("✅ Request logged successfully!");
+                setNotes(""); // Clear form
+            } else {
+                alert("❌ Failed to save log: " + result.message);
+            }
+        } catch (error) {
+            console.error("Save Error:", error);
+            alert("❌ Network error. Could not save log.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
     // --- INLINE STYLES ---
@@ -177,13 +212,13 @@ export default function UserDashboardPage() {
             backgroundColor: 'white',
         },
         saveButton: {
-            backgroundColor: '#2563eb',
+            backgroundColor: isSaving ? '#93c5fd' : '#2563eb', // Lighter blue when saving
             color: 'white',
             border: 'none',
             padding: '12px 24px',
             borderRadius: '8px',
             fontWeight: '600',
-            cursor: 'pointer',
+            cursor: isSaving ? 'not-allowed' : 'pointer',
             transition: 'background-color 0.2s',
             width: '100%',
         },
@@ -254,11 +289,12 @@ export default function UserDashboardPage() {
 
                                 <button 
                                     type="submit" 
+                                    disabled={isSaving}
                                     style={styles.saveButton}
-                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
-                                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+                                    onMouseOver={(e) => !isSaving && (e.currentTarget.style.backgroundColor = '#1d4ed8')}
+                                    onMouseOut={(e) => !isSaving && (e.currentTarget.style.backgroundColor = '#2563eb')}
                                 >
-                                    Save Request Log
+                                    {isSaving ? "Saving..." : "Save Request Log"}
                                 </button>
                             </form>
                         </div>
