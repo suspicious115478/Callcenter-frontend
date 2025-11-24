@@ -31,7 +31,7 @@ export default function UserDashboardPage() {
         setIsSaving(true);
 
         try {
-            // --- LIVE BACKEND CALL RE-ENABLED ---
+            // --- LIVE BACKEND CALL ---
             const response = await fetch(`${BACKEND_URL}api/logs/save`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -47,22 +47,28 @@ export default function UserDashboardPage() {
             if (!response.ok) {
                 // If response is not ok, read the response body as text to get error details
                 const errorDetail = await response.text();
-                throw new Error(`Server Error (${response.status}): ${errorDetail.substring(0, 100)}...`);
+                // Check if the server provided a useful error message, otherwise default.
+                const errorMessage = errorDetail ? errorDetail.substring(0, 100) : "No error details provided.";
+                throw new Error(`Server Error (${response.status}): ${errorMessage}...`);
             }
 
-            // 2. Safely attempt to parse JSON response
+            // 2. Safely handle JSON parsing or empty body
             let result;
-            try {
-                // Check for empty body before trying to parse (common for 204 No Content, but sometimes sent on 200)
-                const text = await response.text();
-                if (!text) {
-                    throw new Error("Received a successful status code but the response body was empty.");
-                }
-                result = JSON.parse(text);
+            const text = await response.text();
 
-            } catch (e) {
-                // Catches the 'Unexpected end of JSON input' or the custom empty body error
-                throw new Error(`Response data error: ${e.message}`);
+            if (!text) {
+                // IMPORTANT FIX: If the response is successful (response.ok is true) 
+                // but the body is empty (e.g., 204 No Content or a successful Supabase INSERT), 
+                // we assume the save was successful and mock the required success object.
+                result = { success: true, message: "No content returned, assuming successful save." };
+                console.warn("Received successful status with empty body. Assuming success and proceeding.");
+            } else {
+                // If content exists, attempt to parse it as JSON
+                try {
+                    result = JSON.parse(text);
+                } catch (e) {
+                    throw new Error(`Invalid JSON format in response: ${e.message}`);
+                }
             }
             // --- END LIVE BACKEND CALL ---
             
@@ -73,6 +79,7 @@ export default function UserDashboardPage() {
                 // SUCCESS ACTION: Redirect to the new User Services page
                 window.location.href = `/user/services/${phoneNumber}?category=${category}&notes=${encodedNotes}`; 
             } else {
+                // Handle cases where the server returned JSON but with success: false
                 console.error("Failed to save log:", result.message);
                 setError("❌ Failed to save log: " + (result.message || "Unknown error occurred."));
             }
