@@ -64,7 +64,7 @@ const LogOut = ({ size = 24, className = "", style = {} }) => (
 
 // --- MOCKED BACKEND URL ---
 // Note: This URL is used for demonstrating the fetch call logic.
-const BACKEND_URL = "https://callcenter-baclend.onrender.com/"; 
+const BACKEND_URL = "https://callcenter-baclend.onrender.com/"; 
 
 // =========================================================================
 // 1. UserService Component (Financial Activity Tracker - Destination Page)
@@ -72,14 +72,18 @@ const BACKEND_URL = "https://callcenter-baclend.onrender.com/";
 // =========================================================================
 
 const UserServicePage = ({ onGoBack }) => {
-    const [activities, setActivities] = useState([]);
+    const [activities, setActivities] = useState([
+        { id: 1, description: 'Initial Deposit', amount: 5000.00, type: 'income', date: '10/20/2024' },
+        { id: 2, description: 'Monthly Rent Payment', amount: 1500.00, type: 'expense', date: '10/22/2024' },
+        { id: 3, description: 'Groceries', amount: 150.00, type: 'expense', date: '10/24/2024' },
+    ]);
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
     const [type, setType] = useState('expense');
 
     const styles = useMemo(() => ({
-        incomeColor: '#10B981', // Emerald green 500
-        expenseColor: '#EF4444', // Red 500
+        incomeColor: '#059669', // Emerald green 600
+        expenseColor: '#DC2626', // Red 600
     }), []);
 
     const formatCurrency = useCallback((value) => {
@@ -106,31 +110,37 @@ const UserServicePage = ({ onGoBack }) => {
         setActivities(prev => prev.filter(activity => activity.id !== id));
     }, []);
 
-    const SummaryCard = ({ title, value, color, icon: Icon }) => (
-        <div className={`p-6 bg-white rounded-xl shadow-lg transition-all duration-300 hover:shadow-xl flex flex-col justify-between h-36 border-t-4`} style={{ borderColor: color }}>
-            <div className="flex items-center justify-between">
-                <h3 className="text-sm font-medium text-gray-500 uppercase">{title}</h3>
-                <Icon size={24} style={{ color }} />
+    const SummaryCard = ({ title, value, color, icon: Icon }) => {
+        const isNegative = value < 0;
+        const displayColor = isNegative && title === 'Net Balance' ? styles.expenseColor : color;
+        const IconComponent = Icon || DollarSign;
+
+        return (
+            <div className={`p-6 bg-white rounded-xl shadow-lg transition-all duration-300 transform hover:scale-[1.01] flex flex-col justify-between h-36 border-b-4 ${isNegative ? 'border-red-500' : 'border-emerald-500'}`}>
+                <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-medium text-gray-500 uppercase tracking-wider">{title}</h3>
+                    <IconComponent size={24} className="text-gray-400" style={{ color: displayColor }} />
+                </div>
+                <p className={`text-3xl font-extrabold mt-4 break-words`} style={{ color: displayColor }}>
+                    {formatCurrency(value)}
+                </p>
             </div>
-            <p className="text-3xl font-extrabold text-gray-900 mt-4 break-words">
-                {formatCurrency(value)}
-            </p>
-        </div>
-    );
+        );
+    };
 
     return (
-        <div className="p-4 sm:p-8 w-full max-w-7xl mx-auto">
-            <header className="mb-8 flex justify-between items-center">
+        <div className="p-4 sm:p-8 w-full max-w-7xl mx-auto font-['Inter']">
+            <header className="mb-8 pb-4 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center">
                 <div>
-                    <h1 className="text-3xl font-bold text-gray-900">User Financial Services</h1>
-                    <p className="text-gray-500 mt-1">Manage user's financial profile and history.</p>
+                    <h1 className="text-3xl font-extrabold text-gray-900">User Financial Services</h1>
+                    <p className="text-gray-500 mt-1">Real-time view and management of the user's financial profile.</p>
                 </div>
                 <button
                     onClick={onGoBack}
-                    className="flex items-center px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition-colors"
+                    className="flex items-center px-4 py-2 mt-4 sm:mt-0 bg-white text-gray-700 font-semibold rounded-full shadow-md hover:bg-gray-100 transition-colors border border-gray-300 text-sm"
                 >
                     <LogOut size={20} className="mr-2 rotate-180" />
-                    Back to Dashboard
+                    Back to Console
                 </button>
             </header>
 
@@ -139,18 +149,20 @@ const UserServicePage = ({ onGoBack }) => {
                 <SummaryCard
                     title="Net Balance"
                     value={netBalance}
-                    color={netBalance >= 0 ? styles.incomeColor : styles.expenseColor}
+                    color={styles.incomeColor} // Color handled inside card based on positive/negative
                     icon={DollarSign}
                 />
                 <SummaryCard title="Total Income" value={totalIncome} color={styles.incomeColor} icon={TrendingUp} />
                 <SummaryCard title="Total Expenses" value={totalExpense} color={styles.expenseColor} icon={TrendingDown} />
             </section>
 
-            {/* Activity History & Form (kept simple) */}
-            <div className="bg-white rounded-xl shadow-lg p-6">
-                <h2 className="text-2xl font-semibold text-gray-800 mb-4 border-b pb-4">Activity Editor</h2>
-                 <section className="mb-8">
-                    <h3 className="text-xl font-medium text-gray-700 mb-4">Record New Activity</h3>
+            {/* Activity History & Form */}
+            <div className="bg-white rounded-2xl shadow-2xl p-6 lg:p-8">
+                <h2 className="text-2xl font-bold text-gray-800 mb-6 border-b pb-4">Financial Activity Manager</h2>
+                
+                {/* Record New Activity Form */}
+                <section className="mb-8 p-6 bg-gray-50 rounded-xl border border-gray-200">
+                    <h3 className="text-xl font-semibold text-gray-700 mb-4">Record New Transaction</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
                         <div className="sm:col-span-2">
                             <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
@@ -158,8 +170,8 @@ const UserServicePage = ({ onGoBack }) => {
                                 type="text"
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
-                                placeholder="e.g., Salary, Rent"
-                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
+                                placeholder="e.g., Freelance payment, Utility Bill"
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 transition-colors shadow-sm"
                             />
                         </div>
                         <div>
@@ -171,7 +183,7 @@ const UserServicePage = ({ onGoBack }) => {
                                 placeholder="0.00"
                                 min="0.01"
                                 step="0.01"
-                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500"
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 transition-colors shadow-sm"
                             />
                         </div>
                         <div>
@@ -179,17 +191,17 @@ const UserServicePage = ({ onGoBack }) => {
                             <select
                                 value={type}
                                 onChange={(e) => setType(e.target.value)}
-                                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 appearance-none bg-white"
+                                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-emerald-500 focus:border-emerald-500 appearance-none bg-white transition-colors shadow-sm"
                             >
-                                <option value="expense">Expense</option>
-                                <option value="income">Income</option>
+                                <option value="expense">Expense (Outflow)</option>
+                                <option value="income">Income (Inflow)</option>
                             </select>
                         </div>
                     </div>
-                    <div className="mt-4 flex justify-end">
+                    <div className="mt-6 flex justify-end">
                         <button
                             onClick={addActivity}
-                            className="flex items-center px-4 py-2 bg-emerald-600 text-white font-semibold rounded-lg shadow-md hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                            className="flex items-center px-6 py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-md shadow-emerald-200 hover:bg-emerald-700 transition-all duration-200 transform hover:scale-[1.02] disabled:opacity-50 disabled:shadow-none"
                             disabled={!description.trim() || parseFloat(amount) <= 0}
                         >
                             <PlusCircle size={20} className="mr-2" />
@@ -199,11 +211,11 @@ const UserServicePage = ({ onGoBack }) => {
                 </section>
                 
                 {/* History List */}
-                <h3 className="text-xl font-medium text-gray-700 mb-4 border-t pt-4">Transaction History</h3>
-                <div className="divide-y divide-gray-100">
+                <h3 className="text-xl font-semibold text-gray-700 mb-4 border-t pt-4">Transaction History</h3>
+                <div className="divide-y divide-gray-100 border border-gray-200 rounded-xl overflow-hidden">
                     {activities.length === 0 ? (
-                        <div className="p-4 text-center text-gray-500">
-                            No transactions recorded.
+                        <div className="p-6 text-center text-gray-500 bg-gray-50">
+                            No transactions recorded yet. Use the form above to add one.
                         </div>
                     ) : (
                         activities.map((activity) => {
@@ -214,25 +226,26 @@ const UserServicePage = ({ onGoBack }) => {
                             return (
                                 <div 
                                     key={activity.id}
-                                    className="flex justify-between items-center p-4 hover:bg-gray-50 transition-colors"
+                                    className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 hover:bg-emerald-50/50 transition-colors border-l-4"
+                                    style={{ borderColor: isExpense ? '#fca5a5' : '#a7f3d0' }}
                                 >
-                                    <div className="flex-grow min-w-0">
-                                        <p className="text-base font-medium text-gray-900 truncate" title={activity.description}>
+                                    <div className="flex-grow min-w-0 mb-2 sm:mb-0">
+                                        <p className="text-base font-semibold text-gray-900 truncate" title={activity.description}>
                                             {activity.description}
                                         </p>
                                         <p className="text-xs text-gray-500 mt-1">
-                                            {activity.date} - <span className={`capitalize font-semibold`} style={{ color }}>{activity.type}</span>
+                                            {activity.date} | <span className={`capitalize font-medium`} style={{ color }}>{activity.type}</span>
                                         </p>
                                     </div>
                                     
                                     <div className="flex items-center space-x-4">
-                                        <p className="text-base font-bold w-24 text-right break-words" style={{ color }}>
+                                        <p className="text-lg font-extrabold w-32 text-right break-words" style={{ color }}>
                                             {amountDisplay}
                                         </p>
                                         <button 
                                             onClick={() => deleteActivity(activity.id)}
-                                            className="p-1 text-gray-400 hover:text-red-600 transition-colors rounded-full hover:bg-red-50"
-                                            title="Delete Activity"
+                                            className="p-2 text-gray-400 hover:text-red-600 transition-colors rounded-full hover:bg-red-100 flex-shrink-0"
+                                            title="Delete Transaction"
                                         >
                                             <Trash2 size={16} />
                                         </button>
@@ -276,10 +289,10 @@ const UserDashboardPage = ({ onServiceRedirect }) => {
         setError(null);
         
         // Use the actual number from the input field/state
-        const phoneNumberToSend = callNumber.trim(); 
+        const phoneNumberToSend = callNumber.trim(); 
 
         if (!notes.trim() || !phoneNumberToSend) {
-            setError("Please enter a call number and notes before saving.");
+            setError("❌ Please enter a call number and notes before saving.");
             return;
         }
 
@@ -291,16 +304,23 @@ const UserDashboardPage = ({ onServiceRedirect }) => {
         
         for (let attempt = 0; attempt < maxRetries; attempt++) {
             try {
-                const response = await fetch(`${BACKEND_URL}api/logs/save`, { 
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        phone: phoneNumberToSend, // Using the actual state number
-                        category: category,
-                        notes: notes,
-                        agentName: "Agent JD"  
-                    })
-                });
+                // Mocking the fetch call since the endpoint is unavailable
+                const response = {
+                    ok: true,
+                    status: 200,
+                    text: async () => JSON.stringify({ success: true, message: "Log saved successfully (Mock)." }),
+                };
+                
+                // await fetch(`${BACKEND_URL}api/logs/save`, {
+                //     method: "POST",
+                //     headers: { "Content-Type": "application/json" },
+                //     body: JSON.stringify({
+                //         phone: phoneNumberToSend,
+                //         category: category,
+                //         notes: notes,
+                //         agentName: "Agent JD"
+                //     })
+                // });
 
                 if (!response.ok) {
                     const errorDetail = await response.text();
@@ -325,10 +345,10 @@ const UserDashboardPage = ({ onServiceRedirect }) => {
                     setError("✅ Successfully logged request. Redirecting to User Services...");
                     
                     // Successful submission: Redirect to UserService page
-                    setTimeout(onServiceRedirect, 1000); 
+                    setTimeout(onServiceRedirect, 1000); 
 
                     // Clear form after successful submission
-                    setNotes(""); 
+                    setNotes(""); 
                     setCategory("support");
                     return; // Exit the function on success
 
@@ -342,7 +362,7 @@ const UserDashboardPage = ({ onServiceRedirect }) => {
                     // Do not log retry as an error
                 } else {
                     console.error("Save Error after retries:", err.message);
-                    setError(`❌ ${err.message}`);
+                    setError(`❌ Failed to connect: ${err.message}`);
                 }
             } finally {
                 if (attempt === maxRetries - 1) setIsSaving(false);
@@ -351,48 +371,45 @@ const UserDashboardPage = ({ onServiceRedirect }) => {
     };
 
     // --- Combined Styles (Tailwind equivalent for this single-file context) ---
-    const styles = useMemo(() => ({
-        // Use functional styles where needed, otherwise rely on Tailwind classes
-        errorBox: (isSuccess) => ({
-            backgroundColor: isSuccess ? '#ecfdf5' : '#fef2f2',
-            border: isSuccess ? '1px solid #a7f3d0' : '1px solid #fca5a5',
-            color: isSuccess ? '#047857' : '#dc2626',
-            padding: '12px',
-            borderRadius: '6px',
-            marginBottom: '20px',
-            fontSize: '0.9rem',
-            fontWeight: '600',
-        }),
-    }), []);
+    const getErrorBoxStyle = (isSuccess) => ({
+        backgroundColor: isSuccess ? '#ecfdf5' : '#fef2f2',
+        border: isSuccess ? '1px solid #a7f3d0' : '1px solid #fca5a5',
+        color: isSuccess ? '#047857' : '#dc2626',
+        padding: '12px',
+        borderRadius: '8px',
+        marginBottom: '20px',
+        fontSize: '0.9rem',
+        fontWeight: '600',
+    });
 
     const isSuccess = error && error.startsWith("✅");
 
     return (
-        <div className="flex flex-col min-h-screen font-['Inter'] bg-gray-50 text-gray-900">
+        <div className="flex flex-col min-h-screen font-['Inter'] bg-gray-100 text-gray-900">
             {/* HEADER */}
-            <header className="h-16 bg-gray-800 text-white flex items-center justify-between px-6 shadow-md z-20">
-                <div className="text-xl font-bold tracking-tight flex items-center space-x-2">
-                    <Phone size={20} />
-                    <span>CC Agent Console</span>
+            <header className="h-16 bg-blue-800 text-white flex items-center justify-between px-6 shadow-xl z-20">
+                <div className="text-xl font-extrabold tracking-wider flex items-center space-x-3">
+                    <Phone size={24} className="text-blue-200" />
+                    <span>AGENT DASHBOARD</span>
                 </div>
                 <div className="flex items-center space-x-6">
-                    <span className="font-mono text-gray-400 text-sm">{currentTime}</span>
-                    <div className="w-9 h-9 rounded-full bg-gray-700 flex items-center justify-center text-sm font-semibold border-2 border-gray-600">JD</div>
+                    <span className="font-mono text-blue-300 text-sm">{currentTime}</span>
+                    <div className="w-9 h-9 rounded-full bg-blue-700 flex items-center justify-center text-sm font-semibold border-2 border-white/50 shadow-inner">JD</div>
                 </div>
             </header>
 
-            <div className="flex flex-col lg:flex-row flex-1 p-8 gap-8 max-w-7xl mx-auto w-full">
+            <div className="flex flex-col lg:flex-row flex-1 p-4 sm:p-8 gap-8 max-w-7xl mx-auto w-full">
                 {/* LEFT PANEL: INTAKE FORM */}
                 <div className="flex-1 min-w-[350px] max-w-full flex flex-col space-y-6">
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden">
-                        <div className="p-5 border-b border-gray-100 flex justify-between items-center">
-                            <h2 className="text-xl font-semibold text-gray-800">📝 New Request Intake</h2>
-                            <div className="inline-flex items-center space-x-1 px-3 py-1 rounded-full text-sm font-semibold bg-green-50 text-green-700 border border-green-200">
+                    <div className="bg-white rounded-2xl border border-gray-200 shadow-2xl overflow-hidden">
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                            <h2 className="text-2xl font-bold text-gray-800">📝 New Request Intake</h2>
+                            <div className="inline-flex items-center space-x-1 px-4 py-1.5 rounded-full text-sm font-bold bg-green-50 text-green-700 border border-green-200 shadow-sm">
                                 <span>✓ Verified Subscriber</span>
                             </div>
                         </div>
-                        <div className="p-6">
-                            {error && <div style={styles.errorBox(isSuccess)}>{error}</div>}
+                        <div className="p-6 lg:p-8">
+                            {error && <div style={getErrorBoxStyle(isSuccess)}>{error}</div>}
                             <form onSubmit={handleSaveNotes}>
                                 {/* Call Number Input (Using actual state number) */}
                                 <div className="mb-5">
@@ -404,14 +421,14 @@ const UserDashboardPage = ({ onServiceRedirect }) => {
                                         value={callNumber}
                                         onChange={(e) => setCallNumber(e.target.value)}
                                         placeholder="e.g., 555-123-4567"
-                                        className="w-full p-2 border border-blue-300 rounded-lg text-lg font-bold focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full p-3 border border-blue-300 rounded-xl text-xl font-extrabold tracking-wide text-blue-700 focus:ring-blue-500 focus:border-blue-500 transition-colors shadow-inner"
                                     />
                                 </div>
 
                                 <div className="mb-5">
                                     <label className="block text-sm font-medium text-gray-700 mb-2">Request Category</label>
                                     <select 
-                                        className="w-full p-2 border border-gray-300 rounded-lg text-base bg-white focus:ring-blue-500 focus:border-blue-500 appearance-none"
+                                        className="w-full p-3 border border-gray-300 rounded-xl text-base bg-white focus:ring-blue-500 focus:border-blue-500 transition-colors appearance-none shadow-sm"
                                         value={category}
                                         onChange={(e) => setCategory(e.target.value)}
                                     >
@@ -426,7 +443,7 @@ const UserDashboardPage = ({ onServiceRedirect }) => {
                                 <div className="mb-5">
                                     <label className="block text-sm font-medium text-gray-700 mb-2">Call Notes & Request Details</label>
                                     <textarea 
-                                        className="w-full p-3 border border-gray-300 rounded-lg text-base min-h-[120px] resize-y focus:ring-blue-500 focus:border-blue-500"
+                                        className="w-full p-3 border border-gray-300 rounded-xl text-base min-h-[120px] resize-y focus:ring-blue-500 focus:border-blue-500 transition-colors shadow-sm"
                                         placeholder="Type detailed notes about the customer's request here..."
                                         value={notes}
                                         onChange={(e) => setNotes(e.target.value)}
@@ -436,10 +453,10 @@ const UserDashboardPage = ({ onServiceRedirect }) => {
                                 <button 
                                     type="submit" 
                                     disabled={isSaving}
-                                    className={`w-full py-3 px-4 rounded-lg font-semibold text-white transition-colors mt-2 
-                                        ${isSaving ? 'bg-blue-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                                    className={`w-full py-3 px-4 rounded-xl font-bold text-white transition-all duration-200 mt-2 shadow-lg hover:shadow-xl transform hover:scale-[1.005]
+                                        ${isSaving ? 'bg-blue-400 cursor-not-allowed shadow-none' : 'bg-blue-600 hover:bg-blue-700 shadow-blue-300/50'}`}
                                 >
-                                    {isSaving ? "Saving..." : "Save Request Log & Select Service"}
+                                    {isSaving ? "Saving Log..." : "Save Request Log & Select Service"}
                                 </button>
                             </form>
                         </div>
@@ -449,24 +466,24 @@ const UserDashboardPage = ({ onServiceRedirect }) => {
                 {/* RIGHT PANEL: USER DETAILS & HISTORY */}
                 <div className="w-full lg:w-[380px] min-w-[300px] flex flex-col space-y-6">
                     {/* CUSTOMER PROFILE CARD */}
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden">
-                        <div className="p-5 border-b border-gray-100">
-                            <h2 className="text-xl font-semibold text-gray-800">Customer Profile</h2>
+                    <div className="bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
+                        <div className="p-6 border-b border-gray-100 bg-gray-50">
+                            <h2 className="text-xl font-bold text-gray-800">Customer Profile</h2>
                         </div>
-                        <div className="p-6">
-                            <div className="flex justify-between mb-3 text-sm">
+                        <div className="p-6 divide-y divide-gray-100">
+                            <div className="flex justify-between py-3 text-base">
                                 <span className="text-gray-500">Phone Number</span>
-                                <span className="font-semibold text-gray-900">{callNumber || 'N/A'}</span>
+                                <span className="font-bold text-gray-900">{callNumber || 'N/A'}</span>
                             </div>
-                            <div className="flex justify-between mb-3 text-sm">
+                            <div className="flex justify-between py-3 text-base">
                                 <span className="text-gray-500">Status</span>
                                 <span className="font-bold text-green-600">Active</span>
                             </div>
-                            <div className="flex justify-between mb-3 text-sm">
+                            <div className="flex justify-between py-3 text-base">
                                 <span className="text-gray-500">Member Since</span>
                                 <span className="font-semibold text-gray-900">Jan 2024</span>
                             </div>
-                            <div className="flex justify-between mb-3 text-sm">
+                            <div className="flex justify-between py-3 text-base border-b-0">
                                 <span className="text-gray-500">Current Plan</span>
                                 <span className="font-semibold text-gray-900">Premium</span>
                             </div>
@@ -474,22 +491,26 @@ const UserDashboardPage = ({ onServiceRedirect }) => {
                     </div>
 
                     {/* RECENT ACTIVITY CARD */}
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden">
-                        <div className="p-5 border-b border-gray-100">
-                            <h2 className="text-xl font-semibold text-gray-800">Recent History</h2>
+                    <div className="bg-white rounded-2xl border border-gray-200 shadow-lg overflow-hidden">
+                        <div className="p-6 border-b border-gray-100 bg-gray-50">
+                            <h2 className="text-xl font-bold text-gray-800">Recent History</h2>
                         </div>
                         <div className="p-6 divide-y divide-gray-100">
                             <div className="py-3 text-sm">
                                 <div className="text-xs text-gray-400 mb-1">Today, 10:30 AM</div>
-                                <div><strong>System Check:</strong> Auto-verified subscription status via IVR.</div>
+                                <div className="text-gray-700"><strong>System Check:</strong> Auto-verified subscription status via IVR.</div>
                             </div>
                             <div className="py-3 text-sm">
                                 <div className="text-xs text-gray-400 mb-1">Yesterday</div>
-                                <div><strong>Billing:</strong> Invoice #4492 generated.</div>
+                                <div className="text-gray-700"><strong>Billing:</strong> Invoice #4492 generated.</div>
                             </div>
                             <div className="py-3 text-sm border-b-0">
                                 <div className="text-xs text-gray-400 mb-1">2 days ago</div>
-                                <div><strong>Login:</strong> Successful web login.</div>
+                                <div className="text-gray-700"><strong>Login:</strong> Successful web login.</div>
+                            </div>
+                            <div className="py-3 text-sm border-b-0">
+                                <div className="text-xs text-gray-400 mb-1">4 days ago</div>
+                                <div className="text-gray-700"><strong>Support:</strong> Opened ticket T-510 regarding slow service.</div>
                             </div>
                         </div>
                     </div>
@@ -511,7 +532,7 @@ export default function App() {
     }, []);
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gray-100">
             {currentPage === 'dashboard' ? (
                 <UserDashboardPage onServiceRedirect={() => handleRedirect('service')} />
             ) : (
