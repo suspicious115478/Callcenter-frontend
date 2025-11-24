@@ -1,15 +1,319 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 
 export default function UserDashboardPage() {
     const { phoneNumber } = useParams();
+    const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
     
+    // Form state for call notes
+    const [notes, setNotes] = useState("");
+    const [category, setCategory] = useState("support");
+
+    useEffect(() => {
+        const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
+        return () => clearInterval(timer);
+    }, []);
+
+    const handleSaveNotes = (e) => {
+        e.preventDefault();
+        alert(`Notes saved for ${phoneNumber}:\n[${category.toUpperCase()}] ${notes}`);
+        // Here you would typically send this data to your backend
+    };
+
+    // --- INLINE STYLES ---
+    const styles = {
+        container: {
+            display: 'flex',
+            flexDirection: 'column',
+            height: '100vh',
+            fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            backgroundColor: '#f3f4f6',
+            color: '#111827',
+        },
+        header: {
+            height: '64px',
+            backgroundColor: '#1f2937',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0 24px',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+            zIndex: 20,
+        },
+        brand: {
+            fontSize: '1.25rem',
+            fontWeight: '700',
+            letterSpacing: '-0.025em',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+        },
+        headerRight: {
+            display: 'flex',
+            alignItems: 'center',
+            gap: '24px',
+        },
+        clock: {
+            fontFamily: 'monospace',
+            color: '#9ca3af',
+            fontSize: '0.95rem',
+        },
+        avatar: {
+            width: '36px',
+            height: '36px',
+            borderRadius: '50%',
+            backgroundColor: '#374151',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '0.875rem',
+            fontWeight: '600',
+            border: '2px solid #4b5563',
+        },
+        main: {
+            display: 'flex',
+            flex: 1,
+            overflow: 'hidden',
+            padding: '32px',
+            gap: '32px',
+        },
+        leftPanel: {
+            flex: '1',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '24px',
+        },
+        rightPanel: {
+            width: '380px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '24px',
+        },
+        card: {
+            backgroundColor: 'white',
+            borderRadius: '12px',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
+            overflow: 'hidden',
+        },
+        cardHeader: {
+            padding: '20px',
+            borderBottom: '1px solid #e5e7eb',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+        },
+        cardTitle: {
+            fontSize: '1.125rem',
+            fontWeight: '600',
+            color: '#111827',
+            margin: 0,
+        },
+        cardBody: {
+            padding: '24px',
+        },
+        verifiedBadge: {
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            padding: '6px 12px',
+            borderRadius: '9999px',
+            fontSize: '0.875rem',
+            fontWeight: '600',
+            backgroundColor: '#ecfdf5',
+            color: '#047857',
+            border: '1px solid #a7f3d0',
+        },
+        detailRow: {
+            display: 'flex',
+            justifyContent: 'space-between',
+            marginBottom: '12px',
+            fontSize: '0.95rem',
+        },
+        detailLabel: {
+            color: '#6b7280',
+        },
+        detailValue: {
+            fontWeight: '600',
+            color: '#111827',
+        },
+        formGroup: {
+            marginBottom: '20px',
+        },
+        label: {
+            display: 'block',
+            fontSize: '0.875rem',
+            fontWeight: '500',
+            color: '#374151',
+            marginBottom: '8px',
+        },
+        input: {
+            width: '100%',
+            padding: '10px',
+            borderRadius: '6px',
+            border: '1px solid #d1d5db',
+            fontSize: '0.95rem',
+            outline: 'none',
+            transition: 'border-color 0.2s',
+        },
+        textarea: {
+            width: '100%',
+            padding: '12px',
+            borderRadius: '6px',
+            border: '1px solid #d1d5db',
+            fontSize: '0.95rem',
+            minHeight: '120px',
+            resize: 'vertical',
+            outline: 'none',
+            fontFamily: 'inherit',
+        },
+        select: {
+            width: '100%',
+            padding: '10px',
+            borderRadius: '6px',
+            border: '1px solid #d1d5db',
+            fontSize: '0.95rem',
+            backgroundColor: 'white',
+        },
+        saveButton: {
+            backgroundColor: '#2563eb',
+            color: 'white',
+            border: 'none',
+            padding: '12px 24px',
+            borderRadius: '8px',
+            fontWeight: '600',
+            cursor: 'pointer',
+            transition: 'background-color 0.2s',
+            width: '100%',
+        },
+        activityItem: {
+            padding: '12px 0',
+            borderBottom: '1px solid #f3f4f6',
+            fontSize: '0.9rem',
+        },
+        activityTime: {
+            fontSize: '0.75rem',
+            color: '#9ca3af',
+            marginBottom: '4px',
+        }
+    };
+
     return (
-        <div>
-            <h1>Verified User Dashboard</h1>
-            <p>Welcome, Agent! Displaying details for verified user:</p>
-            <p>Phone Number: <strong>{phoneNumber}</strong></p>
-            {/* Add user info, subscription status, history lookup, etc. here */}
+        <div style={styles.container}>
+            {/* HEADER */}
+            <header style={styles.header}>
+                <div style={styles.brand}>
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                    </svg>
+                    <span>CC Agent Console</span>
+                </div>
+                <div style={styles.headerRight}>
+                    <span style={styles.clock}>{currentTime}</span>
+                    <div style={styles.avatar}>JD</div>
+                </div>
+            </header>
+
+            <div style={styles.main}>
+                {/* LEFT PANEL: INTAKE FORM */}
+                <div style={styles.leftPanel}>
+                    <div style={styles.card}>
+                        <div style={styles.cardHeader}>
+                            <h2 style={styles.cardTitle}>📝 New Request Intake</h2>
+                            <div style={styles.verifiedBadge}>
+                                <span>✓ Verified Subscriber</span>
+                            </div>
+                        </div>
+                        <div style={styles.cardBody}>
+                            <form onSubmit={handleSaveNotes}>
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>Request Category</label>
+                                    <select 
+                                        style={styles.select}
+                                        value={category}
+                                        onChange={(e) => setCategory(e.target.value)}
+                                    >
+                                        <option value="support">Technical Support</option>
+                                        <option value="billing">Billing Inquiry</option>
+                                        <option value="upgrade">Plan Upgrade</option>
+                                        <option value="cancellation">Cancellation Request</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+
+                                <div style={styles.formGroup}>
+                                    <label style={styles.label}>Call Notes & Request Details</label>
+                                    <textarea 
+                                        style={styles.textarea}
+                                        placeholder="Type detailed notes about the customer's request here..."
+                                        value={notes}
+                                        onChange={(e) => setNotes(e.target.value)}
+                                    />
+                                </div>
+
+                                <button 
+                                    type="submit" 
+                                    style={styles.saveButton}
+                                    onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
+                                    onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+                                >
+                                    Save Request Log
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                {/* RIGHT PANEL: USER DETAILS & HISTORY */}
+                <div style={styles.rightPanel}>
+                    {/* CUSTOMER PROFILE CARD */}
+                    <div style={styles.card}>
+                        <div style={styles.cardHeader}>
+                            <h2 style={styles.cardTitle}>Customer Profile</h2>
+                        </div>
+                        <div style={styles.cardBody}>
+                            <div style={styles.detailRow}>
+                                <span style={styles.detailLabel}>Phone Number</span>
+                                <span style={styles.detailValue}>{phoneNumber}</span>
+                            </div>
+                            <div style={styles.detailRow}>
+                                <span style={styles.detailLabel}>Status</span>
+                                <span style={{color: '#059669', fontWeight: '700'}}>Active</span>
+                            </div>
+                            <div style={styles.detailRow}>
+                                <span style={styles.detailLabel}>Member Since</span>
+                                <span style={styles.detailValue}>Jan 2024</span>
+                            </div>
+                            <div style={styles.detailRow}>
+                                <span style={styles.detailLabel}>Current Plan</span>
+                                <span style={styles.detailValue}>Premium</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* RECENT ACTIVITY CARD */}
+                    <div style={styles.card}>
+                        <div style={styles.cardHeader}>
+                            <h2 style={styles.cardTitle}>Recent History</h2>
+                        </div>
+                        <div style={styles.cardBody}>
+                            <div style={styles.activityItem}>
+                                <div style={styles.activityTime}>Today, 10:30 AM</div>
+                                <div><strong>System Check:</strong> Auto-verified subscription status via IVR.</div>
+                            </div>
+                            <div style={styles.activityItem}>
+                                <div style={styles.activityTime}>Yesterday</div>
+                                <div><strong>Billing:</strong> Invoice #4492 generated.</div>
+                            </div>
+                            <div style={styles.activityItem}>
+                                <div style={{...styles.activityTime, marginBottom: 0}}>2 days ago</div>
+                                <div><strong>Login:</strong> Successful web login.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     );
 }
