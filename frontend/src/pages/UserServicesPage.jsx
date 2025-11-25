@@ -1,160 +1,283 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 
-// --- INLINE SVG ICONS (Replaces lucide-react) ---
-const WrenchIcon = (props) => (
-  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94-7.94l-3.76 3.76a1 1 0 0 0 0 1.4l2.22 2.22"></path><path d="m20.7 15.3-2.2-2.2a1 1 0 0 0-1.4 0l-1.6 1.6a1 1 0 0 0 0 1.4l3.77 3.77a6 6 0 0 0 7.94-7.94l-3.76-3.76"></path></svg>
-);
-const DropletsIcon = (props) => (
-  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.68 12.68a2 2 0 0 0-2.83 0L7 15.5l-4.5 4.5A2 2 0 0 0 5 22h14a2 2 0 0 0 2-2L19 15.5l-2.83-2.82a2 2 0 0 0 0-2.83Z"></path><path d="M16 8h.01"></path><path d="M8 8h.01"></path><path d="M12 4h.01"></path></svg>
-);
-const LeafIcon = (props) => (
-  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 20A7 7 0 0 1 9.87 5.25c-.08-.34-.1-.7-.15-1.05A21.1 21.1 0 0 0 4.15 4c-1.37.15-2.06 1.76-1.39 2.87A11.4 11.4 0 0 0 12 20Z"></path><path d="M18.8 11.2a12.8 12.8 0 0 0-4.6-7.8c-1.35-.9-3.07-.6-4.14.73A15 15 0 0 0 7 6.4c1.2.66 2.37 1.47 3.49 2.4l.65.57 3.2 2.83c1.07.94 2.2 1.8 3.3 2.5a3.6 3.6 0 0 0 2.92.2 2.6 2.6 0 0 0 1.25-1.48c.37-1.3-.87-2.3-2.17-2.7Z"></path><path d="M12 20c-1.3 0-2.58-.45-3.6-1.37"></path><path d="M16.96 15.96a2.6 2.6 0 0 0 1.14-.9c.4-.64.7-1.3.88-2"></path></svg>
-);
-const HammerIcon = (props) => (
-  <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m10.2 14.8-6.94 6.94a2 2 0 0 1-2.83 0L3 21a2 2 0 0 0 2.83 0l6.94-6.94a2 2 0 0 0 0-2.83l-6.94-6.94a2 2 0 0 1 0-2.83L14.8 1.2a2 2 0 0 0-2.83-2.83L4 12.8a2 2 0 0 1 0 2.83l6.94 6.94"></path><path d="M14.8 10.2a2 2 0 0 0 2.83 0l6.94-6.94a2 2 0 0 0 0-2.83L14.8 1.2a2 2 0 0 1 0-2.83l6.94-6.94"></path></svg>
-);
-const PhoneIcon = (props) => (
-    <svg {...props} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-    </svg>
-);
-// --- END ICONS ---
+// Using Emojis instead of custom SVG components
+const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>; // Placeholder for header icon
 
 // Define the services available for the user
 const SERVICES = [
-  { name: 'Electrician', icon: WrenchIcon, color: 'bg-yellow-500', iconColor: 'text-yellow-800', description: 'Wiring, circuit repairs, and fixture installation.' },
-  { name: 'Plumber', icon: DropletsIcon, color: 'bg-blue-500', iconColor: 'text-blue-800', description: 'Leaky pipes, drain cleaning, and water system fixes.' },
-  { name: 'Gardener', icon: LeafIcon, color: 'bg-green-500', iconColor: 'text-green-800', description: 'Lawn care, planting, and landscape maintenance.' },
-  { name: 'Carpenter', icon: HammerIcon, color: 'bg-amber-600', iconColor: 'text-amber-900', description: 'Woodworking, furniture repair, and structural framing.' },
-  { name: 'Appliance Repair', icon: WrenchIcon, color: 'bg-red-500', iconColor: 'text-red-800', description: 'Fixing household appliances like washing machines and refrigerators.' },
-  { name: 'HVAC Technician', icon: DropletsIcon, color: 'bg-sky-500', iconColor: 'text-sky-800', description: 'Heating, ventilation, and air conditioning services.' },
+  // Emojis for service icons
+  { name: 'Electrician', icon: '⚡', color: '#fcd34d', darkColor: '#b45309', description: 'Wiring, circuit repairs, and fixture installation.' }, // Amber/Yellow
+  { name: 'Plumber', icon: '💧', color: '#60a5fa', darkColor: '#1d4ed8', description: 'Leaky pipes, drain cleaning, and water system fixes.' }, // Blue
+  { name: 'Gardener', icon: '🌳', color: '#86efac', darkColor: '#15803d', description: 'Lawn care, planting, and landscape maintenance.' }, // Green
+  { name: 'Carpenter', icon: '🔨', color: '#f97316', darkColor: '#7c2d12', description: 'Woodworking, furniture repair, and structural framing.' }, // Orange
+  { name: 'Appliance Repair', icon: '🔧', color: '#fca5a5', darkColor: '#b91c1c', description: 'Fixing household appliances like washing machines and refrigerators.' }, // Red
+  { name: 'HVAC Technician', icon: '❄️', color: '#93c5fd', darkColor: '#0c4a6e', description: 'Heating, ventilation, and air conditioning services.' }, // Sky Blue
 ];
 
+// --- INLINE STYLES (MATCHING AGENT DASHBOARD) ---
+const styles = {
+  container: {
+    display: 'flex',
+    flexDirection: 'column',
+    minHeight: '100vh',
+    fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    backgroundColor: '#f3f4f6', // Light gray background
+    color: '#111827',
+  },
+  header: {
+    height: '64px',
+    backgroundColor: '#1f2937', // Dark slate gray (from Dashboard)
+    color: 'white',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '0 24px',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
+    zIndex: 20,
+  },
+  brand: {
+    fontSize: '1.25rem',
+    fontWeight: '700',
+    letterSpacing: '-0.025em',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+  },
+  headerRight: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '24px',
+  },
+  clock: {
+    fontFamily: 'monospace',
+    color: '#9ca3af',
+    fontSize: '0.95rem',
+  },
+  avatar: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '50%',
+    backgroundColor: '#374151',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: '0.875rem',
+    fontWeight: '600',
+    border: '2px solid #4b5563',
+  },
+  mainContent: {
+    maxWidth: '1280px', // max-w-7xl approximation
+    margin: '0 auto',
+    display: 'flex',
+    flexDirection: 'column',
+    padding: '32px 16px',
+    flex: 1,
+    width: '100%',
+  },
+  card: { // General card style matching the Dashboard's sidebar and call cards
+    backgroundColor: 'white',
+    padding: '24px',
+    borderRadius: '12px',
+    border: '1px solid #e5e7eb',
+    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+    transition: 'all 0.3s',
+  },
+  serviceGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+    gap: '24px',
+  }
+};
+
 /**
- * Component for a single service card, styled to match the dashboard's 'floating' cards.
+ * Component for a single service card, now using inline styles and Emojis.
  */
-const ServiceCard = ({ service, onClick }) => (
-  <div 
-    className="bg-white p-6 rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition duration-300 cursor-pointer transform hover:-translate-y-1"
-    onClick={() => onClick(service)}
-  >
-    <div className={`p-3 rounded-full w-fit mb-4 ${service.iconColor} bg-white ring-2 ring-opacity-50 ${service.iconColor.replace('text-', 'ring-')} shadow-md`}>
-      <service.icon className="w-8 h-8" />
-    </div>
-    <h3 className="text-xl font-bold text-gray-800 mb-1">{service.name}</h3>
-    <p className="text-sm text-gray-600">{service.description}</p>
-  </div>
-);
+const ServiceCard = ({ service, onClick }) => {
+    // Style for the hover effect
+    const [isHovered, setIsHovered] = useState(false);
+    
+    // Style for the icon container
+    const iconContainerStyle = {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '12px',
+      borderRadius: '50%',
+      backgroundColor: service.color, // Theme color
+      marginBottom: '16px',
+      boxShadow: `0 4px 6px -1px ${service.darkColor}40`, // Custom shadow based on theme
+    };
+
+    // Card style with hover effects
+    const cardStyle = {
+        ...styles.card,
+        cursor: 'pointer',
+        transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
+        boxShadow: isHovered 
+          ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
+          : styles.card.boxShadow
+    };
+
+    return (
+      <div 
+        style={cardStyle}
+        onClick={() => onClick(service)}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
+        <div style={iconContainerStyle}>
+          <span style={{ fontSize: '1.75rem', lineHeight: 1 }}>{service.icon}</span>
+        </div>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1f2937', marginBottom: '4px' }}>{service.name}</h3>
+        <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>{service.description}</p>
+      </div>
+    );
+};
 
 
 export default function UserServicesPage() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const state = location.state || {};
-  
-  const { ticketId, requestDetails } = state;
+  // Mock State for required props from location.state
+  // In a real app, this data would come from the previous screen/API call.
+  const [ticketId] = useState("T-4592"); 
+  const [requestDetails] = useState("Customer reports sudden power outage in the kitchen and garage. Circuit breaker keeps tripping. Needs urgent assistance.");
+
   const [confirmationMessage, setConfirmationMessage] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+  const [isNavigated, setIsNavigated] = useState(false); // To simulate navigation away
 
-  // Use the clock timer from the dashboard
+  // Clock timer
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // Handle case where required data is missing
-  if (!ticketId || !requestDetails) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-gray-50 p-8">
-        <h1 className="text-2xl font-bold text-red-600 mb-4">Error: Ticket Details Missing</h1>
-        <p className="text-gray-600 mb-6">Please start the workflow from the User Dashboard.</p>
-        <button
-          onClick={() => navigate('/agent/dashboard')}
-          className="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-150"
-        >
-          Go to Dashboard
-        </button>
-      </div>
-    );
-  }
-
+  // Handle service selection
   const handleServiceSelect = (service) => {
     const message = `Service Confirmed: ${service.name}. Ticket ${ticketId} is now assigned. Dispatching...`;
     setConfirmationMessage(message);
 
     console.log(`Service '${service.name}' selected for Ticket ID: ${ticketId}`);
     
-    // Simulate navigation/clearing call after a delay for the message to be seen
+    // Simulate navigating back to the dashboard after a delay
     setTimeout(() => {
-        setConfirmationMessage(null);
-        navigate('/agent/dashboard'); 
+      setConfirmationMessage(null);
+      // In a real app: navigate('/agent/dashboard');
+      setIsNavigated(true); 
     }, 3000); 
   };
 
+  if (isNavigated) {
+    return (
+      <div style={{ ...styles.container, justifyContent: 'center', alignItems: 'center' }}>
+        <h1 style={{ color: '#047857', fontSize: '1.5rem', fontWeight: '600' }}>Dispatch successful. Returning to dashboard...</h1>
+      </div>
+    );
+  }
+
+
+  // Handle case where required data is missing (mocked for this standalone component)
+  if (!ticketId || !requestDetails) {
+     return (
+        <div style={{ ...styles.container, justifyContent: 'center', alignItems: 'center' }}>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ef4444', marginBottom: '16px' }}>Error: Ticket Details Missing</h1>
+          <p style={{ color: '#6b7280', marginBottom: '24px' }}>Please start the workflow from the User Dashboard.</p>
+        </div>
+     );
+  }
+
   return (
-    <div className="flex flex-col min-h-screen font-inter bg-gray-100">
+    <div style={styles.container}>
       
       {/* HEADER (Matching Dashboard Style) */}
-      <header className="h-16 bg-gray-800 text-white flex items-center justify-between px-6 shadow-xl z-20">
-        <div className="text-xl font-bold tracking-tight flex items-center gap-3">
-            <PhoneIcon className="w-6 h-6 text-green-400" />
-            <span>CC Agent Console: Service Assignment</span>
+      <header style={styles.header}>
+        <div style={styles.brand}>
+          <PhoneIcon />
+          <span>CC Agent Console: Service Assignment</span>
         </div>
-        <div className="flex items-center gap-6">
-          <span className="font-mono text-gray-400 text-sm">{currentTime}</span>
-          <div className="w-9 h-9 rounded-full bg-gray-600 flex items-center justify-center text-sm font-semibold border-2 border-gray-700">AG</div>
+        <div style={styles.headerRight}>
+          <span style={styles.clock}>{currentTime}</span>
+          <div style={styles.avatar}>AG</div>
         </div>
       </header>
 
       {/* Confirmation Message Box */}
       {confirmationMessage && (
-        <div className="fixed inset-x-0 top-16 flex justify-center z-50 p-4">
-          <div className="bg-green-100 border border-green-400 text-green-700 px-6 py-3 rounded-xl shadow-2xl transition duration-300 transform scale-100 opacity-100 font-semibold animate-pulse">
+        <div style={{
+          position: 'fixed',
+          top: '64px', // Below the header
+          left: 0,
+          right: 0,
+          display: 'flex',
+          justifyContent: 'center',
+          padding: '16px',
+          zIndex: 50,
+        }}>
+          <div style={{
+            backgroundColor: '#d1fae5', 
+            border: '1px solid #10b981', 
+            color: '#065f46', 
+            padding: '12px 24px', 
+            borderRadius: '12px', 
+            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+            fontWeight: '600',
+            // Simple pulse animation style
+            animation: 'pulse 1s infinite',
+          }}>
             {confirmationMessage}
+            <style>
+              {`
+                @keyframes pulse {
+                  0%, 100% { opacity: 1; }
+                  50% { opacity: 0.7; }
+                }
+              `}
+            </style>
           </div>
         </div>
       )}
 
       {/* MAIN CONTENT AREA */}
-      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8 py-8 px-4 sm:px-6 flex-1 w-full">
+      <div style={styles.mainContent}>
         
-        {/* Left Side: Agent's Notes/Request Summary Card (Styled as a Sidebar Card) */}
-        <div className="lg:w-1/3 w-full sticky top-8 h-fit">
-          <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
-            <h2 className="text-xl font-bold text-gray-800 mb-3 border-b pb-2">
-              Request Details
-            </h2>
-            
-            <p className="text-sm text-gray-500 mb-4">
-              Ticket ID: <span className="font-mono bg-indigo-100 px-2 py-0.5 rounded text-indigo-800">{ticketId}</span>
-            </p>
-            
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 min-h-[100px]">
-              <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">
-                {requestDetails}
+        <div style={{ display: 'flex', flexDirection: window.innerWidth > 1024 ? 'row' : 'column', gap: '32px' }}>
+          
+          {/* Left Side: Agent's Notes/Request Summary Card (Styled as a Sidebar Card) */}
+          <div style={{ width: window.innerWidth > 1024 ? '33.333%' : '100%' }}>
+            <div style={styles.card}>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1f2937', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid #e5e7eb' }}>
+                Request Details
+              </h2>
+              
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '16px' }}>
+                Ticket ID: <span style={{ fontFamily: 'monospace', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5', fontWeight: '600' }}>{ticketId}</span>
+              </p>
+              
+              <div style={{ backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px', border: '1px solid #f3f4f6', minHeight: '100px' }}>
+                <p style={{ color: '#374151', whiteSpace: 'pre-wrap', lineHeight: '1.6', fontSize: '0.9rem' }}>
+                  {requestDetails}
+                </p>
+              </div>
+              
+              <p style={{ marginTop: '16px', fontSize: '0.75rem', color: '#9ca3af' }}>
+                Review the notes and select the appropriate service below to dispatch.
               </p>
             </div>
-            
-            <p className="mt-4 text-xs text-gray-500">
-              Review the notes and select the appropriate service below to dispatch.
-            </p>
           </div>
-        </div>
 
-        {/* Right Side: Service Selection Grid (Main Content Area) */}
-        <div className="lg:w-2/3 w-full">
-          <h1 className="text-3xl font-bold text-gray-800 mb-6 border-b pb-2">
-            Select Service Category
-          </h1>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {SERVICES.map((service) => (
-              <ServiceCard 
-                key={service.name} 
-                service={service} 
-                onClick={handleServiceSelect} 
-              />
-            ))}
+          {/* Right Side: Service Selection Grid (Main Content Area) */}
+          <div style={{ width: window.innerWidth > 1024 ? '66.666%' : '100%' }}>
+            <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#1f2937', marginBottom: '24px', paddingBottom: '8px', borderBottom: '1px solid #e5e7eb' }}>
+              Select Service Category
+            </h1>
+            <div style={styles.serviceGrid}>
+              {SERVICES.map((service) => (
+                <ServiceCard 
+                  key={service.name} 
+                  service={service} 
+                  onClick={handleServiceSelect} 
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>
