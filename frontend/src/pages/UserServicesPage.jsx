@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom'; // 👈 Import useLocation
 
 // Using Emojis instead of custom SVG components
 const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>; // Placeholder for header icon
@@ -32,7 +33,7 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '0 24px',
-    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
+    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06)',
     zIndex: 20,
   },
   brand: {
@@ -95,7 +96,7 @@ const styles = {
 const ServiceCard = ({ service, onClick }) => {
     // Style for the hover effect
     const [isHovered, setIsHovered] = useState(false);
-    
+
     // Style for the icon container
     const iconContainerStyle = {
       display: 'inline-flex',
@@ -113,13 +114,13 @@ const ServiceCard = ({ service, onClick }) => {
         ...styles.card,
         cursor: 'pointer',
         transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
-        boxShadow: isHovered 
+        boxShadow: isHovered
           ? '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)'
           : styles.card.boxShadow
     };
 
     return (
-      <div 
+      <div
         style={cardStyle}
         onClick={() => onClick(service)}
         onMouseEnter={() => setIsHovered(true)}
@@ -136,10 +137,11 @@ const ServiceCard = ({ service, onClick }) => {
 
 
 export default function UserServicesPage() {
-  // Mock State for required props from location.state
-  // In a real app, this data would come from the previous screen/API call.
-  const [ticketId] = useState("T-4592"); 
-  const [requestDetails] = useState("Customer reports sudden power outage in the kitchen and garage. Circuit breaker keeps tripping. Needs urgent assistance.");
+  const location = useLocation(); // 👈 Get the location object
+  
+  // 👈 Extract state from location object
+  const ticketId = location.state?.ticketId;
+  const requestDetails = location.state?.requestDetails;
 
   const [confirmationMessage, setConfirmationMessage] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
@@ -157,13 +159,13 @@ export default function UserServicesPage() {
     setConfirmationMessage(message);
 
     console.log(`Service '${service.name}' selected for Ticket ID: ${ticketId}`);
-    
+
     // Simulate navigating back to the dashboard after a delay
     setTimeout(() => {
       setConfirmationMessage(null);
       // In a real app: navigate('/agent/dashboard');
-      setIsNavigated(true); 
-    }, 3000); 
+      setIsNavigated(true);
+    }, 3000);
   };
 
   if (isNavigated) {
@@ -175,19 +177,19 @@ export default function UserServicesPage() {
   }
 
 
-  // Handle case where required data is missing (mocked for this standalone component)
+  // Check if required data is missing from the state
   if (!ticketId || !requestDetails) {
-     return (
+      return (
         <div style={{ ...styles.container, justifyContent: 'center', alignItems: 'center' }}>
           <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ef4444', marginBottom: '16px' }}>Error: Ticket Details Missing</h1>
           <p style={{ color: '#6b7280', marginBottom: '24px' }}>Please start the workflow from the User Dashboard.</p>
         </div>
-     );
+      );
   }
 
   return (
     <div style={styles.container}>
-      
+
       {/* HEADER (Matching Dashboard Style) */}
       <header style={styles.header}>
         <div style={styles.brand}>
@@ -213,11 +215,11 @@ export default function UserServicesPage() {
           zIndex: 50,
         }}>
           <div style={{
-            backgroundColor: '#d1fae5', 
-            border: '1px solid #10b981', 
-            color: '#065f46', 
-            padding: '12px 24px', 
-            borderRadius: '12px', 
+            backgroundColor: '#d1fae5',
+            border: '1px solid #10b981',
+            color: '#065f46',
+            padding: '12px 24px',
+            borderRadius: '12px',
             boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
             fontWeight: '600',
             // Simple pulse animation style
@@ -238,26 +240,26 @@ export default function UserServicesPage() {
 
       {/* MAIN CONTENT AREA */}
       <div style={styles.mainContent}>
-        
+
         <div style={{ display: 'flex', flexDirection: window.innerWidth > 1024 ? 'row' : 'column', gap: '32px' }}>
-          
+
           {/* Left Side: Agent's Notes/Request Summary Card (Styled as a Sidebar Card) */}
           <div style={{ width: window.innerWidth > 1024 ? '33.333%' : '100%' }}>
             <div style={styles.card}>
               <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1f2937', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid #e5e7eb' }}>
                 Request Details
               </h2>
-              
+
               <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '16px' }}>
                 Ticket ID: <span style={{ fontFamily: 'monospace', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5', fontWeight: '600' }}>{ticketId}</span>
               </p>
-              
+
               <div style={{ backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px', border: '1px solid #f3f4f6', minHeight: '100px' }}>
                 <p style={{ color: '#374151', whiteSpace: 'pre-wrap', lineHeight: '1.6', fontSize: '0.9rem' }}>
                   {requestDetails}
                 </p>
               </div>
-              
+
               <p style={{ marginTop: '16px', fontSize: '0.75rem', color: '#9ca3af' }}>
                 Review the notes and select the appropriate service below to dispatch.
               </p>
@@ -271,10 +273,10 @@ export default function UserServicesPage() {
             </h1>
             <div style={styles.serviceGrid}>
               {SERVICES.map((service) => (
-                <ServiceCard 
-                  key={service.name} 
-                  service={service} 
-                  onClick={handleServiceSelect} 
+                <ServiceCard
+                  key={service.name}
+                  service={service}
+                  onClick={handleServiceSelect}
                 />
               ))}
             </div>
