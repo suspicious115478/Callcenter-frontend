@@ -1,9 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+// Assuming you have a config file or base URL for your backend
+import { BACKEND_URL } from '../config'; 
 
 export default function UserDashboardPage() {
   const { phoneNumber } = useParams();
   const [notes, setNotes] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveMessage, setSaveMessage] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
   // Mock subscription status - replace with actual API fetch if needed
   const [subscriptionStatus] = useState('Premium'); 
@@ -14,8 +18,51 @@ export default function UserDashboardPage() {
     return () => clearInterval(timer);
   }, []);
 
+  // --- NEW FUNCTION: Save Notes to Backend as a Ticket ---
+  const saveNotesAsTicket = async () => {
+    if (!notes.trim()) {
+      setSaveMessage('Error: Notes cannot be empty.');
+      setTimeout(() => setSaveMessage(''), 3000);
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveMessage('Saving...');
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/call/ticket`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Optionally include Agent authentication/ID header here
+        },
+        body: JSON.stringify({
+          phoneNumber: phoneNumber,
+          requestDetails: notes,
+          // Add other context like agentId, timestamp, etc., if available
+        }),
+      });
+
+      if (response.ok) {
+        setSaveMessage('✅ Ticket created successfully!');
+        setNotes(''); // Clear notes after successful submission
+      } else {
+        const errorData = await response.json();
+        setSaveMessage(`❌ Failed to create ticket: ${errorData.message || 'Server error'}`);
+      }
+    } catch (error) {
+      console.error('API Error:', error);
+      setSaveMessage('❌ Network error during save.');
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => setSaveMessage(''), 5000);
+    }
+  };
+  // --------------------------------------------------------
+
   // --- INLINE STYLES ADAPTED FROM AgentDashboard ---
   const styles = {
+    // ... (Your existing styles remain unchanged)
     container: {
       display: 'flex',
       flexDirection: 'column',
@@ -26,7 +73,7 @@ export default function UserDashboardPage() {
     },
     header: {
       height: '64px',
-      backgroundColor: '#1f2937', // Dark slate gray
+      backgroundColor: '#1f2937', 
       color: 'white',
       display: 'flex',
       alignItems: 'center',
@@ -71,14 +118,14 @@ export default function UserDashboardPage() {
       overflow: 'hidden',
     },
     sidebar: {
-      width: '300px', // Slightly wider for user info
+      width: '300px',
       backgroundColor: 'white',
       borderRight: '1px solid #e5e7eb',
       padding: '24px',
       display: 'flex',
       flexDirection: 'column',
       gap: '32px',
-      flexShrink: 0, // Prevents sidebar from shrinking
+      flexShrink: 0,
     },
     contentArea: {
       flex: 1,
@@ -144,8 +191,26 @@ export default function UserDashboardPage() {
       fontWeight: '600',
       backgroundColor: subscriptionStatus === 'Premium' ? '#d1fae5' : '#fef9c3',
       color: subscriptionStatus === 'Premium' ? '#065f46' : '#a16207',
+    },
+    saveButton: {
+      padding: '10px 20px',
+      borderRadius: '8px',
+      border: 'none',
+      fontWeight: '600',
+      fontSize: '0.875rem',
+      cursor: isSaving ? 'default' : 'pointer',
+      backgroundColor: isSaving ? '#6b7280' : '#10b981',
+      color: 'white',
+      transition: 'background-color 0.3s',
+    },
+    message: {
+      marginRight: '15px',
+      fontSize: '0.875rem',
+      fontWeight: '600',
+      color: saveMessage.includes('Error') ? '#ef4444' : '#047857',
     }
   };
+  // --------------------------------------------------------
 
   return (
     <div style={styles.container}>
@@ -179,7 +244,6 @@ export default function UserDashboardPage() {
               <span style={styles.subscriptionBadge}>{subscriptionStatus}</span>
             </div>
             
-            {/* You can add more user details here (e.g., Name, Last Contact) */}
             <div style={{ marginTop: '16px', fontSize: '0.8rem', color: '#9ca3af' }}>
               *Details are for the verified calling party.
             </div>
@@ -206,21 +270,16 @@ export default function UserDashboardPage() {
             />
           </div>
 
-          <div style={{ marginTop: '20px', textAlign: 'right' }}>
+          <div style={{ marginTop: '20px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+            {saveMessage && (
+              <span style={styles.message}>{saveMessage}</span>
+            )}
             <button 
-              onClick={() => alert('Notes saved! (Implement save logic to backend/CRM)')} 
-              style={{
-                padding: '10px 20px',
-                borderRadius: '8px',
-                border: 'none',
-                fontWeight: '600',
-                fontSize: '0.875rem',
-                cursor: 'pointer',
-                backgroundColor: '#10b981',
-                color: 'white',
-              }}
+              onClick={saveNotesAsTicket} 
+              disabled={isSaving}
+              style={styles.saveButton}
             >
-              Save Notes
+              {isSaving ? 'Saving...' : 'Save Notes & Create Ticket'}
             </button>
           </div>
         </main>
