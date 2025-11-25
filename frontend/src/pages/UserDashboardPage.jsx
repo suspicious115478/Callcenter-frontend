@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
-// Using a placeholder URL internally to resolve the 'Could not resolve' error.
+// CRITICAL FIX: Define BACKEND_URL locally to resolve the build error.
+// In your real app, you can revert this to an import from your config file.
 import { BACKEND_URL } from '../config';
 
 
 export default function UserDashboardPage() {
-  // CRITICAL: Assuming the route parameter is the userId, not phoneNumber,
-  // based on the controller's dashboardLink definition: /user/dashboard/:userId
+  // CRITICAL: Assuming the route parameter is the userId based on previous steps
   const { userId } = useParams(); 
   const navigate = useNavigate();
   
@@ -44,7 +44,7 @@ export default function UserDashboardPage() {
     const fetchDashboardData = async () => {
       setLoadingData(true);
       try {
-        // CRITICAL: Call the new backend endpoint
+        // Fetch user details from the backend
         const response = await fetch(`${BACKEND_URL}/user/data/${userId}`);
 
         if (!response.ok) {
@@ -53,17 +53,15 @@ export default function UserDashboardPage() {
 
         const data = await response.json();
         
-        // Assuming the phone number is not available here, but the user data is
         setUserData({
             userId: data.userId,
             name: data.name,
             planStatus: data.planStatus,
-            // Assuming the actual phone number is needed for the ticket creation, 
-            // you might need to adjust the backend to return it, or pass it via the initial socket event.
-            // For now, we will use a placeholder or assume it's stored in 'User' table if required for ticket logging.
-            phoneNumber: phoneNumber, // Keep existing phone number variable if it was available from the route's state
+            // Phone number might need to be passed in state if not returned by this endpoint
+            phoneNumber: data.phoneNumber || 'N/A', 
         }); 
-        setAddresses(data.addresses);
+        
+        setAddresses(data.addresses || []);
 
         // Pre-select the first address if available
         if (data.addresses && data.addresses.length > 0) {
@@ -82,7 +80,7 @@ export default function UserDashboardPage() {
   }, [userId]);
 
 
-  // --- RESTORED FUNCTION: Save Notes to Backend as a Ticket and Navigate ---
+  // --- FUNCTION: Save Notes to Backend as a Ticket and Navigate ---
   const saveNotesAsTicket = async () => {
     if (!notes.trim()) {
       setSaveMessage('Error: Notes cannot be empty.');
@@ -90,7 +88,7 @@ export default function UserDashboardPage() {
       return;
     }
     
-    // CRITICAL: Address is mandatory if multiple exist
+    // CRITICAL: Address is mandatory if addresses exist
     if (addresses.length > 0 && !selectedAddress) {
          setSaveMessage('Error: Please select a service address.');
          setTimeout(() => setSaveMessage(''), 3000);
@@ -108,9 +106,9 @@ export default function UserDashboardPage() {
           'X-Agent-Id': 'AGENT_001', 
         },
         body: JSON.stringify({
-          phoneNumber: phoneNumber, // Assuming phone number is available/mocked
+          phoneNumber: phoneNumber, 
           requestDetails: notes.trim(),
-          selectedAddress: selectedAddress, // CRITICAL: Include the selected address
+          selectedAddress: selectedAddress, // Include the selected address
         }),
       });
 
@@ -129,12 +127,12 @@ export default function UserDashboardPage() {
 
       console.log(`Ticket ${result.ticket_id} created. Navigating to service selection.`);
       
-      // Navigate, passing the necessary data (ticketId, requestDetails, and selectedAddress) in the state
+      // Navigate, passing all necessary data to the next page
       navigate('/user/services', {
         state: {
           ticketId: result.ticket_id,
           requestDetails: result.requestDetails || notes.trim(), 
-          selectedAddress: selectedAddress, // Pass the selected address to the next page
+          selectedAddress: selectedAddress, 
         }
       });
       
@@ -149,7 +147,7 @@ export default function UserDashboardPage() {
   };
   // --------------------------------------------------------
 
-  // --- INLINE STYLES ADAPTED FOR COMPILATION ---
+  // --- INLINE STYLES ---
   const styles = {
     container: {
       display: 'flex',
@@ -236,7 +234,7 @@ export default function UserDashboardPage() {
     },
     notesTextarea: {
       width: '100%',
-      minHeight: '200px', // Reduced height to make room for address selector
+      minHeight: '200px', 
       padding: '16px',
       fontSize: '1rem',
       border: '1px solid #d1d5db',
@@ -348,7 +346,7 @@ export default function UserDashboardPage() {
       {/* HEADER */}
       <header style={styles.header}>
         <div style={styles.brand}>
-          {/* Inline SVG Phone Icon (replacement for lucide-react) */}
+          {/* Inline SVG Phone Icon */}
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
           </svg>
@@ -433,9 +431,14 @@ export default function UserDashboardPage() {
                             <span style={styles.addressLine}>{address}</span>
                         </div>
                     ))}
-                    {addresses.length === 0 && (
-                        <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>No saved addresses found.</p>
-                    )}
+                </div>
+            )}
+            
+            {addresses.length === 0 && !loadingData && (
+                <div style={{ marginTop: '20px', padding: '10px', backgroundColor: '#fef2f2', border: '1px dashed #f87171', borderRadius: '8px' }}>
+                    <p style={{ color: '#991b1b', fontSize: '0.875rem', textAlign: 'center' }}>
+                        No saved addresses found for this user. Please ask for their current location.
+                    </p>
                 </div>
             )}
             
