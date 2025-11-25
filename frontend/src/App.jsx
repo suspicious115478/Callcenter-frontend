@@ -17,6 +17,9 @@ function App() {
           
           {/* Primary Agent Dashboard (Default View) */}
           <Route path="/" element={<AgentDashboard />} />
+
+          
+       
           
           {/* Target for UNVERIFIED calls (e.g., /new-call/search?caller=...) */}
           <Route path="/new-call/search" element={<NewCallSearchPage />} />
@@ -24,7 +27,7 @@ function App() {
           {/* Target for VERIFIED calls (e.g., /user/dashboard/+91...) */}
           {/* The ':phoneNumber' is a dynamic parameter that captures the number */}
           <Route path="/user/dashboard/:phoneNumber" element={<UserDashboardPage />} />
-          
+           <Route path="/user/services" element={<UserServicesPage />}   />
           {/* Optional: 404 Not Found fallback */}
           <Route path="*" element={<h1>404: Page Not Found</h1>} />
         </Routes>
@@ -32,5 +35,6 @@ function App() {
     </Router>
   );
 }
+
 
 export default App;
