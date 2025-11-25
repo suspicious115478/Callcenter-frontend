@@ -7,7 +7,8 @@ import { BACKEND_URL } from '../config';
 
 
 export default function UserDashboardPage() {
-  const { phoneNumber } = useParams();
+  // 🚨 CRITICAL UPDATE: Expecting 'userId' from the route, as redirected from callController
+  const { userId } = useParams();
   const navigate = useNavigate();
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -15,12 +16,55 @@ export default function UserDashboardPage() {
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
   // Mock subscription status - replace with actual API fetch if needed
   const [subscriptionStatus] = useState('Premium'); 
+  
+  // 🚀 NEW STATE FOR ADDRESS MANAGEMENT
+  const [userAddresses, setUserAddresses] = useState([]);
+  const [selectedAddressId, setSelectedAddressId] = useState(null);
+  const [addressFetchMessage, setAddressFetchMessage] = useState('Fetching addresses...');
 
   useEffect(() => {
     // Clock timer for the header
     const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
     return () => clearInterval(timer);
   }, []);
+  
+  // 🚀 NEW EFFECT: Fetch addresses on component mount using the userId
+  useEffect(() => {
+    const fetchAddresses = async () => {
+      if (!userId) {
+        setAddressFetchMessage('Error: User ID not provided in route.');
+        return;
+      }
+
+      try {
+        const response = await fetch(`${BACKEND_URL}/call/address/${userId}`); // Use the new endpoint
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch addresses: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        const addresses = result.addresses;
+        
+        if (addresses.length > 0) {
+          setUserAddresses(addresses);
+          // Auto-select the first address for convenience
+          setSelectedAddressId(addresses[0].id);
+          setAddressFetchMessage(`${addresses.length} addresses loaded.`);
+        } else {
+          setAddressFetchMessage('No addresses found for this user.');
+          setUserAddresses([]);
+          setSelectedAddressId(null);
+        }
+
+      } catch (error) {
+        console.error('Address Fetch Error:', error);
+        setAddressFetchMessage(`❌ Failed to load addresses: ${error.message}`);
+      }
+    };
+
+    fetchAddresses();
+  }, [userId]); // Dependency on userId
 
   // --- RESTORED FUNCTION: Save Notes to Backend as a Ticket and Navigate ---
   const saveNotesAsTicket = async () => {
@@ -29,12 +73,25 @@ export default function UserDashboardPage() {
       setTimeout(() => setSaveMessage(''), 3000);
       return;
     }
+    
+    // 🚨 NEW CHECK: Require an address to be selected before proceeding
+    if (!selectedAddressId && userAddresses.length > 0) {
+        setSaveMessage('Error: Please select an address.');
+        setTimeout(() => setSaveMessage(''), 3000);
+        return;
+    }
+
 
     setIsSaving(true);
     setSaveMessage('Saving...');
 
     try {
-      // Use the BACKEND_URL defined above
+      // Find the user's phone number based on the current state or a dedicated user data fetch if available
+      // ASSUMPTION: The original phone number is NOT easily accessible here unless passed as state/query param
+      // or fetched alongside the initial User data (which we did not update to do). 
+      // For now, we will use a MOCK phone number since the current route is /user/dashboard/:userId
+      const mockPhoneNumber = 'FETCH_USER_PHONE_FROM_BACKEND_LATER'; 
+
       const response = await fetch(`${BACKEND_URL}/call/ticket`, {
         method: 'POST',
         headers: {
@@ -43,7 +100,8 @@ export default function UserDashboardPage() {
           'X-Agent-Id': 'AGENT_001', 
         },
         body: JSON.stringify({
-          phoneNumber: phoneNumber,
+          // 🚨 USING MOCK: Change this to a real phone number if you update the route
+          phoneNumber: mockPhoneNumber, 
           requestDetails: notes.trim(), // Ensure notes are trimmed before sending
         }),
       });
@@ -65,15 +123,16 @@ export default function UserDashboardPage() {
 
       const result = await response.json();
 
-      // 🚨 CRITICAL NAVIGATION: Redirect to the new service selection page
+      // 🚨 CRITICAL NAVIGATION: Redirect to the new service selection page, passing address info
       console.log(`Ticket ${result.ticket_id} created. Navigating to service selection.`);
       
-      // Navigate, passing the necessary data (ticketId and requestDetails) in the state
+      // Navigate, passing the necessary data (ticketId, requestDetails, and selectedAddressId)
       navigate('/user/services', {
         state: {
           ticketId: result.ticket_id,
-          // Use the requestDetails returned by the server (or the local notes state)
           requestDetails: result.requestDetails || notes.trim(), 
+          // 🚀 NEW DATA: Pass the selected address ID
+          selectedAddressId: selectedAddressId, 
         }
       });
       
@@ -167,6 +226,7 @@ export default function UserDashboardPage() {
       borderRadius: '12px',
       border: '1px solid #e5e7eb',
       boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+      marginBottom: '20px', // Added spacing between cards
     },
     title: {
       fontSize: '1.5rem',
@@ -220,6 +280,20 @@ export default function UserDashboardPage() {
       backgroundColor: subscriptionStatus === 'Premium' ? '#d1fae5' : '#fef9c3',
       color: subscriptionStatus === 'Premium' ? '#065f46' : '#a16207',
     },
+    addressItem: {
+        padding: '10px',
+        margin: '8px 0',
+        border: '1px solid #d1d5db',
+        borderRadius: '6px',
+        cursor: 'pointer',
+        fontSize: '0.9rem',
+        transition: 'background-color 0.2s',
+    },
+    addressSelected: {
+        backgroundColor: '#dcfce7',
+        borderColor: '#10b981',
+        fontWeight: '700',
+    },
     saveButton: {
       padding: '10px 20px',
       borderRadius: '8px',
@@ -267,8 +341,8 @@ export default function UserDashboardPage() {
             <div style={styles.userInfoTitle}>☎️ Customer Details</div>
             
             <div style={styles.infoRow}>
-              <span style={styles.infoKey}>Call Number</span>
-              <span style={styles.infoVal}>{phoneNumber}</span>
+              <span style={styles.infoKey}>User ID</span>
+              <span style={styles.infoVal}>{userId}</span>
             </div>
             
             <div style={styles.infoRow}>
@@ -279,6 +353,34 @@ export default function UserDashboardPage() {
             <div style={{ marginTop: '16px', fontSize: '0.8rem', color: '#9ca3af' }}>
               *Details are for the verified calling party.
             </div>
+          </div>
+          
+          {/* 🚀 NEW ADDRESS SELECTION CARD */}
+          <div style={styles.card}>
+            <div style={styles.userInfoTitle}>🏠 Select Address</div>
+            <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '10px' }}>
+                {addressFetchMessage}
+            </p>
+            {userAddresses.length > 0 ? (
+                <div>
+                    {userAddresses.map((address) => (
+                        <div 
+                            key={address.id}
+                            style={{ 
+                                ...styles.addressItem, 
+                                ...(selectedAddressId === address.id ? styles.addressSelected : {}) 
+                            }}
+                            onClick={() => setSelectedAddressId(address.id)}
+                        >
+                            {address.address_line}
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <p style={{ fontSize: '0.875rem', color: '#ef4444' }}>
+                    No addresses to select.
+                </p>
+            )}
           </div>
           
           <div style={{ ...styles.card, flex: 1 }}>
@@ -308,7 +410,7 @@ export default function UserDashboardPage() {
             )}
             <button 
               onClick={saveNotesAsTicket} 
-              disabled={isSaving}
+              disabled={isSaving || (userAddresses.length > 0 && !selectedAddressId)}
               style={styles.saveButton}
             >
               {isSaving ? 'Saving...' : 'Save Notes & Select Service'}
