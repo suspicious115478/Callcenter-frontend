@@ -30,7 +30,7 @@ export default function UserDashboardPage() {
     setSaveMessage('Saving...');
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/call/ticket`, {
+      const response = await fetch(`${BACKEND_URL}/call/ticket`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -287,3 +287,4 @@ export default function UserDashboardPage() {
     </div>
   );
 }
+
