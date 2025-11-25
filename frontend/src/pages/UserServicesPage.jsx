@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 // --- INLINE SVG ICONS (Replaces lucide-react) ---
@@ -14,30 +14,32 @@ const LeafIcon = (props) => (
 const HammerIcon = (props) => (
   <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m10.2 14.8-6.94 6.94a2 2 0 0 1-2.83 0L3 21a2 2 0 0 0 2.83 0l6.94-6.94a2 2 0 0 0 0-2.83l-6.94-6.94a2 2 0 0 1 0-2.83L14.8 1.2a2 2 0 0 0-2.83-2.83L4 12.8a2 2 0 0 1 0 2.83l6.94 6.94"></path><path d="M14.8 10.2a2 2 0 0 0 2.83 0l6.94-6.94a2 2 0 0 0 0-2.83L14.8 1.2a2 2 0 0 1 0-2.83l6.94-6.94"></path></svg>
 );
+const PhoneIcon = (props) => (
+    <svg {...props} width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+    </svg>
+);
 // --- END ICONS ---
 
 // Define the services available for the user
 const SERVICES = [
-  // Icon components replaced
   { name: 'Electrician', icon: WrenchIcon, color: 'bg-yellow-500', iconColor: 'text-yellow-800', description: 'Wiring, circuit repairs, and fixture installation.' },
   { name: 'Plumber', icon: DropletsIcon, color: 'bg-blue-500', iconColor: 'text-blue-800', description: 'Leaky pipes, drain cleaning, and water system fixes.' },
   { name: 'Gardener', icon: LeafIcon, color: 'bg-green-500', iconColor: 'text-green-800', description: 'Lawn care, planting, and landscape maintenance.' },
   { name: 'Carpenter', icon: HammerIcon, color: 'bg-amber-600', iconColor: 'text-amber-900', description: 'Woodworking, furniture repair, and structural framing.' },
-  // Re-used icons
   { name: 'Appliance Repair', icon: WrenchIcon, color: 'bg-red-500', iconColor: 'text-red-800', description: 'Fixing household appliances like washing machines and refrigerators.' },
   { name: 'HVAC Technician', icon: DropletsIcon, color: 'bg-sky-500', iconColor: 'text-sky-800', description: 'Heating, ventilation, and air conditioning services.' },
 ];
 
 /**
- * Component for a single service card in the grid.
+ * Component for a single service card, styled to match the dashboard's 'floating' cards.
  */
 const ServiceCard = ({ service, onClick }) => (
   <div 
-    className={`p-6 rounded-xl shadow-lg hover:shadow-2xl transition duration-300 cursor-pointer ${service.color} bg-opacity-30 backdrop-blur-sm border border-white/20 transform hover:scale-[1.02]`}
+    className="bg-white p-6 rounded-xl shadow-lg border border-gray-200 hover:shadow-xl transition duration-300 cursor-pointer transform hover:-translate-y-1"
     onClick={() => onClick(service)}
   >
-    <div className={`p-3 rounded-full w-fit mb-4 ${service.iconColor} bg-white/80 shadow-md`}>
-      {/* Dynamic icon component */}
+    <div className={`p-3 rounded-full w-fit mb-4 ${service.iconColor} bg-white ring-2 ring-opacity-50 ${service.iconColor.replace('text-', 'ring-')} shadow-md`}>
       <service.icon className="w-8 h-8" />
     </div>
     <h3 className="text-xl font-bold text-gray-800 mb-1">{service.name}</h3>
@@ -52,8 +54,14 @@ export default function UserServicesPage() {
   const state = location.state || {};
   
   const { ticketId, requestDetails } = state;
-  // State for showing the confirmation message (replaces alert())
   const [confirmationMessage, setConfirmationMessage] = useState(null);
+  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+
+  // Use the clock timer from the dashboard
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Handle case where required data is missing
   if (!ticketId || !requestDetails) {
@@ -62,17 +70,16 @@ export default function UserServicesPage() {
         <h1 className="text-2xl font-bold text-red-600 mb-4">Error: Ticket Details Missing</h1>
         <p className="text-gray-600 mb-6">Please start the workflow from the User Dashboard.</p>
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/agent/dashboard')}
           className="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg shadow-md hover:bg-indigo-700 transition duration-150"
         >
-          Go to Home
+          Go to Dashboard
         </button>
       </div>
     );
   }
 
   const handleServiceSelect = (service) => {
-    // Replaced alert() with a state-based message box
     const message = `Service Confirmed: ${service.name}. Ticket ${ticketId} is now assigned. Dispatching...`;
     setConfirmationMessage(message);
 
@@ -81,46 +88,61 @@ export default function UserServicesPage() {
     // Simulate navigation/clearing call after a delay for the message to be seen
     setTimeout(() => {
         setConfirmationMessage(null);
-        // Navigate back to the agent dashboard after confirmation
         navigate('/agent/dashboard'); 
     }, 3000); 
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 p-4 sm:p-8 font-inter">
+    <div className="flex flex-col min-h-screen font-inter bg-gray-100">
       
+      {/* HEADER (Matching Dashboard Style) */}
+      <header className="h-16 bg-gray-800 text-white flex items-center justify-between px-6 shadow-xl z-20">
+        <div className="text-xl font-bold tracking-tight flex items-center gap-3">
+            <PhoneIcon className="w-6 h-6 text-green-400" />
+            <span>CC Agent Console: Service Assignment</span>
+        </div>
+        <div className="flex items-center gap-6">
+          <span className="font-mono text-gray-400 text-sm">{currentTime}</span>
+          <div className="w-9 h-9 rounded-full bg-gray-600 flex items-center justify-center text-sm font-semibold border-2 border-gray-700">AG</div>
+        </div>
+      </header>
+
       {/* Confirmation Message Box */}
       {confirmationMessage && (
-        <div className="fixed inset-x-0 top-0 flex justify-center z-50 p-4">
+        <div className="fixed inset-x-0 top-16 flex justify-center z-50 p-4">
           <div className="bg-green-100 border border-green-400 text-green-700 px-6 py-3 rounded-xl shadow-2xl transition duration-300 transform scale-100 opacity-100 font-semibold animate-pulse">
             {confirmationMessage}
           </div>
         </div>
       )}
 
-      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8">
+      {/* MAIN CONTENT AREA */}
+      <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8 py-8 px-4 sm:px-6 flex-1 w-full">
         
-        {/* Left Side: Agent's Notes/Request Summary Card */}
+        {/* Left Side: Agent's Notes/Request Summary Card (Styled as a Sidebar Card) */}
         <div className="lg:w-1/3 w-full sticky top-8 h-fit">
-          <div className="bg-white p-6 rounded-xl shadow-2xl border-t-4 border-indigo-600">
-            <h2 className="text-2xl font-extrabold text-indigo-700 mb-3">
+          <div className="bg-white p-6 rounded-xl shadow-lg border border-gray-200">
+            <h2 className="text-xl font-bold text-gray-800 mb-3 border-b pb-2">
               Request Details
             </h2>
+            
             <p className="text-sm text-gray-500 mb-4">
               Ticket ID: <span className="font-mono bg-indigo-100 px-2 py-0.5 rounded text-indigo-800">{ticketId}</span>
             </p>
-            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-              <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">
+            
+            <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 min-h-[100px]">
+              <p className="text-gray-700 whitespace-pre-wrap leading-relaxed text-sm">
                 {requestDetails}
               </p>
             </div>
+            
             <p className="mt-4 text-xs text-gray-500">
-                Review the notes and select the appropriate service below.
+              Review the notes and select the appropriate service below to dispatch.
             </p>
           </div>
         </div>
 
-        {/* Right Side: Service Selection Grid */}
+        {/* Right Side: Service Selection Grid (Main Content Area) */}
         <div className="lg:w-2/3 w-full">
           <h1 className="text-3xl font-bold text-gray-800 mb-6 border-b pb-2">
             Select Service Category
