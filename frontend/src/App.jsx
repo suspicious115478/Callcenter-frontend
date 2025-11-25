@@ -1,3 +1,5 @@
+// App.js (Updated)
+
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
@@ -7,7 +9,7 @@ import AgentDashboard from "./components/AgentDashboard";
 // 🚨 Import the required target components for the redirects
 import NewCallSearchPage from "./pages/NewCallSearchPage";
 import UserDashboardPage from "./pages/UserDashboardPage";
-import UserServicesPage from "./pages/UserServicesPage"; // 🚨 Added missing import
+import UserServicesPage from "./pages/UserServicesPage"; 
 
 function App() {
   return (
@@ -24,9 +26,8 @@ function App() {
           {/* Target for UNVERIFIED calls (e.g., /new-call/search?caller=...) */}
           <Route path="/new-call/search" element={<NewCallSearchPage />} />
           
-          {/* Target for VERIFIED calls (e.g., /user/dashboard/+91...) */}
-          {/* The ':phoneNumber' is a dynamic parameter that captures the number */}
-          <Route path="/user/dashboard/:phoneNumber" element={<UserDashboardPage />} />
+          {/* 🚀 CRITICAL FIX: Changed parameter name from :phoneNumber to :userId */}
+          <Route path="/user/dashboard/:userId" element={<UserDashboardPage />} />
           
           {/* Target for selecting services after ticket creation */}
           <Route path="/user/services" element={<UserServicesPage />} />
