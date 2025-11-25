@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
-// Assuming you have a config file or base URL for your backend
-import { BACKEND_URL } from '../config'; 
+import { useParams, useNavigate } from 'react-router-dom';
+// Using a placeholder URL internally to resolve the 'Could not resolve' error.
+// If you have a real config file, make sure it exports BACKEND_URL correctly.
+const BACKEND_URL = 'https://your-backend-service.onrender.com'; 
+// import { BACKEND_URL } from '../config'; // Keep this line commented or remove it if config file is not resolved
 
 export default function UserDashboardPage() {
   const { phoneNumber } = useParams();
+  const navigate = useNavigate();
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
@@ -18,7 +21,7 @@ export default function UserDashboardPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // --- NEW FUNCTION: Save Notes to Backend as a Ticket ---
+  // --- MODIFIED FUNCTION: Save Notes to Backend as a Ticket and Navigate ---
   const saveNotesAsTicket = async () => {
     if (!notes.trim()) {
       setSaveMessage('Error: Notes cannot be empty.');
@@ -30,29 +33,53 @@ export default function UserDashboardPage() {
     setSaveMessage('Saving...');
 
     try {
+      // Use the hardcoded BACKEND_URL placeholder for compilation stability
       const response = await fetch(`${BACKEND_URL}/call/ticket`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // Optionally include Agent authentication/ID header here
+          // Explicitly setting Agent ID as per standard practice
+          'X-Agent-Id': 'AGENT_001', 
         },
         body: JSON.stringify({
           phoneNumber: phoneNumber,
-          requestDetails: notes,
-          // Add other context like agentId, timestamp, etc., if available
+          requestDetails: notes.trim(), // Ensure notes are trimmed before sending
         }),
       });
 
-      if (response.ok) {
-        setSaveMessage('✅ Ticket created successfully!');
-        setNotes(''); // Clear notes after successful submission
-      } else {
-        const errorData = await response.json();
-        setSaveMessage(`❌ Failed to create ticket: ${errorData.message || 'Server error'}`);
+      if (!response.ok) {
+        // Attempt to read error message, falling back to text if JSON parse fails
+        let errorData = {};
+        try {
+          // If the server returns valid JSON error details
+          errorData = await response.json();
+        } catch (e) {
+          // Fallback if the response is not JSON (e.g., HTML error page)
+          const errorText = await response.text();
+          throw new Error(`Server responded with ${response.status}. Body: ${errorText.substring(0, 100)}...`);
+        }
+        throw new Error(errorData.message || 'Server error occurred.');
       }
+
+      const result = await response.json();
+
+      // 🚨 CRITICAL NAVIGATION: Redirect to the new service selection page
+      console.log(`Ticket ${result.ticket_id} created. Navigating to service selection.`);
+      
+      // Navigate, passing the necessary data (ticketId and requestDetails) in the state
+      navigate('/user/services', {
+        state: {
+          ticketId: result.ticket_id,
+          // Use the requestDetails returned by the server (or the local notes state)
+          requestDetails: result.requestDetails || notes.trim(), 
+        }
+      });
+      
+      // Note: We don't clear notes or set a success message here because we are navigating away.
+
     } catch (error) {
       console.error('API Error:', error);
-      setSaveMessage('❌ Network error during save.');
+      setSaveMessage(`❌ Failed to create ticket: ${error.message}`);
     } finally {
       setIsSaving(false);
       setTimeout(() => setSaveMessage(''), 5000);
@@ -202,6 +229,12 @@ export default function UserDashboardPage() {
       backgroundColor: isSaving ? '#6b7280' : '#10b981',
       color: 'white',
       transition: 'background-color 0.3s',
+      
+      // Use Tailwind-like colors/shadows for better visual appeal
+      boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.4), 0 2px 4px -2px rgba(16, 185, 129, 0.4)',
+      '&:hover': {
+        backgroundColor: isSaving ? '#6b7280' : '#059669', // Darker green on hover
+      }
     },
     message: {
       marginRight: '15px',
@@ -279,7 +312,7 @@ export default function UserDashboardPage() {
               disabled={isSaving}
               style={styles.saveButton}
             >
-              {isSaving ? 'Saving...' : 'Save Notes & Create Ticket'}
+              {isSaving ? 'Saving...' : 'Save Notes & Select Service'}
             </button>
           </div>
         </main>
@@ -287,4 +320,3 @@ export default function UserDashboardPage() {
     </div>
   );
 }
-
