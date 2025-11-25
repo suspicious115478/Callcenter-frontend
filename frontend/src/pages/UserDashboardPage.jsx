@@ -1,29 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
-// CRITICAL FIX: Define BACKEND_URL locally to resolve the build error.
-// In your real app, you can revert this to an import from your config file.
-import { BACKEND_URL } from '../config';
-
+// CRITICAL: Defined URL locally. Ensure this matches your deployed backend URL exactly.
+const BACKEND_URL = 'https://callcenter-baclend.onrender.com'; 
 
 export default function UserDashboardPage() {
-  // CRITICAL: Assuming the route parameter is the userId based on previous steps
-  const { userId } = useParams(); 
+  // 1. ROBUST ID EXTRACTION
+  // We capture all params and check for either 'userId' OR 'phoneNumber'.
+  // This ensures the page works regardless of how the route is named in App.js
+  const params = useParams();
+  const currentId = params.userId || params.phoneNumber; 
+
   const navigate = useNavigate();
   
-  // New States for Data Fetching and Selection
+  // --- State Initialization ---
   const [userData, setUserData] = useState(null);
   const [loadingData, setLoadingData] = useState(true);
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState('');
   
-  // Existing States
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
-  // Helper values derived from state
+  // Helper values derived from state (safely handled if userData is null)
   const phoneNumber = userData?.phoneNumber || 'Unknown';
   const userName = userData?.name || 'Loading User...';
   const subscriptionStatus = userData?.planStatus || 'Loading...';
@@ -36,7 +37,9 @@ export default function UserDashboardPage() {
 
   // --- EFFECT 2: Fetch User Data and Addresses ---
   useEffect(() => {
-    if (!userId) {
+    // If we couldn't find an ID in the URL, stop loading.
+    if (!currentId) {
+      console.error("No User ID or Phone Number found in URL parameters.");
       setLoadingData(false);
       return;
     }
@@ -44,28 +47,32 @@ export default function UserDashboardPage() {
     const fetchDashboardData = async () => {
       setLoadingData(true);
       try {
+        console.log(`Fetching data for ID: ${currentId}`);
+        
         // Fetch user details from the backend
-        const response = await fetch(`${BACKEND_URL}/user/data/${userId}`);
+        const response = await fetch(`${BACKEND_URL}/user/data/${currentId}`);
 
         if (!response.ok) {
           throw new Error(`Failed to fetch dashboard data. Status: ${response.status}`);
         }
 
         const data = await response.json();
+        console.log("Frontend received data:", data);
         
         setUserData({
             userId: data.userId,
             name: data.name,
             planStatus: data.planStatus,
-            // Phone number might need to be passed in state if not returned by this endpoint
             phoneNumber: data.phoneNumber || 'N/A', 
         }); 
         
-        setAddresses(data.addresses || []);
+        // Set addresses
+        const fetchedAddresses = data.addresses || [];
+        setAddresses(fetchedAddresses);
 
         // Pre-select the first address if available
-        if (data.addresses && data.addresses.length > 0) {
-            setSelectedAddress(data.addresses[0]);
+        if (fetchedAddresses.length > 0) {
+            setSelectedAddress(fetchedAddresses[0]);
         }
         
       } catch (error) {
@@ -77,7 +84,7 @@ export default function UserDashboardPage() {
     };
 
     fetchDashboardData();
-  }, [userId]);
+  }, [currentId]); // Dependency is the robust currentId
 
 
   // --- FUNCTION: Save Notes to Backend as a Ticket and Navigate ---
@@ -88,7 +95,7 @@ export default function UserDashboardPage() {
       return;
     }
     
-    // CRITICAL: Address is mandatory if addresses exist
+    // Address Validation: Mandatory if addresses exist
     if (addresses.length > 0 && !selectedAddress) {
          setSaveMessage('Error: Please select a service address.');
          setTimeout(() => setSaveMessage(''), 3000);
@@ -127,7 +134,7 @@ export default function UserDashboardPage() {
 
       console.log(`Ticket ${result.ticket_id} created. Navigating to service selection.`);
       
-      // Navigate, passing all necessary data to the next page
+      // Navigate to next page
       navigate('/user/services', {
         state: {
           ticketId: result.ticket_id,
@@ -290,8 +297,8 @@ export default function UserDashboardPage() {
         alignItems: 'center',
         marginBottom: '10px',
         cursor: 'pointer',
-        padding: '8px',
-        borderRadius: '6px',
+        padding: '10px',
+        borderRadius: '8px',
         transition: 'background-color 0.2s',
         backgroundColor: '#fff',
         border: '1px solid #e5e7eb',
@@ -305,6 +312,7 @@ export default function UserDashboardPage() {
         marginRight: '12px',
         minWidth: '16px',
         minHeight: '16px',
+        cursor: 'pointer'
     },
     addressLine: {
         fontSize: '0.95rem',
@@ -380,7 +388,7 @@ export default function UserDashboardPage() {
             </div>
             
             <div style={{ marginTop: '16px', fontSize: '0.8rem', color: '#9ca3af' }}>
-              *Details for User ID: {userId}
+              *Details for User ID: {currentId}
             </div>
           </div>
           
