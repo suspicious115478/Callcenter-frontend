@@ -2,25 +2,85 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
 // Using a placeholder URL internally to resolve the 'Could not resolve' error.
-// If you have a real config file, make sure it exports BACKEND_URL correctly.
 import { BACKEND_URL } from '../config';
 
 
 export default function UserDashboardPage() {
-  const { phoneNumber } = useParams();
+  // CRITICAL: Assuming the route parameter is the userId, not phoneNumber,
+  // based on the controller's dashboardLink definition: /user/dashboard/:userId
+  const { userId } = useParams(); 
   const navigate = useNavigate();
+  
+  // New States for Data Fetching and Selection
+  const [userData, setUserData] = useState(null);
+  const [loadingData, setLoadingData] = useState(true);
+  const [addresses, setAddresses] = useState([]);
+  const [selectedAddress, setSelectedAddress] = useState('');
+  
+  // Existing States
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
-  // Mock subscription status - replace with actual API fetch if needed
-  const [subscriptionStatus] = useState('Premium'); 
 
+  // Helper values derived from state
+  const phoneNumber = userData?.phoneNumber || 'Unknown';
+  const userName = userData?.name || 'Loading User...';
+  const subscriptionStatus = userData?.planStatus || 'Loading...';
+
+  // --- EFFECT 1: Clock Timer ---
   useEffect(() => {
-    // Clock timer for the header
     const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  // --- EFFECT 2: Fetch User Data and Addresses ---
+  useEffect(() => {
+    if (!userId) {
+      setLoadingData(false);
+      return;
+    }
+
+    const fetchDashboardData = async () => {
+      setLoadingData(true);
+      try {
+        // CRITICAL: Call the new backend endpoint
+        const response = await fetch(`${BACKEND_URL}/user/data/${userId}`);
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch dashboard data. Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        // Assuming the phone number is not available here, but the user data is
+        setUserData({
+            userId: data.userId,
+            name: data.name,
+            planStatus: data.planStatus,
+            // Assuming the actual phone number is needed for the ticket creation, 
+            // you might need to adjust the backend to return it, or pass it via the initial socket event.
+            // For now, we will use a placeholder or assume it's stored in 'User' table if required for ticket logging.
+            phoneNumber: phoneNumber, // Keep existing phone number variable if it was available from the route's state
+        }); 
+        setAddresses(data.addresses);
+
+        // Pre-select the first address if available
+        if (data.addresses && data.addresses.length > 0) {
+            setSelectedAddress(data.addresses[0]);
+        }
+        
+      } catch (error) {
+        console.error('Dashboard Data Fetch Error:', error);
+        setSaveMessage(`❌ Error fetching user data: ${error.message}`);
+      } finally {
+        setLoadingData(false);
+      }
+    };
+
+    fetchDashboardData();
+  }, [userId]);
+
 
   // --- RESTORED FUNCTION: Save Notes to Backend as a Ticket and Navigate ---
   const saveNotesAsTicket = async () => {
@@ -29,35 +89,37 @@ export default function UserDashboardPage() {
       setTimeout(() => setSaveMessage(''), 3000);
       return;
     }
+    
+    // CRITICAL: Address is mandatory if multiple exist
+    if (addresses.length > 0 && !selectedAddress) {
+         setSaveMessage('Error: Please select a service address.');
+         setTimeout(() => setSaveMessage(''), 3000);
+         return;
+    }
 
     setIsSaving(true);
     setSaveMessage('Saving...');
 
     try {
-      // Use the BACKEND_URL defined above
       const response = await fetch(`${BACKEND_URL}/call/ticket`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // Explicitly setting Agent ID as per standard practice
           'X-Agent-Id': 'AGENT_001', 
         },
         body: JSON.stringify({
-          phoneNumber: phoneNumber,
-          requestDetails: notes.trim(), // Ensure notes are trimmed before sending
+          phoneNumber: phoneNumber, // Assuming phone number is available/mocked
+          requestDetails: notes.trim(),
+          selectedAddress: selectedAddress, // CRITICAL: Include the selected address
         }),
       });
 
       if (!response.ok) {
-        // Attempt to read error message, falling back to text if JSON parse fails
         let errorData = {};
         try {
-          // If the server returns valid JSON error details
           errorData = await response.json();
         } catch (e) {
-          // Fallback if the response is not JSON (e.g., HTML error page)
           const errorText = await response.text();
-          // Limit error text to prevent massive console logs
           throw new Error(`Server responded with ${response.status}. Body: ${errorText.substring(0, 100)}...`);
         }
         throw new Error(errorData.message || 'Server error occurred.');
@@ -65,19 +127,17 @@ export default function UserDashboardPage() {
 
       const result = await response.json();
 
-      // 🚨 CRITICAL NAVIGATION: Redirect to the new service selection page
       console.log(`Ticket ${result.ticket_id} created. Navigating to service selection.`);
       
-      // Navigate, passing the necessary data (ticketId and requestDetails) in the state
+      // Navigate, passing the necessary data (ticketId, requestDetails, and selectedAddress) in the state
       navigate('/user/services', {
         state: {
           ticketId: result.ticket_id,
-          // Use the requestDetails returned by the server (or the local notes state)
           requestDetails: result.requestDetails || notes.trim(), 
+          selectedAddress: selectedAddress, // Pass the selected address to the next page
         }
       });
       
-      // Note: We don't clear notes or set a success message here because we are navigating away.
 
     } catch (error) {
       console.error('API Error:', error);
@@ -176,7 +236,7 @@ export default function UserDashboardPage() {
     },
     notesTextarea: {
       width: '100%',
-      minHeight: '400px',
+      minHeight: '200px', // Reduced height to make room for address selector
       padding: '16px',
       fontSize: '1rem',
       border: '1px solid #d1d5db',
@@ -217,8 +277,41 @@ export default function UserDashboardPage() {
       borderRadius: '9999px',
       fontSize: '0.75rem',
       fontWeight: '600',
-      backgroundColor: subscriptionStatus === 'Premium' ? '#d1fae5' : '#fef9c3',
-      color: subscriptionStatus === 'Premium' ? '#065f46' : '#a16207',
+      backgroundColor: subscriptionStatus === 'active' ? '#d1fae5' : '#fef9c3',
+      color: subscriptionStatus === 'active' ? '#065f46' : '#a16207',
+    },
+    addressSelector: {
+        marginTop: '20px',
+        padding: '20px',
+        backgroundColor: '#f9fafb',
+        borderRadius: '12px',
+        border: '1px dashed #d1d5db',
+    },
+    addressOption: {
+        display: 'flex',
+        alignItems: 'center',
+        marginBottom: '10px',
+        cursor: 'pointer',
+        padding: '8px',
+        borderRadius: '6px',
+        transition: 'background-color 0.2s',
+        backgroundColor: '#fff',
+        border: '1px solid #e5e7eb',
+    },
+    addressSelected: {
+        backgroundColor: '#e0f2f1',
+        borderColor: '#0d9488',
+        boxShadow: '0 0 0 2px #ccfbf1',
+    },
+    addressRadio: {
+        marginRight: '12px',
+        minWidth: '16px',
+        minHeight: '16px',
+    },
+    addressLine: {
+        fontSize: '0.95rem',
+        color: '#1f2937',
+        fontWeight: '500',
     },
     saveButton: {
       padding: '10px 20px',
@@ -226,12 +319,10 @@ export default function UserDashboardPage() {
       border: 'none',
       fontWeight: '600',
       fontSize: '0.875rem',
-      cursor: isSaving ? 'default' : 'pointer',
-      backgroundColor: isSaving ? '#6b7280' : '#10b981',
+      cursor: isSaving || loadingData ? 'default' : 'pointer',
+      backgroundColor: isSaving || loadingData ? '#6b7280' : '#10b981',
       color: 'white',
       transition: 'background-color 0.3s',
-      
-      // Use Tailwind-like colors/shadows for better visual appeal
       boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.4), 0 2px 4px -2px rgba(16, 185, 129, 0.4)',
     },
     message: {
@@ -242,6 +333,15 @@ export default function UserDashboardPage() {
     }
   };
   // --------------------------------------------------------
+
+  if (loadingData) {
+      return (
+          <div style={{ ...styles.container, justifyContent: 'center', alignItems: 'center' }}>
+              <p style={{ fontSize: '1.5rem', color: '#4f46e5' }}>Loading user data and addresses...</p>
+          </div>
+      );
+  }
+
 
   return (
     <div style={styles.container}>
@@ -267,6 +367,11 @@ export default function UserDashboardPage() {
             <div style={styles.userInfoTitle}>☎️ Customer Details</div>
             
             <div style={styles.infoRow}>
+              <span style={styles.infoKey}>Customer Name</span>
+              <span style={styles.infoVal}>{userName}</span>
+            </div>
+            
+            <div style={styles.infoRow}>
               <span style={styles.infoKey}>Call Number</span>
               <span style={styles.infoVal}>{phoneNumber}</span>
             </div>
@@ -277,7 +382,7 @@ export default function UserDashboardPage() {
             </div>
             
             <div style={{ marginTop: '16px', fontSize: '0.8rem', color: '#9ca3af' }}>
-              *Details are for the verified calling party.
+              *Details for User ID: {userId}
             </div>
           </div>
           
@@ -289,31 +394,67 @@ export default function UserDashboardPage() {
           </div>
         </aside>
 
-        {/* CONTENT AREA - Used for Note Taking */}
+        {/* CONTENT AREA - Used for Note Taking and Address Selection */}
         <main style={styles.contentArea}>
-          <h2 style={styles.title}>📝 Active Call Notes</h2>
+          <h2 style={styles.title}>📝 Active Call Notes & Service Intake</h2>
 
           <div style={styles.card}>
+            {/* Notes Section */}
             <textarea
               style={styles.notesTextarea}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Start taking notes on the user's request, issues, or actions taken..."
             />
+            
+            {/* Address Selection Section */}
+            {addresses.length > 0 && (
+                <div style={styles.addressSelector}>
+                    <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: '#111827', marginBottom: '15px' }}>
+                        📍 Select Service Address:
+                    </h3>
+                    {addresses.map((address, index) => (
+                        <div 
+                            key={index}
+                            style={{ 
+                                ...styles.addressOption, 
+                                ...(selectedAddress === address ? styles.addressSelected : {}) 
+                            }}
+                            onClick={() => setSelectedAddress(address)}
+                        >
+                            <input 
+                                type="radio" 
+                                name="serviceAddress" 
+                                value={address} 
+                                checked={selectedAddress === address}
+                                onChange={() => setSelectedAddress(address)}
+                                style={styles.addressRadio}
+                            />
+                            <span style={styles.addressLine}>{address}</span>
+                        </div>
+                    ))}
+                    {addresses.length === 0 && (
+                        <p style={{ color: '#9ca3af', fontSize: '0.875rem' }}>No saved addresses found.</p>
+                    )}
+                </div>
+            )}
+            
+            {/* Action Buttons */}
+            <div style={{ marginTop: '20px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+              {saveMessage && (
+                <span style={styles.message}>{saveMessage}</span>
+              )}
+              <button 
+                onClick={saveNotesAsTicket} 
+                disabled={isSaving || loadingData}
+                style={styles.saveButton}
+              >
+                {isSaving ? 'Saving...' : 'Save Notes & Select Service'}
+              </button>
+            </div>
+
           </div>
 
-          <div style={{ marginTop: '20px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-            {saveMessage && (
-              <span style={styles.message}>{saveMessage}</span>
-            )}
-            <button 
-              onClick={saveNotesAsTicket} 
-              disabled={isSaving}
-              style={styles.saveButton}
-            >
-              {isSaving ? 'Saving...' : 'Save Notes & Select Service'}
-            </button>
-          </div>
         </main>
       </div>
     </div>
