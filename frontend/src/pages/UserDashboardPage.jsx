@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 
-// CRITICAL: Defined URL locally. Ensure this matches your deployed backend URL exactly.
+// CRITICAL FIX: Defined URL locally to fix module resolution error.
+// Ensure this matches your deployed backend URL exactly.
 const BACKEND_URL = 'https://callcenter-baclend.onrender.com'; 
 
 export default function UserDashboardPage() {
-  // 1. ROBUST ID EXTRACTION
-  // We capture all params and check for either 'userId' OR 'phoneNumber'.
-  // This ensures the page works regardless of how the route is named in App.js
+  // 1. CRITICAL FIX: Route Parameter Extraction
+  // App.js defines route as "/user/dashboard/:phoneNumber".
+  // But the backend redirects to "/user/dashboard/<userId>".
+  // So 'params.phoneNumber' actually holds the User ID (e.g., "1").
   const params = useParams();
-  const currentId = params.userId || params.phoneNumber; 
+  // We use the value from the URL (whether it's named phoneNumber or userId) as the ID to fetch data.
+  const currentId = params.phoneNumber || params.userId; 
 
   const navigate = useNavigate();
   
@@ -25,7 +28,7 @@ export default function UserDashboardPage() {
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
   // Helper values derived from state (safely handled if userData is null)
-  const phoneNumber = userData?.phoneNumber || 'Unknown';
+  const displayPhoneNumber = userData?.phoneNumber || 'N/A';
   const userName = userData?.name || 'Loading User...';
   const subscriptionStatus = userData?.planStatus || 'Loading...';
 
@@ -39,7 +42,7 @@ export default function UserDashboardPage() {
   useEffect(() => {
     // If we couldn't find an ID in the URL, stop loading.
     if (!currentId) {
-      console.error("No User ID or Phone Number found in URL parameters.");
+      console.error("No User ID found in URL parameters.");
       setLoadingData(false);
       return;
     }
@@ -49,7 +52,7 @@ export default function UserDashboardPage() {
       try {
         console.log(`Fetching data for ID: ${currentId}`);
         
-        // Fetch user details from the backend
+        // Fetch user details from the backend using the ID from the URL
         const response = await fetch(`${BACKEND_URL}/user/data/${currentId}`);
 
         if (!response.ok) {
@@ -84,7 +87,7 @@ export default function UserDashboardPage() {
     };
 
     fetchDashboardData();
-  }, [currentId]); // Dependency is the robust currentId
+  }, [currentId]); 
 
 
   // --- FUNCTION: Save Notes to Backend as a Ticket and Navigate ---
@@ -113,7 +116,7 @@ export default function UserDashboardPage() {
           'X-Agent-Id': 'AGENT_001', 
         },
         body: JSON.stringify({
-          phoneNumber: phoneNumber, 
+          phoneNumber: displayPhoneNumber, // Send the phone number fetched from user data
           requestDetails: notes.trim(),
           selectedAddress: selectedAddress, // Include the selected address
         }),
@@ -297,8 +300,8 @@ export default function UserDashboardPage() {
         alignItems: 'center',
         marginBottom: '10px',
         cursor: 'pointer',
-        padding: '10px',
-        borderRadius: '8px',
+        padding: '8px',
+        borderRadius: '6px',
         transition: 'background-color 0.2s',
         backgroundColor: '#fff',
         border: '1px solid #e5e7eb',
@@ -379,7 +382,7 @@ export default function UserDashboardPage() {
             
             <div style={styles.infoRow}>
               <span style={styles.infoKey}>Call Number</span>
-              <span style={styles.infoVal}>{phoneNumber}</span>
+              <span style={styles.infoVal}>{displayPhoneNumber}</span>
             </div>
             
             <div style={styles.infoRow}>
