@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+
 // Using a placeholder URL internally to resolve the 'Could not resolve' error.
 // If you have a real config file, make sure it exports BACKEND_URL correctly.
-const BACKEND_URL = 'https://your-backend-service.onrender.com'; 
-// import { BACKEND_URL } from '../config'; // Keep this line commented or remove it if config file is not resolved
+import { BACKEND_URL } from '../config';
+
 
 export default function UserDashboardPage() {
   const { phoneNumber } = useParams();
@@ -21,7 +22,7 @@ export default function UserDashboardPage() {
     return () => clearInterval(timer);
   }, []);
 
-  // --- MODIFIED FUNCTION: Save Notes to Backend as a Ticket and Navigate ---
+  // --- RESTORED FUNCTION: Save Notes to Backend as a Ticket and Navigate ---
   const saveNotesAsTicket = async () => {
     if (!notes.trim()) {
       setSaveMessage('Error: Notes cannot be empty.');
@@ -33,7 +34,7 @@ export default function UserDashboardPage() {
     setSaveMessage('Saving...');
 
     try {
-      // Use the hardcoded BACKEND_URL placeholder for compilation stability
+      // Use the BACKEND_URL defined above
       const response = await fetch(`${BACKEND_URL}/call/ticket`, {
         method: 'POST',
         headers: {
@@ -56,6 +57,7 @@ export default function UserDashboardPage() {
         } catch (e) {
           // Fallback if the response is not JSON (e.g., HTML error page)
           const errorText = await response.text();
+          // Limit error text to prevent massive console logs
           throw new Error(`Server responded with ${response.status}. Body: ${errorText.substring(0, 100)}...`);
         }
         throw new Error(errorData.message || 'Server error occurred.');
@@ -87,9 +89,8 @@ export default function UserDashboardPage() {
   };
   // --------------------------------------------------------
 
-  // --- INLINE STYLES ADAPTED FROM AgentDashboard ---
+  // --- INLINE STYLES ADAPTED FOR COMPILATION ---
   const styles = {
-    // ... (Your existing styles remain unchanged)
     container: {
       display: 'flex',
       flexDirection: 'column',
@@ -232,9 +233,6 @@ export default function UserDashboardPage() {
       
       // Use Tailwind-like colors/shadows for better visual appeal
       boxShadow: '0 4px 6px -1px rgba(16, 185, 129, 0.4), 0 2px 4px -2px rgba(16, 185, 129, 0.4)',
-      '&:hover': {
-        backgroundColor: isSaving ? '#6b7280' : '#059669', // Darker green on hover
-      }
     },
     message: {
       marginRight: '15px',
@@ -250,6 +248,7 @@ export default function UserDashboardPage() {
       {/* HEADER */}
       <header style={styles.header}>
         <div style={styles.brand}>
+          {/* Inline SVG Phone Icon (replacement for lucide-react) */}
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
           </svg>
