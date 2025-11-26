@@ -1,3 +1,5 @@
+// frontend/src/components/AgentDashboard.jsx
+
 import React, { useState, useEffect } from "react";
 import io from "socket.io-client";
 import { BACKEND_URL } from "../config";
@@ -23,6 +25,7 @@ export default function AgentDashboard() {
 
     socket.on("incoming-call", (callData) => {
       console.log("New call received:", callData);
+      // NOTE: Ensure the incoming callData includes a 'caller' property with the phone number
       setIncomingCalls(prevCalls => [
         { ...callData, id: Date.now() },
         ...prevCalls 
@@ -38,9 +41,23 @@ export default function AgentDashboard() {
 
   // Handle clicking "Accept" on a card
   const handleCallAccept = (acceptedCall) => {
-    if (acceptedCall.dashboardLink) {
-      window.location.href = acceptedCall.dashboardLink;
+    // 🎯 CRITICAL FIX: Append phone number to the dashboardLink as a query parameter
+    // We assume the phone number is stored in the 'caller' property of acceptedCall
+    const phoneNumber = acceptedCall.caller; 
+    const dashboardLink = acceptedCall.dashboardLink;
+
+    if (dashboardLink && phoneNumber) {
+      // Encode the phone number just in case it contains special characters (+, etc.)
+      const encodedPhoneNumber = encodeURIComponent(phoneNumber);
+      const redirectUrl = `${dashboardLink}?phoneNumber=${encodedPhoneNumber}`;
+      
+      console.log(`AgentDashboard: Accepting call. Redirecting to: ${redirectUrl}`); // 🚀 LOG
+      
+      window.location.href = redirectUrl;
+    } else {
+      console.error("AgentDashboard: Cannot redirect. Missing dashboardLink or caller phone number.", acceptedCall); // 🚀 LOG
     }
+    
     // Remove from list
     setIncomingCalls(prevCalls =>
       prevCalls.filter(call => call.id !== acceptedCall.id)
