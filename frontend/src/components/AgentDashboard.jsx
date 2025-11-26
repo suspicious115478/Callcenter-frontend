@@ -1,68 +1,76 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from 'react-router-dom'; // 🚨 IMPORT useNavigate
 import io from "socket.io-client";
 import { BACKEND_URL } from "../config";
 import CallCard from "./CallCard";
 
 export default function AgentDashboard() {
-  const [status, setStatus] = useState("offline");
-  const [incomingCalls, setIncomingCalls] = useState([]);
-  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+  const navigate = useNavigate(); // 🔑 USE: Initialize useNavigate hook
+  const [status, setStatus] = useState("offline");
+  const [incomingCalls, setIncomingCalls] = useState([]);
+  const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
-  useEffect(() => {
-    // Clock timer for the header
-    const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
+  useEffect(() => {
+    // Clock timer for the header
+    const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
 
-    // 1. Initial status fetch
-    fetch(`${BACKEND_URL}/agent/status`)
-      .then(res => res.json())
-      .then(data => setStatus(data.status))
-      .catch(err => console.error("Failed to fetch status:", err));
+    // 1. Initial status fetch
+    fetch(`${BACKEND_URL}/agent/status`)
+      .then(res => res.json())
+      .then(data => setStatus(data.status))
+      .catch(err => console.error("Failed to fetch status:", err));
 
-    // 2. Socket.IO Listener for Incoming Calls
-    const socket = io(BACKEND_URL);
+    // 2. Socket.IO Listener for Incoming Calls
+    const socket = io(BACKEND_URL);
 
-    socket.on("incoming-call", (callData) => {
-      console.log("New call received:", callData);
-      setIncomingCalls(prevCalls => [
-        { ...callData, id: Date.now() },
-        ...prevCalls 
-      ]);
-    });
+    socket.on("incoming-call", (callData) => {
+      console.log("New call received:", callData);
+      // NOTE: callData contains: { caller, name, subscriptionStatus, dashboardLink, ticket, isExistingUser }
+      setIncomingCalls(prevCalls => [
+        { ...callData, id: Date.now() },
+        ...prevCalls 
+      ]);
+    });
 
-    // Cleanup socket listener on component unmount
-    return () => {
-      socket.off("incoming-call");
-      clearInterval(timer);
-    };
-  }, []);
+    // Cleanup socket listener on component unmount
+    return () => {
+      socket.off("incoming-call");
+      clearInterval(timer);
+    };
+  }, []);
 
-  // Handle clicking "Accept" on a card
-  const handleCallAccept = (acceptedCall) => {
-    if (acceptedCall.dashboardLink) {
-      window.location.href = acceptedCall.dashboardLink;
-    }
-    // Remove from list
-    setIncomingCalls(prevCalls =>
-      prevCalls.filter(call => call.id !== acceptedCall.id)
-    );
-  };
+  // Handle clicking "Accept" on a card
+  const handleCallAccept = (acceptedCall) => {
+    if (acceptedCall.dashboardLink) {
+      // 🚨 FIX: Use React Router's navigate to perform client-side navigation 
+      // and pass the phone number via the 'state' object.
+      navigate(acceptedCall.dashboardLink, {
+        state: { phoneNumber: acceptedCall.caller }
+      });
+    }
+    // Remove from list
+    setIncomingCalls(prevCalls =>
+      prevCalls.filter(call => call.id !== acceptedCall.id)
+    );
+  };
 
-  // Toggle Agent Status
-  const toggleStatus = () => {
-    const newStatus = status === "offline" ? "online" : "offline";
-    fetch(`${BACKEND_URL}/agent/status`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus })
-    })
-    .catch(err => console.error("Status update failed:", err));
-    
-    setStatus(newStatus);
-  };
+  // Toggle Agent Status
+  const toggleStatus = () => {
+    const newStatus = status === "offline" ? "online" : "offline";
+    fetch(`${BACKEND_URL}/agent/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus })
+    })
+    .catch(err => console.error("Status update failed:", err));
+    
+    setStatus(newStatus);
+  };
 
-  const isOnline = status === "online";
+  const isOnline = status === "online";
 
-  // --- INLINE STYLES ---
+  // --- INLINE STYLES ---
+  // ... (styles unchanged)
   const styles = {
     container: {
       display: 'flex',
@@ -173,8 +181,8 @@ export default function AgentDashboard() {
       transition: 'all 0.2s',
       backgroundColor: isOnline ? '#ef4444' : '#10b981',
       color: 'white',
-      boxShadow: isOnline 
-        ? '0 4px 6px -1px rgba(239, 68, 68, 0.2)' 
+      boxShadow: isOnline
+        ? '0 4px 6px -1px rgba(239, 68, 68, 0.2)'
         : '0 4px 6px -1px rgba(16, 185, 129, 0.2)',
     },
     stats: {
@@ -249,84 +257,84 @@ export default function AgentDashboard() {
     }
   };
 
-  return (
-    <div style={styles.container}>
-      {/* HEADER */}
-      <header style={styles.header}>
-        <div style={styles.brand}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-          </svg>
-          <span>CC Agent Console</span>
-        </div>
-        <div style={styles.headerRight}>
-          <span style={styles.clock}>{currentTime}</span>
-          <div style={styles.avatar}>JD</div>
-        </div>
-      </header>
+  return (
+    <div style={styles.container}>
+      {/* HEADER */}
+      <header style={styles.header}>
+        <div style={styles.brand}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+          </svg>
+          <span>CC Agent Console</span>
+        </div>
+        <div style={styles.headerRight}>
+          <span style={styles.clock}>{currentTime}</span>
+          <div style={styles.avatar}>JD</div>
+        </div>
+      </header>
 
-      <div style={styles.main}>
-        {/* SIDEBAR */}
-        <aside style={styles.sidebar}>
-          <div style={styles.statusCard}>
-            <div style={styles.statusLabel}>Current Status</div>
-            <div style={styles.statusBadge}>
-              <span style={styles.statusDot}></span>
-              {status.toUpperCase()}
-            </div>
-            <button style={styles.toggleBtn} onClick={toggleStatus}>
-              {isOnline ? 'Go Offline' : 'Go Online'}
-            </button>
-          </div>
+      <div style={styles.main}>
+        {/* SIDEBAR */}
+        <aside style={styles.sidebar}>
+          <div style={styles.statusCard}>
+            <div style={styles.statusLabel}>Current Status</div>
+            <div style={styles.statusBadge}>
+              <span style={styles.statusDot}></span>
+              {status.toUpperCase()}
+            </div>
+            <button style={styles.toggleBtn} onClick={toggleStatus}>
+              {isOnline ? 'Go Offline' : 'Go Online'}
+            </button>
+          </div>
 
-          <div style={styles.stats}>
-            <div style={styles.statRow}>
-              <span style={styles.statKey}>Calls Today</span>
-              <span style={styles.statVal}>12</span>
-            </div>
-            <div style={styles.statRow}>
-              <span style={styles.statKey}>Avg Handle Time</span>
-              <span style={styles.statVal}>4m 22s</span>
-            </div>
-            <div style={styles.statRow}>
-              <span style={styles.statKey}>Utilization</span>
-              <span style={styles.statVal}>85%</span>
-            </div>
-          </div>
-        </aside>
+          <div style={styles.stats}>
+            <div style={styles.statRow}>
+              <span style={styles.statKey}>Calls Today</span>
+              <span style={styles.statVal}>12</span>
+            </div>
+            <div style={styles.statRow}>
+              <span style={styles.statKey}>Avg Handle Time</span>
+              <span style={styles.statVal}>4m 22s</span>
+            </div>
+            <div style={styles.statRow}>
+              <span style={styles.statKey}>Utilization</span>
+              <span style={styles.statVal}>85%</span>
+            </div>
+          </div>
+        </aside>
 
-        {/* CONTENT AREA */}
-        <main style={styles.contentArea}>
-          <div style={styles.queueHeader}>
-            <h2 style={styles.queueTitle}>Incoming Call Queue</h2>
-            <span style={styles.countBadge}>{incomingCalls.length} Waiting</span>
-          </div>
+        {/* CONTENT AREA */}
+        <main style={styles.contentArea}>
+          <div style={styles.queueHeader}>
+            <h2 style={styles.queueTitle}>Incoming Call Queue</h2>
+            <span style={styles.countBadge}>{incomingCalls.length} Waiting</span>
+          </div>
 
-          {incomingCalls.length === 0 ? (
-            <div style={styles.empty}>
-              <div style={styles.emptyIcon}>
-                {isOnline ? '📡' : '🌙'}
-              </div>
-              <h3 style={{margin: 0, color: '#374151'}}>
-                {isOnline ? 'Waiting for calls...' : 'You are currently offline'}
-              </h3>
-              <p style={{marginTop: '8px', fontSize: '0.875rem'}}>
-                {isOnline ? 'System is active and listening.' : 'Go online to start receiving calls.'}
-              </p>
-            </div>
-          ) : (
-            <div style={styles.grid}>
-              {incomingCalls.map(call => (
-                <CallCard 
-                  key={call.id} 
-                  callData={call} 
-                  onAccept={handleCallAccept} 
-                />
-              ))}
-            </div>
-          )}
-        </main>
-      </div>
-    </div>
-  );
+          {incomingCalls.length === 0 ? (
+            <div style={styles.empty}>
+              <div style={styles.emptyIcon}>
+                {isOnline ? '📡' : '🌙'}
+              </div>
+              <h3 style={{margin: 0, color: '#374151'}}>
+                {isOnline ? 'Waiting for calls...' : 'You are currently offline'}
+              </h3>
+              <p style={{marginTop: '8px', fontSize: '0.875rem'}}>
+                {isOnline ? 'System is active and listening.' : 'Go online to start receiving calls.'}
+              </p>
+            </div>
+          ) : (
+            <div style={styles.grid}>
+              {incomingCalls.map(call => (
+                <CallCard 
+                  key={call.id} 
+                  callData={call} 
+                  onAccept={handleCallAccept} 
+                />
+              ))}
+            </div>
+          )}
+        </main>
+      </div>
+    </div>
+  );
 }
