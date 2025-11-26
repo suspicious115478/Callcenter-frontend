@@ -31,6 +31,7 @@ function App() {
           
           {/* Target for selecting services after ticket creation */}
           <Route path="/user/services" element={<UserServicesPage />} />
+          <Route path="/user/servicemen" element={<ServiceManSelectionPage />} />
           
           {/* Optional: 404 Not Found fallback */}
           <Route path="*" element={<h1>404: Page Not Found</h1>} />
@@ -42,3 +43,4 @@ function App() {
 
 
 export default App;
+
