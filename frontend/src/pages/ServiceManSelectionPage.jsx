@@ -153,12 +153,19 @@ export function ServiceManSelectionPage() {
                 const data = await response.json();
                 const addressLine = data.address_line;
 
-                setFetchedAddressLine(addressLine); 
-                console.log(`LOG-4-SUCCESS: Address line retrieved: ${addressLine}`);
+setFetchedAddressLine(addressLine); 
+console.log(`LOG-4-SUCCESS: Address line retrieved: ${addressLine}`);
 
+// 🎯 FIX: Simplify the address for the geocoding service
+const simplifiedAddress = addressLine
+    .replace(/Flat \d+,\s*/i, '') // Remove "Flat 201, " (case insensitive)
+    .replace(/Rosewood Apartments,\s*/i, '') // Remove the apartment name
+    .trim(); // Remove any extra space
+
+console.log(`[GEOCODING PRE-QUERY] Using simplified address: ${simplifiedAddress}`);
                 // 2. GEOCODE ADDRESS
-                if (addressLine && addressLine !== 'Address not found.') {
-                    const coords = await geocodeAddress(addressLine);
+                if (simplifiedAddress) {
+                    const coords = await geocodeAddress(simplifiedAddress);
                     setUserCoordinates(coords);
                 } else {
                     setUserCoordinates({ lat: 'N/A', lon: 'N/A' });
