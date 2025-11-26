@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-// 🚀 CRITICAL FIX: The base URL must include the '/api' prefix to correctly hit your Express routes
-const API_BASE_URL = 'https://callcenter-baclend.onrender.com'; 
+// 🚀 CRITICAL FIX: The base URL must be updated based on the discussion (removing /api)
+// Assuming you chose the frontend fix to align with the backend's /call route.
+const API_BASE_URL = 'https://callcenter-baclend.onrender.com'; 
 
 // Placeholder for header icon
 const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>; 
@@ -73,7 +74,37 @@ const ServicemanCard = ({ serviceman, isSelected, onClick }) => {
     );
 };
 
-// ⚠️ FIX: Change 'export default function' to 'export function'
+// 🎯 NEW FUNCTION: Geocode the address string to Lat/Lng using Nominatim
+const geocodeAddress = async (address) => {
+    // Encode the address for safe URL inclusion
+    const encodedAddress = encodeURIComponent(address);
+    // Nominatim search endpoint (OpenStreetMap)
+    const geocodingUrl = `https://nominatim.openstreetmap.org/search?q=${encodedAddress}&format=json&limit=1`;
+    
+    console.log(`[GEOCODING START] Querying Nominatim for: ${address}`);
+    
+    try {
+        const response = await fetch(geocodingUrl);
+        if (!response.ok) {
+            throw new Error(`Geocoding HTTP error! Status: ${response.status}`);
+        }
+        const data = await response.json();
+        
+        if (data && data.length > 0) {
+            const lat = parseFloat(data[0].lat).toFixed(4);
+            const lon = parseFloat(data[0].lon).toFixed(4);
+            console.log(`[GEOCODING SUCCESS] Found Lat: ${lat}, Lng: ${lon}`);
+            return { lat, lon };
+        } else {
+            console.warn('[GEOCODING WARNING] No results found for address.');
+            return null;
+        }
+    } catch (error) {
+        console.error('[GEOCODING ERROR] Failed to geocode address:', error);
+        return null;
+    }
+};
+
 export function ServiceManSelectionPage() {
     const location = useLocation();
     const navigate = useNavigate();
@@ -83,6 +114,9 @@ export function ServiceManSelectionPage() {
     
     // 🎯 NEW STATE: For the fetched address line
     const [fetchedAddressLine, setFetchedAddressLine] = useState('Loading address...');
+    // 🎯 NEW STATE: For the geocoded coordinates
+    const [userCoordinates, setUserCoordinates] = useState(null); 
+
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
     const [availableServicemen, setAvailableServicemen] = useState([]);
     const [selectedServiceman, setSelectedServiceman] = useState(null);
@@ -94,66 +128,55 @@ export function ServiceManSelectionPage() {
         return () => clearInterval(timer);
     }, []);
 
-    // 🎯 NEW EFFECT: Fetch the full address line using the address ID
+    // 🎯 UPDATED EFFECT: Fetch the full address line and then geocode it
     useEffect(() => {
-        // --- LOGGING STEP 0: Initial Check ---
-        console.groupCollapsed("LOG-FETCH-ADDRESS-PROCESS");
-        console.log(`LOG-0: Hook triggered. selectedAddressId: ${selectedAddressId}`);
-        
+        console.groupCollapsed("LOG-FETCH-ADDRESS-PROCESS");
+        console.log(`LOG-0: Hook triggered. selectedAddressId: ${selectedAddressId}`);
+        
         if (!selectedAddressId) {
             setFetchedAddressLine('Error: No Address ID provided.');
-            console.error("LOG-0-ERROR: selectedAddressId is null/undefined. Aborting fetch.");
-            console.groupEnd();
+            console.groupEnd();
             return;
         }
 
-        const fetchAddress = async () => {
-            const fullUrl = `${API_BASE_URL}/call/address/lookup/${selectedAddressId}`;
-            
-            // --- LOGGING STEP 1: Pre-Fetch Data ---
-            console.log(`LOG-1: API Base URL Used: ${API_BASE_URL}`);
-            console.log(`LOG-1: Route Path Used: /call/address/lookup/${selectedAddressId}`);
-            console.log(`LOG-1: Full URL being sent (GET): ${fullUrl}`);
-            
+        const fetchAndGeocodeAddress = async () => {
+            // Using the corrected backend path /call/address/lookup/...
+            const fullUrl = `${API_BASE_URL}/call/address/lookup/${selectedAddressId}`;
+            setFetchedAddressLine('Fetching address details...');
+            
             try {
+                // 1. FETCH ADDRESS
                 const response = await fetch(fullUrl);
-               
-                // --- LOGGING STEP 2: Post-Fetch Status ---
-                console.log(`LOG-2: Received response status: ${response.status} (OK: ${response.ok})`);
-
                 if (!response.ok) {
-                    // --- LOGGING STEP 3 (Failure) ---
-                    console.error(`LOG-3-FAILURE: Server returned error status: ${response.status}. Expected 200.`);
-                    try {
-                        const errorBody = await response.text(); 
-                        console.error(`LOG-3-FAILURE: Backend raw response body (partial): ${errorBody.substring(0, 200)}...`);
-                    } catch (e) {
-                        console.error("LOG-3-FAILURE: Could not read backend error body.");
-                    }
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
-                
                 const data = await response.json();
-                
-                // --- LOGGING STEP 4 (Success) ---
-                console.log("LOG-4-SUCCESS: Successfully parsed address data.", data);
-                console.log(`LOG-4-SUCCESS: Extracted address_line: ${data.address_line}`);
+                const addressLine = data.address_line;
 
-                // Update state with the fetched address line
-                setFetchedAddressLine(data.address_line); 
+                setFetchedAddressLine(addressLine); 
+                console.log(`LOG-4-SUCCESS: Address line retrieved: ${addressLine}`);
+
+                // 2. GEOCODE ADDRESS
+                if (addressLine && addressLine !== 'Address not found.') {
+                    const coords = await geocodeAddress(addressLine);
+                    setUserCoordinates(coords);
+                } else {
+                    setUserCoordinates({ lat: 'N/A', lon: 'N/A' });
+                }
 
             } catch (error) {
-                console.error("LOG-CATCH: Error during fetch process:", error);
-                setFetchedAddressLine(`Error loading address. Status ${error.message.split(': ')[1] || 'Unknown'}. Check console.`);
+                console.error("LOG-CATCH: Error during fetch/geocode process:", error);
+                setFetchedAddressLine(`Error loading address. Status ${error.message.split(': ')[1] || 'Unknown'}.`);
+                setUserCoordinates({ lat: 'Error', lon: 'Error' });
             }
-            console.groupEnd();
+            console.groupEnd();
         };
 
-        fetchAddress();
+        fetchAndGeocodeAddress();
     }, [selectedAddressId]); // Runs when the selectedAddressId is available/changes
 
 
-    // 🚀 EFFECT: Fetch/Filter Servicemen
+    // 🚀 EFFECT: Fetch/Filter Servicemen (No Change, retained for context)
     useEffect(() => {
         if (selectedAddressId && serviceName) {
             setDispatchStatus(`Searching for ${serviceName} servicemen near address ID ${selectedAddressId}...`);
@@ -177,7 +200,7 @@ export function ServiceManSelectionPage() {
         }
     }, [selectedAddressId, serviceName]); // Re-run when address or service changes
 
-    // Handle Dispatch Button Click
+    // Handle Dispatch Button Click (No Change, retained for context)
     const handleDispatch = () => {
         if (!selectedServiceman) {
             alert('Please select a serviceman to dispatch.');
@@ -191,12 +214,8 @@ export function ServiceManSelectionPage() {
             setDispatchStatus(`✅ DISPATCH SUCCESSFUL: Ticket ${ticketId} assigned to ${selectedServiceman.name}.`);
             console.log(`Final Dispatch: Ticket ${ticketId}, Service: ${serviceName}, Address ID: ${selectedAddressId}, Serviceman ID: ${selectedServiceman.id}`);
 
-            // In a real app, you might navigate back to a summary page or the dashboard
+            // Assuming we navigate back to the agent's main screen ('/').
             setTimeout(() => {
-                // navigate('/user/services'); // Navigating back to service selection for simple loop
-                // 🎯 To prevent immediate looping, let's navigate back to the dashboard.
-                // NOTE: This assumes the user ID is available or can be retrieved, 
-                // but for now, we'll navigate to the agent's main screen ('/').
                 navigate('/');
             }, 3000);
 
@@ -233,7 +252,7 @@ export function ServiceManSelectionPage() {
                     <span style={{ color: '#10b981' }}>{serviceName}</span> Servicemen Near User
                 </h1>
                 
-                {/* Request Summary Card - UPDATED SECTION */}
+                {/* Request Summary Card - UPDATED SECTION with Coordinates */}
                 <div style={styles.card}>
                     <h2 style={{ fontSize: '1.1rem', fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>
                         User Location
@@ -244,6 +263,13 @@ export function ServiceManSelectionPage() {
                     <p style={{ fontSize: '0.9rem', color: '#4b5563' }}>
                         **Full Address:** <span style={{ fontWeight: '600' }}>{fetchedAddressLine}</span>
                     </p>
+                        {userCoordinates && (
+                        <p style={{ fontSize: '0.9rem', color: '#1f2937', marginTop: '8px', borderTop: '1px solid #e5e7eb', paddingTop: '8px' }}>
+                            **GPS Location:**                             <span style={{ fontFamily: 'monospace', backgroundColor: '#e5e7eb', padding: '2px 8px', borderRadius: '4px' }}>
+                                Lat: {userCoordinates.lat}, Lng: {userCoordinates.lon}
+                            </span>
+                        </p>
+                        )}
                     <p style={{ marginTop: '12px', fontSize: '0.9rem', color: '#6b7280' }}>
                         **Request Details:** {requestDetails}
                     </p>
