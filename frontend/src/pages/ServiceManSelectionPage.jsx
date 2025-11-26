@@ -80,7 +80,8 @@ const ServicemanCard = ({ serviceman, isSelected, onClick }) => {
     );
 };
 
-export default function ServicemanSelectionPage() {
+// ⚠️ FIX: Change 'export default function' to 'export function'
+export function ServiceManSelectionPage() {
     const location = useLocation();
     const navigate = useNavigate();
     
