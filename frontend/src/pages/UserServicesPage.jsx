@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom'; // 👈 Import useLocation
+// 🎯 IMPORT useNavigate
+import { useLocation, useNavigate } from 'react-router-dom'; 
 
 // Using Emojis instead of custom SVG components
 const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>; // Placeholder for header icon
@@ -11,7 +12,9 @@ const SERVICES = [
   { name: 'Plumber', icon: '💧', color: '#60a5fa', darkColor: '#1d4ed8', description: 'Leaky pipes, drain cleaning, and water system fixes.' }, // Blue
   { name: 'Gardener', icon: '🌳', color: '#86efac', darkColor: '#15803d', description: 'Lawn care, planting, and landscape maintenance.' }, // Green
   { name: 'Carpenter', icon: '🔨', color: '#f97316', darkColor: '#7c2d12', description: 'Woodworking, furniture repair, and structural framing.' }, // Orange
-  { name: 'Driver', icon: '🔧', color: '#fca5a5', darkColor: '#b91c1c', description: 'Fixing household appliances like washing machines and refrigerators.' }, // Red
+  // 🎯 Note: Changed 'Driver' icon and fixed description typo
+  { name: 'Driver', icon: '🚗', color: '#fca5a5', darkColor: '#b91c1c', description: 'Personal driving and vehicle assistance services.' }, // Red
+  { name: 'Appliance Repair', icon: '🔧', color: '#fca5a5', darkColor: '#b91c1c', description: 'Fixing household appliances like washing machines and refrigerators.' }, // Red
   { name: 'HVAC Technician', icon: '❄️', color: '#93c5fd', darkColor: '#0c4a6e', description: 'Heating, ventilation, and air conditioning services.' }, // Sky Blue
 ];
 
@@ -138,10 +141,14 @@ const ServiceCard = ({ service, onClick }) => {
 
 export default function UserServicesPage() {
   const location = useLocation(); // 👈 Get the location object
+  // 🎯 Add useNavigate hook
+  const navigate = useNavigate();
   
   // 👈 Extract state from location object
   const ticketId = location.state?.ticketId;
   const requestDetails = location.state?.requestDetails;
+  // 🎯 CRITICAL: Extract the selectedAddressId
+  const selectedAddressId = location.state?.selectedAddressId;
 
   const [confirmationMessage, setConfirmationMessage] = useState(null);
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
@@ -155,34 +162,27 @@ export default function UserServicesPage() {
 
   // Handle service selection
   const handleServiceSelect = (service) => {
-    const message = `Service Confirmed: ${service.name}. Ticket ${ticketId} is now assigned. Dispatching...`;
-    setConfirmationMessage(message);
-
-    console.log(`Service '${service.name}' selected for Ticket ID: ${ticketId}`);
-
-    // Simulate navigating back to the dashboard after a delay
-    setTimeout(() => {
-      setConfirmationMessage(null);
-      // In a real app: navigate('/agent/dashboard');
-      setIsNavigated(true);
-    }, 3000);
+    
+    // 🎯 CRITICAL FIX: Navigate to the servicemen selection page
+    navigate('/user/servicemen', {
+        state: {
+            ticketId: ticketId,
+            requestDetails: requestDetails,
+            selectedAddressId: selectedAddressId,
+            serviceName: service.name, // Pass the chosen service name
+        }
+    });
   };
 
-  if (isNavigated) {
-    return (
-      <div style={{ ...styles.container, justifyContent: 'center', alignItems: 'center' }}>
-        <h1 style={{ color: '#047857', fontSize: '1.5rem', fontWeight: '600' }}>Dispatch successful. Returning to dashboard...</h1>
-      </div>
-    );
-  }
-
+  // We don't need the old navigation logic since we are now navigating to the next page
+  // if (isNavigated) { ... }
 
   // Check if required data is missing from the state
-  if (!ticketId || !requestDetails) {
+  if (!ticketId || !requestDetails || !selectedAddressId) {
       return (
         <div style={{ ...styles.container, justifyContent: 'center', alignItems: 'center' }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ef4444', marginBottom: '16px' }}>Error: Ticket Details Missing</h1>
-          <p style={{ color: '#6b7280', marginBottom: '24px' }}>Please start the workflow from the User Dashboard.</p>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ef4444', marginBottom: '16px' }}>Error: Required Details Missing</h1>
+          <p style={{ color: '#6b7280', marginBottom: '24px' }}>Please ensure the ticket ID and a valid address are passed from the Dashboard.</p>
         </div>
       );
   }
@@ -202,41 +202,8 @@ export default function UserServicesPage() {
         </div>
       </header>
 
-      {/* Confirmation Message Box */}
-      {confirmationMessage && (
-        <div style={{
-          position: 'fixed',
-          top: '64px', // Below the header
-          left: 0,
-          right: 0,
-          display: 'flex',
-          justifyContent: 'center',
-          padding: '16px',
-          zIndex: 50,
-        }}>
-          <div style={{
-            backgroundColor: '#d1fae5',
-            border: '1px solid #10b981',
-            color: '#065f46',
-            padding: '12px 24px',
-            borderRadius: '12px',
-            boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
-            fontWeight: '600',
-            // Simple pulse animation style
-            animation: 'pulse 1s infinite',
-          }}>
-            {confirmationMessage}
-            <style>
-              {`
-                @keyframes pulse {
-                  0%, 100% { opacity: 1; }
-                  50% { opacity: 0.7; }
-                }
-              `}
-            </style>
-          </div>
-        </div>
-      )}
+      {/* Confirmation Message Box - Removed for navigation flow, but kept structure */}
+      {confirmationMessage && (<div /* ... styles ... */ >{confirmationMessage}</div>)}
 
       {/* MAIN CONTENT AREA */}
       <div style={styles.mainContent}>
@@ -250,9 +217,15 @@ export default function UserServicesPage() {
                 Request Details
               </h2>
 
-              <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '16px' }}>
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '8px' }}>
                 Ticket ID: <span style={{ fontFamily: 'monospace', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5', fontWeight: '600' }}>{ticketId}</span>
               </p>
+              
+              {/* 🎯 NEW: Display the Selected Address ID for context */}
+              <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '16px' }}>
+                Address ID: <span style={{ fontFamily: 'monospace', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5', fontWeight: '600' }}>{selectedAddressId}</span>
+              </p>
+
 
               <div style={{ backgroundColor: '#f9fafb', padding: '16px', borderRadius: '8px', border: '1px solid #f3f4f6', minHeight: '100px' }}>
                 <p style={{ color: '#374151', whiteSpace: 'pre-wrap', lineHeight: '1.6', fontSize: '0.9rem' }}>
@@ -261,7 +234,7 @@ export default function UserServicesPage() {
               </div>
 
               <p style={{ marginTop: '16px', fontSize: '0.75rem', color: '#9ca3af' }}>
-                Review the notes and select the appropriate service below to dispatch.
+                Review the notes and select the appropriate service below to find matching servicemen.
               </p>
             </div>
           </div>
