@@ -30,8 +30,7 @@ function App() {
           {/* 🚀 CRITICAL FIX: Changed parameter name from :phoneNumber to :userId */}
           <Route path="/user/dashboard/:userId" element={<UserDashboardPage />} />
           
-          {/* Target for selecting services after ticket creation */}
-          <Route path="/user/services" element={<UserServicesPage />} />
+        
           <Route path="/user/servicemen" element={<ServiceManSelectionPage />} />
           
           {/* Optional: 404 Not Found fallback */}
@@ -44,5 +43,6 @@ function App() {
 
 
 export default App;
+
 
 
