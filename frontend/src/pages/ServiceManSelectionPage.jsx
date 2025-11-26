@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 // 🚀 CRITICAL FIX: The base URL must include the '/api' prefix to correctly hit your Express routes
-const API_BASE_URL = 'https://callcenter-baclend.onrender.com/api'; 
+const API_BASE_URL = 'https://callcenter-baclend.onrender.com'; 
 
 // Placeholder for header icon
 const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>; 
