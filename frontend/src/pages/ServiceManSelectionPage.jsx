@@ -1,27 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-// NOTE: Please replace this with your actual backend API base URL
-// For example: 'http://localhost:3001/api'
+// 🚀 CRITICAL FIX: The base URL must include the '/api' prefix to correctly hit your Express routes
 const API_BASE_URL = 'https://callcenter-baclend.onrender.com/api'; 
 
 // Placeholder for header icon
 const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>; 
 
 // --- MOCK DATA ---
-// 🎯 REMOVED PROXY_ADDRESS as we will now fetch the real address_line.
-
-// 🎯 MOCK SERVICEMEN for the 'Driver' service within 1km radius
 const MOCK_SERVICEMEN = [
     { id: 1, name: 'Ravi Kumar', service: 'Driver', rating: 4.8, distance: 0.4, vehicle: 'Sedan' },
     { id: 2, name: 'Sonia Verma', service: 'Driver', rating: 4.5, distance: 0.9, vehicle: 'SUV' },
-    { id: 3, name: 'Amit Singh', service: 'Driver', rating: 4.9, distance: 1.2, vehicle: 'Hatchback' }, // Outside 1km radius
-    { id: 4, name: 'Deepa Sharma', service: 'Plumber', rating: 4.7, distance: 0.5, vehicle: null }, // Wrong service
+    { id: 3, name: 'Amit Singh', service: 'Driver', rating: 4.9, distance: 1.2, vehicle: 'Hatchback' },
+    { id: 4, name: 'Deepa Sharma', service: 'Plumber', rating: 4.7, distance: 0.5, vehicle: null },
 ];
 
 // --- INLINE STYLES ---
 const styles = {
-    // ... (Use similar styles from UserServicesPage for consistency)
     container: {
         display: 'flex', flexDirection: 'column', minHeight: '100vh', 
         fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
@@ -87,7 +82,7 @@ export function ServiceManSelectionPage() {
     const { ticketId, requestDetails, selectedAddressId, serviceName } = location.state || {};
     
     // 🎯 NEW STATE: For the fetched address line
-    const [fetchedAddressLine, setFetchedAddressLine] = useState('Loading address...');
+    const [fetchedAddressLine, setFetchedAddressLine] = useState('Loading address...');
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
     const [availableServicemen, setAvailableServicemen] = useState([]);
     const [selectedServiceman, setSelectedServiceman] = useState(null);
@@ -99,35 +94,63 @@ export function ServiceManSelectionPage() {
         return () => clearInterval(timer);
     }, []);
 
-    // 🎯 NEW EFFECT: Fetch the full address line using the address ID
-    useEffect(() => {
-        if (!selectedAddressId) {
-            setFetchedAddressLine('Error: No Address ID provided.');
-            return;
-        }
+    // 🎯 NEW EFFECT: Fetch the full address line using the address ID
+    useEffect(() => {
+        // --- LOGGING STEP 0: Initial Check ---
+        console.groupCollapsed("LOG-FETCH-ADDRESS-PROCESS");
+        console.log(`LOG-0: Hook triggered. selectedAddressId: ${selectedAddressId}`);
+        
+        if (!selectedAddressId) {
+            setFetchedAddressLine('Error: No Address ID provided.');
+            console.error("LOG-0-ERROR: selectedAddressId is null/undefined. Aborting fetch.");
+            console.groupEnd();
+            return;
+        }
 
-        const fetchAddress = async () => {
-            try {
-                // Call the new backend route created in callController.js
-                const response = await fetch(`${API_BASE_URL}/call/address/lookup/${selectedAddressId}`);
-                
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                
-                const data = await response.json();
-                
-                // Update state with the fetched address line
-                setFetchedAddressLine(data.address_line); 
+        const fetchAddress = async () => {
+            const fullUrl = `${API_BASE_URL}/call/address/lookup/${selectedAddressId}`;
+            
+            // --- LOGGING STEP 1: Pre-Fetch Data ---
+            console.log(`LOG-1: API Base URL Used: ${API_BASE_URL}`);
+            console.log(`LOG-1: Route Path Used: /call/address/lookup/${selectedAddressId}`);
+            console.log(`LOG-1: Full URL being sent (GET): ${fullUrl}`);
+            
+            try {
+                const response = await fetch(fullUrl);
+               
+                // --- LOGGING STEP 2: Post-Fetch Status ---
+                console.log(`LOG-2: Received response status: ${response.status} (OK: ${response.ok})`);
 
-            } catch (error) {
-                console.error("Error fetching address:", error);
-                setFetchedAddressLine('Error loading address. Please check console.');
-            }
-        };
+                if (!response.ok) {
+                    // --- LOGGING STEP 3 (Failure) ---
+                    console.error(`LOG-3-FAILURE: Server returned error status: ${response.status}. Expected 200.`);
+                    try {
+                        const errorBody = await response.text(); 
+                        console.error(`LOG-3-FAILURE: Backend raw response body (partial): ${errorBody.substring(0, 200)}...`);
+                    } catch (e) {
+                        console.error("LOG-3-FAILURE: Could not read backend error body.");
+                    }
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // --- LOGGING STEP 4 (Success) ---
+                console.log("LOG-4-SUCCESS: Successfully parsed address data.", data);
+                console.log(`LOG-4-SUCCESS: Extracted address_line: ${data.address_line}`);
 
-        fetchAddress();
-    }, [selectedAddressId]); // Runs when the selectedAddressId is available/changes
+                // Update state with the fetched address line
+                setFetchedAddressLine(data.address_line); 
+
+            } catch (error) {
+                console.error("LOG-CATCH: Error during fetch process:", error);
+                setFetchedAddressLine(`Error loading address. Status ${error.message.split(': ')[1] || 'Unknown'}. Check console.`);
+            }
+            console.groupEnd();
+        };
+
+        fetchAddress();
+    }, [selectedAddressId]); // Runs when the selectedAddressId is available/changes
 
 
     // 🚀 EFFECT: Fetch/Filter Servicemen
@@ -171,10 +194,10 @@ export function ServiceManSelectionPage() {
             // In a real app, you might navigate back to a summary page or the dashboard
             setTimeout(() => {
                 // navigate('/user/services'); // Navigating back to service selection for simple loop
-                // 🎯 To prevent immediate looping, let's navigate back to the dashboard.
-                // NOTE: This assumes the user ID is available or can be retrieved, 
-                // but for now, we'll navigate to the agent's main screen ('/').
-                navigate('/');
+                // 🎯 To prevent immediate looping, let's navigate back to the dashboard.
+                // NOTE: This assumes the user ID is available or can be retrieved, 
+                // but for now, we'll navigate to the agent's main screen ('/').
+                navigate('/');
             }, 3000);
 
         }, 2000);
@@ -221,9 +244,9 @@ export function ServiceManSelectionPage() {
                     <p style={{ fontSize: '0.9rem', color: '#4b5563' }}>
                         **Full Address:** <span style={{ fontWeight: '600' }}>{fetchedAddressLine}</span>
                     </p>
-                    <p style={{ marginTop: '12px', fontSize: '0.9rem', color: '#6b7280' }}>
-                        **Request Details:** {requestDetails}
-                    </p>
+                    <p style={{ marginTop: '12px', fontSize: '0.9rem', color: '#6b7280' }}>
+                        **Request Details:** {requestDetails}
+                    </p>
                 </div>
 
                 {/* Serviceman List */}
