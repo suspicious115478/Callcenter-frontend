@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 
 // NOTE: Please replace this with your actual backend API base URL
 // For example: 'http://localhost:3001/api'
-const API_BASE_URL = 'https://callcenter-baclend.onrender.com/api'; 
+const API_BASE_URL = 'https://callcenter-baclend.onrender.com'; 
 
 // Placeholder for header icon
 const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>; 
