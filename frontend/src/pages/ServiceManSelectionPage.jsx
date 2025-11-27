@@ -270,7 +270,7 @@ export function ServiceManSelectionPage() {
 
         // 1. Prepare Data for Dispatch Table
         const dispatchData = {
-            technician_user_id: selectedServiceman.user_id, // 🎯 user_id of the selected technician
+            user_id: selectedServiceman.user_id, // 🎯 user_id of the selected technician
             category: serviceName,                         // 🎯 category/service name
             request_address: fetchedAddressLine,           // 🎯 full address line
             order_status: 'Assigned',                      // 🎯 initial status
