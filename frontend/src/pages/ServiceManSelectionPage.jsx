@@ -275,7 +275,7 @@ export function ServiceManSelectionPage() {
             request_address: fetchedAddressLine,           // 🎯 full address line
             order_status: 'Assigned',                      // 🎯 initial status
             // Combine ticket details for the order_request column
-            order_request: `Ticket ID: ${ticketId}, Details: ${requestDetails}`,
+            order_request: requestDetails,
         };
 
         setDispatchStatus(`Dispatching ${selectedServiceman.full_name || selectedServiceman.name}...`);
