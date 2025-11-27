@@ -225,7 +225,7 @@ export function ServiceManSelectionPage() {
         loadServicemen();
     }, [serviceName]); 
 
-    // 🚀 3. NEW: Calculate Distance & Sort whenever User Coords or Servicemen list updates
+    // 3. Calculate Distance & Sort whenever User Coords or Servicemen list updates
     useEffect(() => {
         if (rawServicemen.length > 0 && userCoordinates && userCoordinates.lat !== 'N/A') {
             
@@ -248,28 +248,70 @@ export function ServiceManSelectionPage() {
             });
 
             setSortedServicemen(sortedList);
-            setDispatchStatus(`${sortedList.length} specialists found near you.`);
+            // Only update status if the list was loaded successfully and coordinates are available
+            if (!dispatchStatus || dispatchStatus.includes('Searching') || dispatchStatus.includes('No active')) {
+                 setDispatchStatus(`${sortedList.length} specialists found near you.`);
+            }
         } else if (rawServicemen.length > 0) {
             // If we have servicemen but NO user coordinates yet, just show the list unsorted
             setSortedServicemen(rawServicemen);
         }
-    }, [rawServicemen, userCoordinates]);
+    }, [rawServicemen, userCoordinates, dispatchStatus]);
 
 
-    const handleDispatch = () => {
+    /**
+     * UPDATED: Sends dispatch data to the backend to create an entry in the Dispatch table.
+     */
+    const handleDispatch = async () => {
         if (!selectedServiceman) {
             alert('Please select a serviceman to dispatch.');
             return;
         }
 
+        // 1. Prepare Data for Dispatch Table
+        const dispatchData = {
+            technician_user_id: selectedServiceman.user_id, // 🎯 user_id of the selected technician
+            category: serviceName,                         // 🎯 category/service name
+            request_address: fetchedAddressLine,           // 🎯 full address line
+            order_status: 'Assigned',                      // 🎯 initial status
+            // Combine ticket details for the order_request column
+            order_request: `Ticket ID: ${ticketId}, Details: ${requestDetails}`,
+        };
+
         setDispatchStatus(`Dispatching ${selectedServiceman.full_name || selectedServiceman.name}...`);
-        
-        setTimeout(() => {
-            setDispatchStatus(`✅ DISPATCH SUCCESSFUL: Ticket ${ticketId} assigned to ${selectedServiceman.full_name || selectedServiceman.name}.`);
+
+        try {
+            // 2. Make API Call to Backend
+            const dispatchUrl = `${API_BASE_URL}/call/dispatch`;
+            
+            const response = await fetch(dispatchUrl, {
+                method: 'POST',
+                headers: { 
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(dispatchData),
+            });
+
+            if (!response.ok) {
+                // Try to read JSON error body if available
+                const errorBody = await response.json().catch(() => ({ message: 'Unknown error' }));
+                throw new Error(`Dispatch failed: ${errorBody.message || response.statusText}`);
+            }
+
+            // 3. Success Handling
+            setDispatchStatus(`✅ DISPATCH SUCCESSFUL: Assigned to ${selectedServiceman.full_name || selectedServiceman.name}.`);
+            
+            console.log("Dispatch data sent:", dispatchData);
+            
+            // Navigate away after a delay
             setTimeout(() => {
                 navigate('/');
             }, 3000);
-        }, 2000);
+
+        } catch (error) {
+            console.error("DISPATCH ERROR:", error);
+            setDispatchStatus(`❌ DISPATCH FAILED: ${error.message}. Please check backend logs.`);
+        }
     };
 
     if (!ticketId || !selectedAddressId || !serviceName) {
@@ -307,6 +349,9 @@ export function ServiceManSelectionPage() {
                     <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
                         **Address:** <span style={{ fontWeight: '600' }}>{fetchedAddressLine}</span>
                     </p>
+                    <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
+                        **Request:** <span style={{ fontWeight: '600' }}>{requestDetails}</span>
+                    </p>
                     {userCoordinates && (
                     <p style={{ fontSize: '0.9rem', color: '#1f2937', marginTop: '8px', borderTop: '1px solid #e5e7eb', paddingTop: '8px' }}>
                         **GPS Coordinates:** <span style={{ fontFamily: 'monospace', backgroundColor: '#e5e7eb', padding: '2px 8px', borderRadius: '4px' }}>
@@ -322,7 +367,7 @@ export function ServiceManSelectionPage() {
                         Available {serviceName} Technicians (Sorted by Distance)
                     </h2>
                     
-                    <p style={{ marginBottom: '16px', fontWeight: '600', color: dispatchStatus?.includes('SUCCESSFUL') ? '#047857' : dispatchStatus?.includes('No') ? '#ef4444' : '#6b7280' }}>
+                    <p style={{ marginBottom: '16px', fontWeight: '600', color: dispatchStatus?.includes('SUCCESSFUL') ? '#047857' : dispatchStatus?.includes('No') || dispatchStatus?.includes('FAILED') ? '#ef4444' : '#6b7280' }}>
                         {dispatchStatus}
                     </p>
 
