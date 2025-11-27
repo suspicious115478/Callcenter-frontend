@@ -7,8 +7,8 @@ import { BACKEND_URL } from '../config';
 
 
 export default function UserDashboardPage() {
-    // 🚨 CRITICAL UPDATE: Expecting 'userId' from the route
-    const { userId } = useParams();
+    // 🚨 CRITICAL UPDATE: Now expecting 'userId' AND 'phoneNumber' from the route
+    const { userId, phoneNumber } = useParams();
     const navigate = useNavigate();
     const [notes, setNotes] = useState('');
     const [isSaving, setIsSaving] = useState(false);
@@ -20,7 +20,7 @@ export default function UserDashboardPage() {
     // 🚀 STATE FOR ADDRESS MANAGEMENT
     const [userAddresses, setUserAddresses] = useState([]);
     // 🎯 CRITICAL FIX: This state will now hold the unique 'address_id'
-    const [selectedAddressId, setSelectedAddressId] = useState(null); 
+    const [selectedAddressId, setSelectedAddressId] = useState(null);
     const [addressFetchMessage, setAddressFetchMessage] = useState('Fetching addresses...');
 
     useEffect(() => {
@@ -38,7 +38,8 @@ export default function UserDashboardPage() {
             }
 
             try {
-                const response = await fetch(`${BACKEND_URL}/call/address/${userId}`); // Use the new endpoint
+                // Ensure the endpoint is correct (assuming you have one to link a user to their addresses)
+                const response = await fetch(`${BACKEND_URL}/call/address/${userId}`); 
 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch addresses: ${response.statusText}`);
@@ -50,7 +51,7 @@ export default function UserDashboardPage() {
                 if (addresses.length > 0) {
                     setUserAddresses(addresses);
                     // 🎯 CRITICAL FIX: Auto-select the first address using its 'address_id'
-                    setSelectedAddressId(addresses[0].address_id); 
+                    setSelectedAddressId(addresses[0].address_id);
                     setAddressFetchMessage(`${addresses.length} addresses loaded.`);
                 } else {
                     setAddressFetchMessage('No addresses found for this user.');
@@ -64,6 +65,8 @@ export default function UserDashboardPage() {
             }
         };
 
+        // Also check for phone number here if it's mandatory for address lookup logic,
+        // but currently, we rely on userId for the address lookup.
         fetchAddresses();
     }, [userId]); // Dependency on userId
 
@@ -74,7 +77,7 @@ export default function UserDashboardPage() {
             setTimeout(() => setSaveMessage(''), 3000);
             return;
         }
-
+        
         // 🚨 CHECK: Require an address to be selected before proceeding
         if (!selectedAddressId && userAddresses.length > 0) {
             setSaveMessage('Error: Please select an address.');
@@ -82,38 +85,41 @@ export default function UserDashboardPage() {
             return;
         }
 
+        // 🚨 NEW CHECK: Ensure phone number is available
+        if (!phoneNumber) {
+            setSaveMessage('Error: Call phone number is missing from the context.');
+            setTimeout(() => setSaveMessage(''), 3000);
+            return;
+        }
 
         setIsSaving(true);
         setSaveMessage('Saving...');
 
         try {
             // Find the user's phone number based on the current state or a dedicated user data fetch if available
-            const mockPhoneNumber = 'FETCH_USER_PHONE_FROM_BACKEND_LATER'; 
+            // 🎯 CRITICAL FIX: Use the 'phoneNumber' from the route params
+            const actualPhoneNumber = phoneNumber; 
 
             const response = await fetch(`${BACKEND_URL}/call/ticket`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     // Explicitly setting Agent ID as per standard practice
-                    'X-Agent-Id': 'AGENT_001', 
+                    'X-Agent-Id': 'AGENT_001',
                 },
                 body: JSON.stringify({
-                    // 🚨 USING MOCK: Change this to a real phone number if you update the route
-                    phoneNumber: mockPhoneNumber, 
+                    // 🚀 USE ACTUAL PHONE NUMBER FROM PARAMS
+                    phoneNumber: actualPhoneNumber,
                     requestDetails: notes.trim(), // Ensure notes are trimmed before sending
                 }),
             });
 
             if (!response.ok) {
-                // Attempt to read error message, falling back to text if JSON parse fails
                 let errorData = {};
                 try {
-                    // If the server returns valid JSON error details
                     errorData = await response.json();
                 } catch (e) {
-                    // Fallback if the response is not JSON (e.g., HTML error page)
                     const errorText = await response.text();
-                    // Limit error text to prevent massive console logs
                     throw new Error(`Server responded with ${response.status}. Body: ${errorText.substring(0, 100)}...`);
                 }
                 throw new Error(errorData.message || 'Server error occurred.');
@@ -128,13 +134,11 @@ export default function UserDashboardPage() {
             navigate('/user/services', {
                 state: {
                     ticketId: result.ticket_id,
-                    requestDetails: result.requestDetails || notes.trim(), 
+                    requestDetails: result.requestDetails || notes.trim(),
                     // 🚀 NEW DATA: Pass the selected address ID (which is address_id)
-                    selectedAddressId: selectedAddressId, 
+                    selectedAddressId: selectedAddressId,
                 }
             });
-
-            // Note: We don't clear notes or set a success message here because we are navigating away.
 
         } catch (error) {
             console.error('API Error:', error);
@@ -158,7 +162,7 @@ export default function UserDashboardPage() {
         },
         header: {
             height: '64px',
-            backgroundColor: '#1f2937', 
+            backgroundColor: '#1f2937',
             color: 'white',
             display: 'flex',
             alignItems: 'center',
@@ -298,8 +302,8 @@ export default function UserDashboardPage() {
             border: 'none',
             fontWeight: '600',
             fontSize: '0.875rem',
-            cursor: isSaving ? 'default' : 'pointer',
-            backgroundColor: isSaving ? '#6b7280' : '#10b981',
+            cursor: isSaving || !phoneNumber ? 'default' : 'pointer', // Disable if no phone number
+            backgroundColor: isSaving || !phoneNumber ? '#6b7280' : '#10b981',
             color: 'white',
             transition: 'background-color 0.3s',
 
@@ -311,6 +315,14 @@ export default function UserDashboardPage() {
             fontSize: '0.875rem',
             fontWeight: '600',
             color: saveMessage.includes('Error') ? '#ef4444' : '#047857',
+        },
+        phoneNumberDisplay: {
+            fontWeight: '700',
+            color: '#4f46e5',
+            backgroundColor: '#eef2ff',
+            padding: '2px 8px',
+            borderRadius: '4px',
+            fontFamily: 'monospace',
         }
     };
     // --------------------------------------------------------
@@ -339,6 +351,14 @@ export default function UserDashboardPage() {
                         <div style={styles.userInfoTitle}>☎️ Customer Details</div>
 
                         <div style={styles.infoRow}>
+                            <span style={styles.infoKey}>Calling Phone No.</span>
+                            {/* 🚀 NEW: Display the phone number from params */}
+                            <span style={styles.phoneNumberDisplay}>
+                                {phoneNumber || 'N/A (Missing from Route)'}
+                            </span>
+                        </div>
+                        
+                        <div style={styles.infoRow}>
                             <span style={styles.infoKey}>User ID</span>
                             <span style={styles.infoVal}>{userId}</span>
                         </div>
@@ -353,7 +373,7 @@ export default function UserDashboardPage() {
                         </div>
                     </div>
 
-                    {/* 🚀 NEW ADDRESS SELECTION CARD */}
+                    {/* 🚀 ADDRESS SELECTION CARD */}
                     <div style={styles.card}>
                         <div style={styles.userInfoTitle}>🏠 Select Address</div>
                         <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '10px' }}>
@@ -362,13 +382,13 @@ export default function UserDashboardPage() {
                         {userAddresses.length > 0 ? (
                             <div>
                                 {userAddresses.map((address) => (
-                                    <div 
+                                    <div
                                         // 🎯 CRITICAL FIX: Use address.address_id for key
                                         key={address.address_id}
-                                        style={{ 
-                                            ...styles.addressItem, 
+                                        style={{
+                                            ...styles.addressItem,
                                             // 🎯 CRITICAL FIX: Compare state against address.address_id
-                                            ...(selectedAddressId === address.address_id ? styles.addressSelected : {}) 
+                                            ...(selectedAddressId === address.address_id ? styles.addressSelected : {})
                                         }}
                                         // 🎯 CRITICAL FIX: Set state to address.address_id on click
                                         onClick={() => setSelectedAddressId(address.address_id)}
@@ -409,10 +429,10 @@ export default function UserDashboardPage() {
                         {saveMessage && (
                             <span style={styles.message}>{saveMessage}</span>
                         )}
-                        <button 
-                            onClick={saveNotesAsTicket} 
-                            // Disable if saving OR if addresses exist but none is selected
-                            disabled={isSaving || (userAddresses.length > 0 && !selectedAddressId)}
+                        <button
+                            onClick={saveNotesAsTicket}
+                            // Disable if saving, if address is missing, or if phone number is missing
+                            disabled={isSaving || !phoneNumber || (userAddresses.length > 0 && !selectedAddressId)}
                             style={styles.saveButton}
                         >
                             {isSaving ? 'Saving...' : 'Save Notes & Select Service'}
