@@ -1,25 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+// 🚀 NEW: Import useLocation to access query parameters
+import { useParams, useNavigate, useLocation } from 'react-router-dom'; 
 
 // Using a placeholder URL internally to resolve the 'Could not resolve' error.
-// If you have a real config file, make sure it exports BACKEND_URL correctly.
 import { BACKEND_URL } from '../config';
 
 
 export default function UserDashboardPage() {
-    // 🚨 CRITICAL UPDATE: Now expecting 'userId' AND 'phoneNumber' from the route
-    const { userId, phoneNumber } = useParams();
+    
+    // 1. URL PARAMETERS (e.g., /dashboard/1)
+    const { userId } = useParams();
+    
+    // 2. QUERY PARAMETERS (e.g., ?phoneNumber=...)
+    const location = useLocation();
+    const queryParams = new URLSearchParams(location.search);
+    const phoneNumber = queryParams.get('phoneNumber'); // 🚀 FIX: Correctly reads '919812300001'
+
     const navigate = useNavigate();
     const [notes, setNotes] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
-    // Mock subscription status - replace with actual API fetch if needed
     const [subscriptionStatus] = useState('Premium');
 
-    // 🚀 STATE FOR ADDRESS MANAGEMENT
+    // STATE FOR ADDRESS MANAGEMENT
     const [userAddresses, setUserAddresses] = useState([]);
-    // 🎯 CRITICAL FIX: This state will now hold the unique 'address_id'
     const [selectedAddressId, setSelectedAddressId] = useState(null);
     const [addressFetchMessage, setAddressFetchMessage] = useState('Fetching addresses...');
 
@@ -29,7 +34,7 @@ export default function UserDashboardPage() {
         return () => clearInterval(timer);
     }, []);
 
-    // 🚀 EFFECT: Fetch addresses on component mount using the userId
+    // EFFECT: Fetch addresses on component mount using the userId
     useEffect(() => {
         const fetchAddresses = async () => {
             if (!userId) {
@@ -38,7 +43,6 @@ export default function UserDashboardPage() {
             }
 
             try {
-                // Ensure the endpoint is correct (assuming you have one to link a user to their addresses)
                 const response = await fetch(`${BACKEND_URL}/call/address/${userId}`); 
 
                 if (!response.ok) {
@@ -50,7 +54,7 @@ export default function UserDashboardPage() {
 
                 if (addresses.length > 0) {
                     setUserAddresses(addresses);
-                    // 🎯 CRITICAL FIX: Auto-select the first address using its 'address_id'
+                    // CRITICAL FIX: Auto-select the first address using its 'address_id'
                     setSelectedAddressId(addresses[0].address_id);
                     setAddressFetchMessage(`${addresses.length} addresses loaded.`);
                 } else {
@@ -65,10 +69,8 @@ export default function UserDashboardPage() {
             }
         };
 
-        // Also check for phone number here if it's mandatory for address lookup logic,
-        // but currently, we rely on userId for the address lookup.
         fetchAddresses();
-    }, [userId]); // Dependency on userId
+    }, [userId]);
 
     // --- RESTORED FUNCTION: Save Notes to Backend as a Ticket and Navigate ---
     const saveNotesAsTicket = async () => {
@@ -78,16 +80,16 @@ export default function UserDashboardPage() {
             return;
         }
         
-        // 🚨 CHECK: Require an address to be selected before proceeding
+        // CHECK: Require an address to be selected before proceeding
         if (!selectedAddressId && userAddresses.length > 0) {
             setSaveMessage('Error: Please select an address.');
             setTimeout(() => setSaveMessage(''), 3000);
             return;
         }
 
-        // 🚨 NEW CHECK: Ensure phone number is available
+        // NEW CHECK: Ensure phone number is available
         if (!phoneNumber) {
-            setSaveMessage('Error: Call phone number is missing from the context.');
+            setSaveMessage('Error: Call phone number is missing from the URL query.');
             setTimeout(() => setSaveMessage(''), 3000);
             return;
         }
@@ -96,21 +98,19 @@ export default function UserDashboardPage() {
         setSaveMessage('Saving...');
 
         try {
-            // Find the user's phone number based on the current state or a dedicated user data fetch if available
-            // 🎯 CRITICAL FIX: Use the 'phoneNumber' from the route params
+            // CRITICAL FIX: Use the 'phoneNumber' correctly extracted from query params
             const actualPhoneNumber = phoneNumber; 
 
             const response = await fetch(`${BACKEND_URL}/call/ticket`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    // Explicitly setting Agent ID as per standard practice
                     'X-Agent-Id': 'AGENT_001',
                 },
                 body: JSON.stringify({
-                    // 🚀 USE ACTUAL PHONE NUMBER FROM PARAMS
+                    // 🚀 USE ACTUAL PHONE NUMBER FROM QUERY PARAMS
                     phoneNumber: actualPhoneNumber,
-                    requestDetails: notes.trim(), // Ensure notes are trimmed before sending
+                    requestDetails: notes.trim(),
                 }),
             });
 
@@ -127,7 +127,7 @@ export default function UserDashboardPage() {
 
             const result = await response.json();
 
-            // 🚨 CRITICAL NAVIGATION: Redirect to the new service selection page, passing address info
+            // CRITICAL NAVIGATION: Redirect to the new service selection page, passing address info
             console.log(`Ticket ${result.ticket_id} created. Navigating to service selection.`);
 
             // Navigate, passing the necessary data (ticketId, requestDetails, and selectedAddressId)
@@ -135,7 +135,6 @@ export default function UserDashboardPage() {
                 state: {
                     ticketId: result.ticket_id,
                     requestDetails: result.requestDetails || notes.trim(),
-                    // 🚀 NEW DATA: Pass the selected address ID (which is address_id)
                     selectedAddressId: selectedAddressId,
                 }
             });
@@ -352,9 +351,9 @@ export default function UserDashboardPage() {
 
                         <div style={styles.infoRow}>
                             <span style={styles.infoKey}>Calling Phone No.</span>
-                            {/* 🚀 NEW: Display the phone number from params */}
+                            {/* Display the phone number, or a message if missing */}
                             <span style={styles.phoneNumberDisplay}>
-                                {phoneNumber || 'N/A (Missing from Route)'}
+                                {phoneNumber || 'N/A (Query Missing)'}
                             </span>
                         </div>
                         
@@ -373,7 +372,7 @@ export default function UserDashboardPage() {
                         </div>
                     </div>
 
-                    {/* 🚀 ADDRESS SELECTION CARD */}
+                    {/* ADDRESS SELECTION CARD */}
                     <div style={styles.card}>
                         <div style={styles.userInfoTitle}>🏠 Select Address</div>
                         <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '10px' }}>
@@ -383,14 +382,11 @@ export default function UserDashboardPage() {
                             <div>
                                 {userAddresses.map((address) => (
                                     <div
-                                        // 🎯 CRITICAL FIX: Use address.address_id for key
                                         key={address.address_id}
                                         style={{
                                             ...styles.addressItem,
-                                            // 🎯 CRITICAL FIX: Compare state against address.address_id
                                             ...(selectedAddressId === address.address_id ? styles.addressSelected : {})
                                         }}
-                                        // 🎯 CRITICAL FIX: Set state to address.address_id on click
                                         onClick={() => setSelectedAddressId(address.address_id)}
                                     >
                                         {address.address_line}
