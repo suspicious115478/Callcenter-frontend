@@ -1,11 +1,30 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-// 🚀 CRITICAL FIX: Base URL without /api prefix
 const API_BASE_URL = 'https://callcenter-baclend.onrender.com'; 
 
 // Placeholder for header icon
 const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>; 
+
+// --- HELPER: Haversine Formula for Distance (Km) ---
+const calculateDistance = (lat1, lon1, lat2, lon2) => {
+    if (!lat1 || !lon1 || !lat2 || !lon2) return null;
+    
+    const toRad = (value) => (value * Math.PI) / 180;
+    const R = 6371; // Radius of Earth in km
+    
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    
+    const a = 
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c; // Distance in km
+    
+    return parseFloat(distance.toFixed(2)); // Return number with 2 decimals
+};
 
 // --- INLINE STYLES ---
 const styles = {
@@ -48,18 +67,25 @@ const ServicemanCard = ({ serviceman, isSelected, onClick }) => {
             onMouseLeave={() => setIsHovered(false)}
         >
             <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1f2937' }}>{serviceman.name}</h3>
+                {/* 🚀 UPDATED: Uses full_name from DB, falls back to name */}
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1f2937' }}>
+                    {serviceman.full_name || serviceman.name || 'Unknown Technician'}
+                </h3>
                 <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-                    {/* Fallback values provided if backend data is sparse */}
-                    {serviceman.service || 'General'} Specialist | Vehicle: {serviceman.vehicle || 'Standard'}
+                    {serviceman.category || serviceman.service || 'General'} Specialist | Vehicle: {serviceman.vehicle || 'Standard'}
                 </p>
+                {/* Optional: Show their current coords for debugging */}
+                {/* <p style={{fontSize: '0.7rem', color: '#9ca3af'}}>Loc: {serviceman.current_lat}, {serviceman.current_lng}</p> */}
             </div>
             <div style={{ textAlign: 'right' }}>
                 <p style={{ fontSize: '1.1rem', fontWeight: '700', color: '#10b981' }}>
-                    ⭐ {serviceman.rating || 'N/A'}
+                    ⭐ {serviceman.rating || 'New'}
                 </p>
-                <p style={{ fontSize: '0.875rem', color: '#4b5563' }}>
-                    {serviceman.distance ? `${serviceman.distance} km away` : 'Distance N/A'}
+                {/* 🚀 UPDATED: Shows calculated distance */}
+                <p style={{ fontSize: '0.875rem', color: '#4b5563', fontWeight: '600' }}>
+                    {serviceman.calculatedDistance !== undefined 
+                        ? `📍 ${serviceman.calculatedDistance} km away` 
+                        : 'Checking distance...'}
                 </p>
             </div>
         </div>
@@ -95,24 +121,18 @@ const geocodeAddress = async (address) => {
     }
 };
 
-// 🚀 NEW FUNCTION: Fetch Servicemen from Backend API
 const fetchServicemenFromBackend = async (serviceName) => {
-    // Construct URL: API_BASE_URL + route prefix + endpoint
     const url = `${API_BASE_URL}/call/servicemen/available`;
     console.log(`[SERVICEMEN FETCH] Requesting: ${url} for service: ${serviceName}`);
 
     try {
         const response = await fetch(url, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ service: serviceName })
         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP Error! Status: ${response.status}`);
-        }
+        if (!response.ok) throw new Error(`HTTP Error! Status: ${response.status}`);
 
         const data = await response.json();
         console.log(`[SERVICEMEN SUCCESS] Received ${data.length} records.`);
@@ -127,16 +147,16 @@ export function ServiceManSelectionPage() {
     const location = useLocation();
     const navigate = useNavigate();
     
-    // Extract state passed from UserServicesPage
     const { ticketId, requestDetails, selectedAddressId, serviceName } = location.state || {};
     
-    // State
     const [fetchedAddressLine, setFetchedAddressLine] = useState('Loading address...');
     const [userCoordinates, setUserCoordinates] = useState(null); 
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
     
-    // 🎯 Servicemen Data State (Replaces Mock)
-    const [availableServicemen, setAvailableServicemen] = useState([]);
+    // Raw servicemen data from API
+    const [rawServicemen, setRawServicemen] = useState([]);
+    // Processed servicemen (sorted by distance)
+    const [sortedServicemen, setSortedServicemen] = useState([]);
     
     const [selectedServiceman, setSelectedServiceman] = useState(null);
     const [dispatchStatus, setDispatchStatus] = useState(null);
@@ -147,37 +167,27 @@ export function ServiceManSelectionPage() {
         return () => clearInterval(timer);
     }, []);
 
-    // 🎯 Effect 1: Fetch Address & Geocode
+    // 1. Fetch Address & Geocode
     useEffect(() => {
-        console.groupCollapsed("LOG-FETCH-ADDRESS-PROCESS");
-        if (!selectedAddressId) {
-            setFetchedAddressLine('Error: No Address ID provided.');
-            console.error("LOG-0-ERROR: selectedAddressId is null. Aborting.");
-            console.groupEnd();
-            return;
-        }
+        if (!selectedAddressId) return;
 
         const fetchAndGeocodeAddress = async () => {
             const fullUrl = `${API_BASE_URL}/call/address/lookup/${selectedAddressId}`;
             setFetchedAddressLine('Fetching address details...');
             
             try {
-                // 1. FETCH ADDRESS
                 const response = await fetch(fullUrl);
                 if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 
                 const data = await response.json();
                 const addressLine = data.address_line;
                 setFetchedAddressLine(addressLine); 
-                console.log(`LOG-SUCCESS: Address retrieved: ${addressLine}`);
 
-                // 2. GEOCODE ADDRESS (Simplified)
                 const simplifiedAddress = addressLine
                     .replace(/Flat \d+,\s*/i, '') 
                     .replace(/Rosewood Apartments,\s*/i, '')
                     .trim();
 
-                console.log(`[GEOCODING PRE-QUERY] Using simplified address: ${simplifiedAddress}`);
                 if (simplifiedAddress) {
                     const coords = await geocodeAddress(simplifiedAddress);
                     setUserCoordinates(coords);
@@ -186,18 +196,16 @@ export function ServiceManSelectionPage() {
                 }
 
             } catch (error) {
-                console.error("LOG-CATCH: Error during fetch/geocode:", error);
+                console.error("Error during fetch/geocode:", error);
                 setFetchedAddressLine(`Error loading address.`);
-                setUserCoordinates({ lat: 'Error', lon: 'Error' });
             }
-            console.groupEnd();
         };
 
         fetchAndGeocodeAddress();
     }, [selectedAddressId]); 
 
 
-    // 🚀 Effect 2: Fetch Servicemen (Updated to use Backend)
+    // 2. Fetch Servicemen (Raw Data)
     useEffect(() => {
         if (!serviceName) {
             setDispatchStatus('Error: Service type not specified.');
@@ -206,52 +214,69 @@ export function ServiceManSelectionPage() {
 
         const loadServicemen = async () => {
             setDispatchStatus(`Searching for active ${serviceName} specialists...`);
-            setAvailableServicemen([]); // Clear previous state
-
-            // Call the new backend API function
             const servicemen = await fetchServicemenFromBackend(serviceName);
+            setRawServicemen(servicemen); // Store raw data first
             
-            setAvailableServicemen(servicemen);
-
-            if (servicemen.length > 0) {
-                setDispatchStatus(`${servicemen.length} active ${serviceName} specialists found.`);
-            } else {
-                setDispatchStatus(`⚠️ No active ${serviceName} specialists found in database.`);
+            if (servicemen.length === 0) {
+                setDispatchStatus(`⚠️ No active ${serviceName} specialists found.`);
             }
         };
 
         loadServicemen();
     }, [serviceName]); 
 
-    // Handle Dispatch Button Click
+    // 🚀 3. NEW: Calculate Distance & Sort whenever User Coords or Servicemen list updates
+    useEffect(() => {
+        if (rawServicemen.length > 0 && userCoordinates && userCoordinates.lat !== 'N/A') {
+            
+            const processedList = rawServicemen.map(sm => {
+                // Parse strings to floats for calculation
+                const dist = calculateDistance(
+                    parseFloat(userCoordinates.lat),
+                    parseFloat(userCoordinates.lon),
+                    parseFloat(sm.current_lat),
+                    parseFloat(sm.current_lng)
+                );
+                return { ...sm, calculatedDistance: dist };
+            });
+
+            // Sort: Nearest (lowest distance) first. If distance is null (error), push to bottom.
+            const sortedList = processedList.sort((a, b) => {
+                if (a.calculatedDistance === null) return 1;
+                if (b.calculatedDistance === null) return -1;
+                return a.calculatedDistance - b.calculatedDistance;
+            });
+
+            setSortedServicemen(sortedList);
+            setDispatchStatus(`${sortedList.length} specialists found near you.`);
+        } else if (rawServicemen.length > 0) {
+            // If we have servicemen but NO user coordinates yet, just show the list unsorted
+            setSortedServicemen(rawServicemen);
+        }
+    }, [rawServicemen, userCoordinates]);
+
+
     const handleDispatch = () => {
         if (!selectedServiceman) {
             alert('Please select a serviceman to dispatch.');
             return;
         }
 
-        setDispatchStatus(`Dispatching ${selectedServiceman.name} for Ticket ${ticketId}...`);
+        setDispatchStatus(`Dispatching ${selectedServiceman.full_name || selectedServiceman.name}...`);
         
-        // --- FINAL DISPATCH SIMULATION ---
         setTimeout(() => {
-            setDispatchStatus(`✅ DISPATCH SUCCESSFUL: Ticket ${ticketId} assigned to ${selectedServiceman.name}.`);
-            console.log(`Final Dispatch: Ticket ${ticketId}, Service: ${serviceName}, Address ID: ${selectedAddressId}, Serviceman ID: ${selectedServiceman.id}`);
-
+            setDispatchStatus(`✅ DISPATCH SUCCESSFUL: Ticket ${ticketId} assigned to ${selectedServiceman.full_name || selectedServiceman.name}.`);
             setTimeout(() => {
                 navigate('/');
             }, 3000);
-
         }, 2000);
     };
 
-
-    // Check if required data is missing from the state
     if (!ticketId || !selectedAddressId || !serviceName) {
         return (
             <div style={{ ...styles.container, justifyContent: 'center', alignItems: 'center' }}>
-                <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ef4444', marginBottom: '16px' }}>Error: Navigation Data Missing</h1>
-                <p style={{ color: '#6b7280', marginBottom: '24px' }}>Cannot proceed without Ticket ID, Address ID, and Service Name.</p>
-                <button onClick={() => navigate(-1)} style={{ padding: '10px 20px', backgroundColor: '#374151', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>Go Back</button>
+                <h1 style={{ color: '#ef4444' }}>Error: Navigation Data Missing</h1>
+                <button onClick={() => navigate(-1)}>Go Back</button>
             </div>
         );
     }
@@ -280,30 +305,21 @@ export function ServiceManSelectionPage() {
                         User Location & Service Request (Ticket: {ticketId})
                     </h2>
                     <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
-                        **Service:** <span style={{ fontWeight: '700', color: '#10b981' }}>{serviceName}</span>
+                        **Address:** <span style={{ fontWeight: '600' }}>{fetchedAddressLine}</span>
                     </p>
-                    <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
-                        **Address ID:** <span style={{ fontFamily: 'monospace', backgroundColor: '#f3f4f6', padding: '2px 8px', borderRadius: '4px' }}>{selectedAddressId}</span>
+                    {userCoordinates && (
+                    <p style={{ fontSize: '0.9rem', color: '#1f2937', marginTop: '8px', borderTop: '1px solid #e5e7eb', paddingTop: '8px' }}>
+                        **GPS Coordinates:** <span style={{ fontFamily: 'monospace', backgroundColor: '#e5e7eb', padding: '2px 8px', borderRadius: '4px' }}>
+                            {userCoordinates.lat}, {userCoordinates.lon}
+                        </span>
                     </p>
-                    <p style={{ fontSize: '0.9rem', color: '#4b5563' }}>
-                        **Full Address:** <span style={{ fontWeight: '600' }}>{fetchedAddressLine}</span>
-                    </p>
-                        {userCoordinates && (
-                        <p style={{ fontSize: '0.9rem', color: '#1f2937', marginTop: '8px', borderTop: '1px solid #e5e7eb', paddingTop: '8px' }}>
-                            **GPS Location:** <span style={{ fontFamily: 'monospace', backgroundColor: '#e5e7eb', padding: '2px 8px', borderRadius: '4px' }}>
-                                Lat: {userCoordinates.lat}, Lng: {userCoordinates.lon}
-                            </span>
-                        </p>
-                        )}
-                    <p style={{ marginTop: '12px', fontSize: '0.9rem', color: '#6b7280' }}>
-                        **Request Details:** {requestDetails}
-                    </p>
+                    )}
                 </div>
 
                 {/* Serviceman List */}
                 <div style={{ ...styles.card, padding: '32px' }}>
                     <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1f2937', marginBottom: '16px', borderBottom: '1px solid #e5e7eb', paddingBottom: '8px' }}>
-                        Available {serviceName} Technicians
+                        Available {serviceName} Technicians (Sorted by Distance)
                     </h2>
                     
                     <p style={{ marginBottom: '16px', fontWeight: '600', color: dispatchStatus?.includes('SUCCESSFUL') ? '#047857' : dispatchStatus?.includes('No') ? '#ef4444' : '#6b7280' }}>
@@ -311,8 +327,8 @@ export function ServiceManSelectionPage() {
                     </p>
 
                     <div style={styles.servicemanList}>
-                        {availableServicemen.length > 0 ? (
-                            availableServicemen.map(sm => (
+                        {sortedServicemen.length > 0 ? (
+                            sortedServicemen.map(sm => (
                                 <ServicemanCard
                                     key={sm.id}
                                     serviceman={sm}
