@@ -110,12 +110,13 @@ export function ServiceManSelectionPage() {
     const navigate = useNavigate();
     
     // Extract state passed from UserServicesPage
+    // serviceName is already being extracted here:
     const { ticketId, requestDetails, selectedAddressId, serviceName } = location.state || {};
     
     // 🎯 NEW STATE: For the fetched address line
     const [fetchedAddressLine, setFetchedAddressLine] = useState('Loading address...');
     // 🎯 NEW STATE: For the geocoded coordinates
-    const [userCoordinates, setUserCoordinates] = useState(null); 
+    const [userCoordinates, setUserCoordinates] = useState(null); 
 
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
     const [availableServicemen, setAvailableServicemen] = useState([]);
@@ -153,16 +154,16 @@ export function ServiceManSelectionPage() {
                 const data = await response.json();
                 const addressLine = data.address_line;
 
-setFetchedAddressLine(addressLine); 
-console.log(`LOG-4-SUCCESS: Address line retrieved: ${addressLine}`);
+                setFetchedAddressLine(addressLine); 
+                console.log(`LOG-4-SUCCESS: Address line retrieved: ${addressLine}`);
 
-// 🎯 FIX: Simplify the address for the geocoding service
-const simplifiedAddress = addressLine
-    .replace(/Flat \d+,\s*/i, '') // Remove "Flat 201, " (case insensitive)
-    .replace(/Rosewood Apartments,\s*/i, '') // Remove the apartment name
-    .trim(); // Remove any extra space
+                // 🎯 FIX: Simplify the address for the geocoding service
+                const simplifiedAddress = addressLine
+                    .replace(/Flat \d+,\s*/i, '') // Remove "Flat 201, " (case insensitive)
+                    .replace(/Rosewood Apartments,\s*/i, '') // Remove the apartment name
+                    .trim(); // Remove any extra space
 
-console.log(`[GEOCODING PRE-QUERY] Using simplified address: ${simplifiedAddress}`);
+                console.log(`[GEOCODING PRE-QUERY] Using simplified address: ${simplifiedAddress}`);
                 // 2. GEOCODE ADDRESS
                 if (simplifiedAddress) {
                     const coords = await geocodeAddress(simplifiedAddress);
@@ -256,27 +257,31 @@ console.log(`[GEOCODING PRE-QUERY] Using simplified address: ${simplifiedAddress
 
             <div style={styles.mainContent}>
                 <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#1f2937', marginBottom: '16px' }}>
+                    {/* 🎯 UPDATED: Display the Service Name prominently */}
                     <span style={{ color: '#10b981' }}>{serviceName}</span> Servicemen Near User
                 </h1>
                 
                 {/* Request Summary Card - UPDATED SECTION with Coordinates */}
                 <div style={styles.card}>
                     <h2 style={{ fontSize: '1.1rem', fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>
-                        User Location
+                        User Location & Service Request (Ticket: {ticketId})
                     </h2>
+                    <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
+                        **Service:** <span style={{ fontWeight: '700', color: '#10b981' }}>{serviceName}</span>
+                    </p>
                     <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
                         **Address ID:** <span style={{ fontFamily: 'monospace', backgroundColor: '#f3f4f6', padding: '2px 8px', borderRadius: '4px' }}>{selectedAddressId}</span>
                     </p>
                     <p style={{ fontSize: '0.9rem', color: '#4b5563' }}>
                         **Full Address:** <span style={{ fontWeight: '600' }}>{fetchedAddressLine}</span>
                     </p>
-                        {userCoordinates && (
+                        {userCoordinates && (
                         <p style={{ fontSize: '0.9rem', color: '#1f2937', marginTop: '8px', borderTop: '1px solid #e5e7eb', paddingTop: '8px' }}>
-                            **GPS Location:**                             <span style={{ fontFamily: 'monospace', backgroundColor: '#e5e7eb', padding: '2px 8px', borderRadius: '4px' }}>
+                            **GPS Location:**                             <span style={{ fontFamily: 'monospace', backgroundColor: '#e5e7eb', padding: '2px 8px', borderRadius: '4px' }}>
                                 Lat: {userCoordinates.lat}, Lng: {userCoordinates.lon}
                             </span>
                         </p>
-                        )}
+                        )}
                     <p style={{ marginTop: '12px', fontSize: '0.9rem', color: '#6b7280' }}>
                         **Request Details:** {requestDetails}
                     </p>
@@ -285,7 +290,8 @@ console.log(`[GEOCODING PRE-QUERY] Using simplified address: ${simplifiedAddress
                 {/* Serviceman List */}
                 <div style={{ ...styles.card, padding: '32px' }}>
                     <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1f2937', marginBottom: '16px', borderBottom: '1px solid #e5e7eb', paddingBottom: '8px' }}>
-                        Available Technicians (Within 1.0 km)
+                        {/* 🎯 UPDATED: Display the Service Name in the list header */}
+                        Available {serviceName} Technicians (Within 1.0 km)
                     </h2>
                     
                     <p style={{ marginBottom: '16px', fontWeight: '600', color: dispatchStatus?.includes('SUCCESSFUL') ? '#047857' : dispatchStatus?.includes('No') ? '#ef4444' : '#6b7280' }}>
