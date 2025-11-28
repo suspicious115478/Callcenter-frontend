@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-const API_BASE_URL = 'https://callcenter-baclend.onrender.com'; 
+const API_BASE_URL = 'https://callcenter-baclend.onrender.com'; 
 
 // Placeholder for header icon
-const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>; 
+const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>; 
 
 // --- HELPER: Generate Unique Order ID ---
 /**
@@ -29,7 +29,7 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
     
-    const a = 
+    const a = 
         Math.sin(dLat / 2) * Math.sin(dLat / 2) +
         Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
         
@@ -42,12 +42,12 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
 // --- INLINE STYLES ---
 const styles = {
     container: {
-        display: 'flex', flexDirection: 'column', minHeight: '100vh', 
+        display: 'flex', flexDirection: 'column', minHeight: '100vh', 
         fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
         backgroundColor: '#f3f4f6', color: '#111827',
     },
     header: {
-        height: '64px', backgroundColor: '#1f2937', color: 'white', display: 'flex', alignItems: 'center', 
+        height: '64px', backgroundColor: '#1f2937', color: 'white', display: 'flex', alignItems: 'center', 
         justifyContent: 'space-between', padding: '0 24px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', zIndex: 20,
     },
     brand: { fontSize: '1.25rem', fontWeight: '700', letterSpacing: '-0.025em', display: 'flex', alignItems: 'center', gap: '10px' },
@@ -94,8 +94,8 @@ const ServicemanCard = ({ serviceman, isSelected, onClick }) => {
                 </p>
                 {/* 🚀 UPDATED: Shows calculated distance */}
                 <p style={{ fontSize: '0.875rem', color: '#4b5563', fontWeight: '600' }}>
-                    {serviceman.calculatedDistance !== undefined 
-                        ? `📍 ${serviceman.calculatedDistance} km away` 
+                    {serviceman.calculatedDistance !== undefined 
+                        ? `📍 ${serviceman.calculatedDistance} km away` 
                         : 'Checking distance...'}
                 </p>
             </div>
@@ -164,7 +164,7 @@ export function ServiceManSelectionPage() {
     // 🔑 NEW STATE: For the unique order ID
     const [orderId, setOrderId] = useState(null);
     const [fetchedAddressLine, setFetchedAddressLine] = useState('Loading address...');
-    const [userCoordinates, setUserCoordinates] = useState(null); 
+    const [userCoordinates, setUserCoordinates] = useState(null); 
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
     
     // Raw servicemen data from API
@@ -201,12 +201,12 @@ export function ServiceManSelectionPage() {
                 if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 
                 const data = await response.json();
-                const addressLine = data.address_line; 
-                setFetchedAddressLine(addressLine); 
+                const addressLine = data.address_line; 
+                setFetchedAddressLine(addressLine); 
 
                 // Simple address cleanup for better geocoding accuracy
                 const simplifiedAddress = addressLine
-                    .replace(/Flat \d+,\s*/i, '') 
+                    .replace(/Flat \d+,\s*/i, '') 
                     .replace(/Rosewood Apartments,\s*/i, '')
                     .trim();
 
@@ -224,7 +224,7 @@ export function ServiceManSelectionPage() {
         };
 
         fetchAndGeocodeAddress();
-    }, [selectedAddressId]); 
+    }, [selectedAddressId]); 
 
 
     // 2. Fetch Servicemen (Raw Data)
@@ -245,7 +245,7 @@ export function ServiceManSelectionPage() {
         };
 
         loadServicemen();
-    }, [serviceName]); 
+    }, [serviceName]); 
 
     // 3. Calculate Distance & Sort whenever User Coords or Servicemen list updates
     useEffect(() => {
@@ -272,7 +272,7 @@ export function ServiceManSelectionPage() {
             setSortedServicemen(sortedList);
             // Only update status if the list was loaded successfully and coordinates are available
             if (!dispatchStatus || dispatchStatus.includes('Searching') || dispatchStatus.includes('No active')) {
-                 setDispatchStatus(`${sortedList.length} specialists found near you.`);
+                   setDispatchStatus(`${sortedList.length} specialists found near you.`);
             }
         } else if (rawServicemen.length > 0) {
             // If we have servicemen but NO user coordinates yet, just show the list unsorted
@@ -285,12 +285,13 @@ export function ServiceManSelectionPage() {
      * UPDATED: Sends dispatch data including orderId, ticketId, and phoneNumber.
      */
     const handleDispatch = async () => {
+        // NOTE: Replacing alert() with a custom console log/status update
         if (!selectedServiceman) {
-            alert('Please select a serviceman to dispatch.');
+            setDispatchStatus('❗️ Please select a serviceman to dispatch.');
             return;
         }
         if (!orderId) {
-             alert('Error: Order ID was not generated. Cannot dispatch.');
+             setDispatchStatus('❌ Error: Order ID was not generated. Cannot dispatch.');
              return;
         }
 
@@ -298,15 +299,16 @@ export function ServiceManSelectionPage() {
         // 1. Prepare Data for Dispatch Table
         const dispatchData = {
             user_id: selectedServiceman.user_id, // Serviceman's ID
-            category: serviceName,              // Service/category name
+            category: serviceName,           // Service/category name
             request_address: fetchedAddressLine, // Full address line
-            order_status: 'Assigned',           // Initial status
-            order_request: requestDetails,      // Customer request details
+            order_status: 'Assigned',            // Initial status
+            order_request: requestDetails,       // Customer request details
 
-            // 🔑 NEW REQUIRED FIELDS
-            order_id: orderId,                  // Unique order identifier
-            ticket_id: ticketId,                // Associated support ticket
-            customer_phone: phoneNumber,        // Customer's phone number
+            // 🔑 FIX APPLIED HERE: Renamed 'customer_phone' to 'phone_number' 
+            // to match the backend validation requirement.
+            order_id: orderId,                   // Unique order identifier
+            ticket_id: ticketId,                 // Associated support ticket
+            phone_number: phoneNumber,           // Customer's phone number
         };
 
         setDispatchStatus(`Dispatching ${selectedServiceman.full_name || selectedServiceman.name}...`);
@@ -406,7 +408,7 @@ export function ServiceManSelectionPage() {
                         Available {serviceName} Technicians (Sorted by Distance)
                     </h2>
                     
-                    <p style={{ marginBottom: '16px', fontWeight: '600', color: dispatchStatus?.includes('SUCCESSFUL') ? '#047857' : dispatchStatus?.includes('No') || dispatchStatus?.includes('FAILED') ? '#ef4444' : '#6b7280' }}>
+                    <p style={{ marginBottom: '16px', fontWeight: '600', color: dispatchStatus?.includes('SUCCESSFUL') ? '#047857' : dispatchStatus?.includes('No') || dispatchStatus?.includes('FAILED') || dispatchStatus?.includes('❗️') ? '#ef4444' : '#6b7280' }}>
                         {dispatchStatus}
                     </p>
 
