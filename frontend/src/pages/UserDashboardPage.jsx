@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-// 🚀 NEW: Import useLocation to access query parameters
-import { useParams, useNavigate, useLocation } from 'react-router-dom'; 
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
 // Using a placeholder URL internally to resolve the 'Could not resolve' error.
+// Assuming this is defined in your environment/config.
 import { BACKEND_URL } from '../config';
 
 
@@ -14,7 +14,7 @@ export default function UserDashboardPage() {
     // 2. QUERY PARAMETERS (e.g., ?phoneNumber=...)
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
-    const phoneNumber = queryParams.get('phoneNumber'); // 🚀 FIX: Correctly reads '919812300001'
+    const phoneNumber = queryParams.get('phoneNumber');
 
     const navigate = useNavigate();
     const [notes, setNotes] = useState('');
@@ -28,13 +28,18 @@ export default function UserDashboardPage() {
     const [selectedAddressId, setSelectedAddressId] = useState(null);
     const [addressFetchMessage, setAddressFetchMessage] = useState('Fetching addresses...');
 
+    // 🚀 NEW STATE: To hold orders with status 'Assigned'
+    const [assignedOrders, setAssignedOrders] = useState([]);
+    const [orderFetchMessage, setOrderFetchMessage] = useState('Checking for assigned tickets...');
+    // --------------------------------------------------------
+
     useEffect(() => {
         // Clock timer for the header
         const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
         return () => clearInterval(timer);
     }, []);
 
-    // EFFECT: Fetch addresses on component mount using the userId
+    // EFFECT 1: Fetch addresses on component mount using the userId
     useEffect(() => {
         const fetchAddresses = async () => {
             if (!userId) {
@@ -43,7 +48,7 @@ export default function UserDashboardPage() {
             }
 
             try {
-                const response = await fetch(`${BACKEND_URL}/call/address/${userId}`); 
+                const response = await fetch(`${BACKEND_URL}/call/address/${userId}`);
 
                 if (!response.ok) {
                     throw new Error(`Failed to fetch addresses: ${response.statusText}`);
@@ -52,7 +57,7 @@ export default function UserDashboardPage() {
                 const result = await response.json();
                 const addresses = result.addresses;
 
-                if (addresses.length > 0) {
+                if (addresses && addresses.length > 0) {
                     setUserAddresses(addresses);
                     // CRITICAL FIX: Auto-select the first address using its 'address_id'
                     setSelectedAddressId(addresses[0].address_id);
@@ -71,6 +76,86 @@ export default function UserDashboardPage() {
 
         fetchAddresses();
     }, [userId]);
+
+    // 🚀 NEW EFFECT 2: Fetch assigned orders/tickets using the phone number
+    useEffect(() => {
+        const fetchAssignedOrders = async () => {
+            if (!phoneNumber) {
+                setOrderFetchMessage('Error: Phone number is required to look up assigned orders.');
+                return;
+            }
+
+            try {
+                // Assuming the backend has a new endpoint to query orders by phone number and status
+                const response = await fetch(`${BACKEND_URL}/call/assigned-orders?phoneNumber=${phoneNumber}`);
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch assigned orders: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                const orders = result.orders || []; // Assuming the response contains an 'orders' array
+
+                if (orders.length > 0) {
+                    setAssignedOrders(orders);
+                    setOrderFetchMessage(`${orders.length} assigned ticket(s) found.`);
+                } else {
+                    setAssignedOrders([]);
+                    setOrderFetchMessage('No active assigned tickets found.');
+                }
+
+            } catch (error) {
+                console.error('Assigned Orders Fetch Error:', error);
+                setOrderFetchMessage(`❌ Failed to load assigned orders: ${error.message}`);
+            }
+        };
+
+        fetchAssignedOrders();
+    }, [phoneNumber]);
+
+
+    // 🚀 NEW FUNCTION: Handle the cancellation of an order
+    const handleCancelOrder = async (orderId) => {
+        if (!window.confirm(`Are you sure you want to cancel Order ID: ${orderId}? This cannot be undone.`)) {
+            return;
+        }
+
+        const originalOrders = assignedOrders;
+        // Optimistically remove the order from the UI
+        setAssignedOrders(prev => prev.filter(order => order.order_id !== orderId));
+        setSaveMessage(`Cancelling Order ${orderId}...`);
+
+        try {
+            // Assuming the backend has a new endpoint to update the order status
+            const response = await fetch(`${BACKEND_URL}/call/cancel-order`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    orderId: orderId,
+                    newStatus: 'Cust_Cancelled', // The requested new status
+                    agentId: 'AGENT_001', // Agent identification
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to cancel order: ${response.statusText}`);
+            }
+
+            // On success
+            setSaveMessage(`✅ Order ${orderId} successfully cancelled.`);
+            // Note: No need to re-fetch, as we optimistically updated state. 
+            // The status message will fade out.
+
+        } catch (error) {
+            console.error('Cancel Order API Error:', error);
+            setSaveMessage(`❌ Failed to cancel Order ${orderId}: ${error.message}`);
+            // Revert the state change on failure
+            setAssignedOrders(originalOrders); 
+        } finally {
+            setTimeout(() => setSaveMessage(''), 5000);
+        }
+    };
+
 
     // --- RESTORED FUNCTION: Save Notes to Backend as a Ticket and Navigate ---
     const saveNotesAsTicket = async () => {
@@ -99,7 +184,7 @@ export default function UserDashboardPage() {
 
         try {
             // CRITICAL FIX: Use the 'phoneNumber' correctly extracted from query params
-            const actualPhoneNumber = phoneNumber; 
+            const actualPhoneNumber = phoneNumber;
 
             const response = await fetch(`${BACKEND_URL}/call/ticket`, {
                 method: 'POST',
@@ -137,7 +222,7 @@ export default function UserDashboardPage() {
                     requestDetails: result.requestDetails || notes.trim(),
                     selectedAddressId: selectedAddressId,
                     // ⭐️ ADDED: Pass the phoneNumber from the URL query
-                    phoneNumber: phoneNumber, 
+                    phoneNumber: phoneNumber,
                 }
             });
 
@@ -324,6 +409,45 @@ export default function UserDashboardPage() {
             padding: '2px 8px',
             borderRadius: '4px',
             fontFamily: 'monospace',
+        },
+        // 🚀 NEW STYLES FOR ASSIGNED ORDER CARDS
+        assignedOrderContainer: {
+            marginTop: '32px',
+        },
+        orderCard: {
+            ...this.card,
+            padding: '15px',
+            borderLeft: '4px solid #f97316', // Orange accent for 'Assigned' status
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '10px',
+        },
+        orderInfo: {
+            flexGrow: 1,
+        },
+        orderId: {
+            fontSize: '1rem',
+            fontWeight: '700',
+            color: '#f97316', // Orange color
+            marginBottom: '4px',
+        },
+        orderDetail: {
+            fontSize: '0.875rem',
+            color: '#6b7280',
+        },
+        cancelButton: {
+            padding: '8px 16px',
+            borderRadius: '6px',
+            border: 'none',
+            fontWeight: '600',
+            fontSize: '0.8rem',
+            cursor: 'pointer',
+            backgroundColor: '#ef4444', // Red for cancellation
+            color: 'white',
+            transition: 'background-color 0.3s',
+            marginLeft: '15px',
+            boxShadow: '0 1px 3px 0 rgba(239, 68, 68, 0.4), 0 1px 2px -1px rgba(239, 68, 68, 0.4)',
         }
     };
     // --------------------------------------------------------
@@ -410,8 +534,63 @@ export default function UserDashboardPage() {
                     </div>
                 </aside>
 
-                {/* CONTENT AREA - Used for Note Taking */}
+                {/* CONTENT AREA - Used for Note Taking and Assigned Orders */}
                 <main style={styles.contentArea}>
+                    
+                    {/* 1. ASSIGNED ORDERS SECTION */}
+                    <div style={styles.assignedOrderContainer}>
+                        <h2 style={{ ...styles.title, marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            🚨 Assigned Orders to Cancel
+                            <span style={{ 
+                                fontSize: '0.8rem', 
+                                fontWeight: '500', 
+                                padding: '4px 8px', 
+                                borderRadius: '4px', 
+                                backgroundColor: assignedOrders.length > 0 ? '#fee2e2' : '#d1d5db', 
+                                color: assignedOrders.length > 0 ? '#ef4444' : '#4b5563' 
+                            }}>
+                                {assignedOrders.length} Active
+                            </span>
+                        </h2>
+                        
+                        <div style={{ marginBottom: '20px' }}>
+                            {assignedOrders.length > 0 ? (
+                                assignedOrders.map((order) => (
+                                    <div key={order.order_id} style={styles.orderCard}>
+                                        <div style={styles.orderInfo}>
+                                            <div style={styles.orderId}>Order ID: {order.order_id}</div>
+                                            <div style={styles.orderDetail}>
+                                                Status: <span style={{ fontWeight: '700' }}>{order.order_status}</span>
+                                            </div>
+                                            {/* Assuming a basic description field exists, showing a placeholder if not */}
+                                            <div style={styles.orderDetail}>
+                                                Service: {order.service_name || 'Generic Service Request'}
+                                            </div>
+                                            <div style={styles.orderDetail}>
+                                                Time: {new Date(order.assigned_at || Date.now()).toLocaleTimeString()}
+                                            </div>
+                                        </div>
+                                        <button 
+                                            style={styles.cancelButton}
+                                            onClick={() => handleCancelOrder(order.order_id)}
+                                        >
+                                            Cancel Order
+                                        </button>
+                                    </div>
+                                ))
+                            ) : (
+                                <div style={{ ...styles.card, borderLeft: '4px solid #3b82f6', color: '#1d4ed8', backgroundColor: '#eff6ff' }}>
+                                    <p style={{ fontWeight: '600' }}>{orderFetchMessage}</p>
+                                    <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '5px' }}>
+                                        No assigned tickets found for this phone number ({phoneNumber}).
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+
+                    {/* 2. ACTIVE CALL NOTES SECTION (Existing) */}
                     <h2 style={styles.title}>📝 Active Call Notes</h2>
 
                     <div style={styles.card}>
@@ -441,4 +620,3 @@ export default function UserDashboardPage() {
         </div>
     );
 }
-
