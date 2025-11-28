@@ -3,131 +3,54 @@ import React, { useState, useEffect } from 'react';
 // 🚀 NEW: Import useLocation to access query parameters
 
 import { useParams, useNavigate, useLocation } from 'react-router-dom'; 
-
-
-
 // 💡 FIX: Define the URL directly here since the config file is missing in this environment
-
 const BACKEND_URL = 'https://callcenter-baclend.onrender.com';
-
-
-
-
-
 export default function UserDashboardPage() {
-
-    
-
     // 1. URL PARAMETERS (e.g., /dashboard/1)
-
     const { userId } = useParams();
-
-    
-
     // 2. QUERY PARAMETERS (e.g., ?phoneNumber=...)
-
     const location = useLocation();
-
     const queryParams = new URLSearchParams(location.search);
-
     const phoneNumber = queryParams.get('phoneNumber'); // 🚀 FIX: Correctly reads '919812300001'
-
-
-
     const navigate = useNavigate();
-
     const [notes, setNotes] = useState('');
-
     const [isSaving, setIsSaving] = useState(false);
-
     const [saveMessage, setSaveMessage] = useState('');
-
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
-
     const [subscriptionStatus] = useState('Premium');
-
-
-
     // STATE FOR ADDRESS MANAGEMENT
-
     const [userAddresses, setUserAddresses] = useState([]);
-
     const [selectedAddressId, setSelectedAddressId] = useState(null);
-
     const [addressFetchMessage, setAddressFetchMessage] = useState('Fetching addresses...');
-
-
-
     useEffect(() => {
-
         // Clock timer for the header
-
         const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
-
         return () => clearInterval(timer);
-
     }, []);
-
-
-
     // EFFECT: Fetch addresses on component mount using the userId
-
     useEffect(() => {
-
         const fetchAddresses = async () => {
-
             if (!userId) {
-
                 setAddressFetchMessage('Error: User ID not provided in route.');
-
                 return;
-
             }
-
-
-
             try {
-
                 const response = await fetch(`${BACKEND_URL}/call/address/${userId}`); 
-
-
-
                 if (!response.ok) {
-
                     throw new Error(`Failed to fetch addresses: ${response.statusText}`);
-
                 }
-
-
-
                 const result = await response.json();
-
                 const addresses = result.addresses;
-
-
-
                 if (addresses.length > 0) {
-
                     setUserAddresses(addresses);
-
                     // CRITICAL FIX: Auto-select the first address using its 'address_id'
-
                     setSelectedAddressId(addresses[0].address_id);
-
                     setAddressFetchMessage(`${addresses.length} addresses loaded.`);
-
                 } else {
-
                     setAddressFetchMessage('No addresses found for this user.');
-
                     setUserAddresses([]);
-
                     setSelectedAddressId(null);
-
                 }
-
-
-
             } catch (error) {
 
                 console.error('Address Fetch Error:', error);
@@ -138,26 +61,16 @@ export default function UserDashboardPage() {
 
         };
 
-
-
         fetchAddresses();
 
     }, [userId]);
 
-
-
     // --- RESTORED FUNCTION: Save Notes to Backend as a Ticket and Navigate ---
-
     const saveNotesAsTicket = async () => {
-
         if (!notes.trim()) {
-
             setSaveMessage('Error: Notes cannot be empty.');
-
             setTimeout(() => setSaveMessage(''), 3000);
-
             return;
-
         }
 
         
@@ -743,133 +656,65 @@ export default function UserDashboardPage() {
 
 
                         <div style={{ marginTop: '16px', fontSize: '0.8rem', color: '#9ca3af' }}>
-
                             *Details are for the verified calling party.
-
                         </div>
-
                     </div>
-
-
-
                     {/* ADDRESS SELECTION CARD */}
-
                     <div style={styles.card}>
-
                         <div style={styles.userInfoTitle}>🏠 Select Address</div>
-
                         <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '10px' }}>
-
                             {addressFetchMessage}
-
                         </p>
-
                         {userAddresses.length > 0 ? (
-
                             <div>
-
                                 {userAddresses.map((address) => (
-
                                     <div
-
                                         key={address.address_id}
-
                                         style={{
-
                                             ...styles.addressItem,
-
                                             ...(selectedAddressId === address.address_id ? styles.addressSelected : {})
-
                                         }}
-
                                         onClick={() => setSelectedAddressId(address.address_id)}
-
                                     >
-
                                         {address.address_line}
-
                                     </div>
-
                                 ))}
-
                             </div>
-
                         ) : (
-
                             <p style={{ fontSize: '0.875rem', color: '#ef4444' }}>
-
                                 No addresses to select.
-
                             </p>
-
                         )}
-
                     </div>
-
-
-
                     <div style={{ ...styles.card, flex: 1 }}>
-
                         <div style={styles.userInfoTitle}>Call History Summary</div>
-
                         <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
-
                             *Implement history lookup here (e.g., last 3 tickets, products owned).
-
                         </p>
-
                     </div>
-
                 </aside>
-
-
-
                 {/* CONTENT AREA - Used for Note Taking */}
-
                 <main style={styles.contentArea}>
-
                     <h2 style={styles.title}>📝 Active Call Notes</h2>
 
-
-
                     <div style={styles.card}>
-
                         <textarea
-
                             style={styles.notesTextarea}
-
                             value={notes}
-
                             onChange={(e) => setNotes(e.target.value)}
-
                             placeholder="Start taking notes on the user's request, issues, or actions taken..."
-
                         />
-
                     </div>
-
-
-
                     <div style={{ marginTop: '20px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-
                         {saveMessage && (
-
                             <span style={styles.message}>{saveMessage}</span>
-
                         )}
-
                         <button
-
                             onClick={saveNotesAsTicket}
-
                             // Disable if saving, if address is missing, or if phone number is missing
-
                             disabled={isSaving || !phoneNumber || (userAddresses.length > 0 && !selectedAddressId)}
-
                             style={styles.saveButton}
-
                         >
-
                             {isSaving ? 'Saving...' : 'Save Notes & Select Service'}
 
                         </button>
@@ -885,3 +730,4 @@ export default function UserDashboardPage() {
     );
 
 }
+
