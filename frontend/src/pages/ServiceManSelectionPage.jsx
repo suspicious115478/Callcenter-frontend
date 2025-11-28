@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-const API_BASE_URL = 'https://callcenter-baclend.onrender.com'; 
+const API_BASE_URL = 'https://callcenter-baclend.onrender.com';
 
 // Placeholder for header icon
-const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>; 
+const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>;
 
 // --- HELPER: Generate Unique Order ID ---
 /**
@@ -39,7 +39,7 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
     return parseFloat(distance.toFixed(2)); // Return number with 2 decimals
 };
 
-// --- INLINE STYLES ---
+// --- INLINE STYLES (Kept as is for brevity) ---
 const styles = {
     container: {
         display: 'flex', flexDirection: 'column', minHeight: '100vh', 
@@ -62,7 +62,7 @@ const styles = {
     servicemanSelected: { backgroundColor: '#dcfce7', borderColor: '#10b981', fontWeight: '700', boxShadow: '0 4px 6px rgba(16, 185, 129, 0.2)' },
 };
 
-// Helper component for servicemen display
+// Helper component for servicemen display (Kept as is for brevity)
 const ServicemanCard = ({ serviceman, isSelected, onClick }) => {
     const [isHovered, setIsHovered] = useState(false);
     
@@ -103,7 +103,7 @@ const ServicemanCard = ({ serviceman, isSelected, onClick }) => {
     );
 };
 
-// Geocode function (Nominatim)
+// Geocode function (Nominatim) (Kept as is for brevity)
 const geocodeAddress = async (address) => {
     const encodedAddress = encodeURIComponent(address);
     const geocodingUrl = `https://nominatim.openstreetmap.org/search?q=${encodedAddress}&format=json&limit=1`;
@@ -154,6 +154,37 @@ const fetchServicemenFromBackend = async (serviceName) => {
     }
 };
 
+// 🔑 NEW: Function to fetch member_id from the backend
+const fetchMemberId = async (phoneNumber) => {
+    if (!phoneNumber) return null;
+    const url = `${API_BASE_URL}/call/memberid/lookup`;
+    
+    console.log(`[MEMBER ID FETCH] Requesting: ${url} for phone: ${phoneNumber}`);
+
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phoneNumber })
+        });
+
+        if (!response.ok) {
+             // If phone number is not found, backend will return 404, which is okay.
+             if (response.status === 404) return 'Not Found';
+             throw new Error(`HTTP Error! Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        // The backend will return { member_id: "..." }
+        console.log(`[MEMBER ID SUCCESS] Found Member ID: ${data.member_id}`);
+        return data.member_id;
+    } catch (error) {
+        console.error("[MEMBER ID ERROR] Fetch failed:", error);
+        return 'Error'; // Return 'Error' on failure
+    }
+};
+
+
 export function ServiceManSelectionPage() {
     const location = useLocation();
     const navigate = useNavigate();
@@ -174,21 +205,37 @@ export function ServiceManSelectionPage() {
     
     const [selectedServiceman, setSelectedServiceman] = useState(null);
     const [dispatchStatus, setDispatchStatus] = useState(null);
+    
+    // 🔑 NEW STATE: For the fetched member ID
+    const [memberId, setMemberId] = useState('Searching...');
 
-    // Clock timer
+    // Clock timer (Kept as is)
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
         return () => clearInterval(timer);
     }, []);
 
-    // 🔑 NEW: Generate orderId on component load
+    // 🔑 NEW: Generate orderId on component load (Kept as is)
     useEffect(() => {
         const newOrderId = generateUniqueOrderId();
         setOrderId(newOrderId);
         console.log(`[ORDER CREATION] Generated unique Order ID: ${newOrderId}`);
     }, []); // Empty dependency array ensures it runs only once on mount
+    
+    // 🔑 NEW EFFECT: Fetch Member ID
+    useEffect(() => {
+        if (phoneNumber) {
+            const loadMemberId = async () => {
+                const id = await fetchMemberId(phoneNumber);
+                setMemberId(id);
+            };
+            loadMemberId();
+        } else {
+            setMemberId('N/A');
+        }
+    }, [phoneNumber]);
 
-    // 1. Fetch Address & Geocode
+    // 1. Fetch Address & Geocode (Kept as is)
     useEffect(() => {
         if (!selectedAddressId) return;
 
@@ -227,7 +274,7 @@ export function ServiceManSelectionPage() {
     }, [selectedAddressId]); 
 
 
-    // 2. Fetch Servicemen (Raw Data)
+    // 2. Fetch Servicemen (Raw Data) (Kept as is)
     useEffect(() => {
         if (!serviceName) {
             setDispatchStatus('Error: Service type not specified.');
@@ -247,7 +294,7 @@ export function ServiceManSelectionPage() {
         loadServicemen();
     }, [serviceName]); 
 
-    // 3. Calculate Distance & Sort whenever User Coords or Servicemen list updates
+    // 3. Calculate Distance & Sort (Kept as is)
     useEffect(() => {
         if (rawServicemen.length > 0 && userCoordinates && userCoordinates.lat !== 'N/A') {
             
@@ -272,7 +319,7 @@ export function ServiceManSelectionPage() {
             setSortedServicemen(sortedList);
             // Only update status if the list was loaded successfully and coordinates are available
             if (!dispatchStatus || dispatchStatus.includes('Searching') || dispatchStatus.includes('No active')) {
-                   setDispatchStatus(`${sortedList.length} specialists found near you.`);
+                    setDispatchStatus(`${sortedList.length} specialists found near you.`);
             }
         } else if (rawServicemen.length > 0) {
             // If we have servicemen but NO user coordinates yet, just show the list unsorted
@@ -299,7 +346,7 @@ export function ServiceManSelectionPage() {
         // 1. Prepare Data for Dispatch Table
         const dispatchData = {
             user_id: selectedServiceman.user_id, // Serviceman's ID
-            category: serviceName,           // Service/category name
+            category: serviceName,          // Service/category name
             request_address: fetchedAddressLine, // Full address line
             order_status: 'Assigned',            // Initial status
             order_request: requestDetails,       // Customer request details
@@ -386,6 +433,10 @@ export function ServiceManSelectionPage() {
                     </p>
                     <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
                         **Customer Phone:** <span style={{ fontWeight: '600', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5' }}>{phoneNumber || 'N/A'}</span>
+                        <br/>
+                        **Member ID:** <span style={{ fontWeight: '600', backgroundColor: memberId === 'Not Found' ? '#fee2e2' : '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: memberId === 'Not Found' ? '#ef4444' : '#4f46e5' }}>
+                            {memberId}
+                        </span>
                     </p>
                     <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
                         **Address:** <span style={{ fontWeight: '600' }}>{fetchedAddressLine}</span>
@@ -402,7 +453,7 @@ export function ServiceManSelectionPage() {
                     )}
                 </div>
 
-                {/* Serviceman List */}
+                {/* Serviceman List (Kept as is) */}
                 <div style={{ ...styles.card, padding: '32px' }}>
                     <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1f2937', marginBottom: '16px', borderBottom: '1px solid #e5e7eb', paddingBottom: '8px' }}>
                         Available {serviceName} Technicians (Sorted by Distance)
@@ -429,7 +480,7 @@ export function ServiceManSelectionPage() {
                         )}
                     </div>
                     
-                    {/* Dispatch Button */}
+                    {/* Dispatch Button (Kept as is) */}
                     <div style={{ marginTop: '24px', textAlign: 'right' }}>
                         <button
                             onClick={handleDispatch}
