@@ -147,7 +147,8 @@ export function ServiceManSelectionPage() {
     const location = useLocation();
     const navigate = useNavigate();
     
-    const { ticketId, requestDetails, selectedAddressId, serviceName } = location.state || {};
+    // Destructure all relevant props from state, including the phone number
+    const { ticketId, requestDetails, selectedAddressId, serviceName, phoneNumber } = location.state || {};
     
     const [fetchedAddressLine, setFetchedAddressLine] = useState('Loading address...');
     const [userCoordinates, setUserCoordinates] = useState(null); 
@@ -180,9 +181,11 @@ export function ServiceManSelectionPage() {
                 if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
                 
                 const data = await response.json();
-                const addressLine = data.address_line;
+                // 🔑 NOTE: The backend API must return an 'address_line' in the response.
+                const addressLine = data.address_line; 
                 setFetchedAddressLine(addressLine); 
 
+                // Simple address cleanup for better geocoding accuracy
                 const simplifiedAddress = addressLine
                     .replace(/Flat \d+,\s*/i, '') 
                     .replace(/Rosewood Apartments,\s*/i, '')
@@ -271,11 +274,12 @@ export function ServiceManSelectionPage() {
         // 1. Prepare Data for Dispatch Table
         const dispatchData = {
             user_id: selectedServiceman.user_id, // 🎯 user_id of the selected technician
-            category: serviceName,                         // 🎯 category/service name
-            request_address: fetchedAddressLine,           // 🎯 full address line
-            order_status: 'Assigned',                      // 🎯 initial status
-            // Combine ticket details for the order_request column
-            order_request: requestDetails,
+            category: serviceName,              // 🎯 category/service name
+            request_address: fetchedAddressLine, // 🎯 full address line
+            order_status: 'Assigned',           // 🎯 initial status
+            order_request: requestDetails,      // 🎯 customer request details
+            // 🔑 Included the phone number in the dispatch data for completeness
+            customer_phone: phoneNumber,
         };
 
         setDispatchStatus(`Dispatching ${selectedServiceman.full_name || selectedServiceman.name}...`);
@@ -346,6 +350,10 @@ export function ServiceManSelectionPage() {
                     <h2 style={{ fontSize: '1.1rem', fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>
                         User Location & Service Request (Ticket: {ticketId})
                     </h2>
+                    {/* 🔑 Displaying the Phone Number for Context */}
+                    <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
+                        **Customer Phone:** <span style={{ fontWeight: '600', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5' }}>{phoneNumber || 'N/A'}</span>
+                    </p>
                     <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
                         **Address:** <span style={{ fontWeight: '600' }}>{fetchedAddressLine}</span>
                     </p>
