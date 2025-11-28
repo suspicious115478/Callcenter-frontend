@@ -127,16 +127,17 @@ export default function UserDashboardPage() {
 
             const result = await response.json();
 
-            // CRITICAL NAVIGATION: Redirect to the new service selection page, passing address info
-            console.log(`Ticket ${result.ticket_id} created. Navigating to service selection.`);
+            // CRITICAL NAVIGATION: Redirect to the new service selection page
+            // 🚀 NEW: Expecting backend to return both ticket_id and order_id
+            console.log(`Ticket ${result.ticket_id} and Order ${result.order_id} created. Navigating.`);
 
-            // Navigate, passing the necessary data (ticketId, requestDetails, and selectedAddressId)
+            // Navigate, passing the necessary data (ticketId, orderId, requestDetails, and selectedAddressId)
             navigate('/user/services', {
                 state: {
                     ticketId: result.ticket_id,
+                    orderId: result.order_id, // 🚀 NEW: Passing Order ID to next page
                     requestDetails: result.requestDetails || notes.trim(),
                     selectedAddressId: selectedAddressId,
-                    // 💡 FIX IS HERE: PASS PHONE NUMBER TO NEXT PAGE
                     phoneNumber: actualPhoneNumber 
                 }
             });
