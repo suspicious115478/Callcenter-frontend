@@ -97,6 +97,15 @@ const styles = {
         // Adjusted grid to be slightly tighter for more services
         gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
         gap: '20px',
+    },
+    // Style for phone number/ID highlights
+    contextHighlight: {
+        fontFamily: 'monospace',
+        backgroundColor: '#eef2ff', 
+        padding: '2px 8px', 
+        borderRadius: '4px', 
+        color: '#4f46e5', 
+        fontWeight: '600'
     }
 };
 
@@ -157,6 +166,8 @@ export default function UserServicesPage() {
     const ticketId = location.state?.ticketId;
     const requestDetails = location.state?.requestDetails;
     const selectedAddressId = location.state?.selectedAddressId;
+    // ⭐️ ADDED: Extract the phone number from the navigation state
+    const phoneNumber = location.state?.phoneNumber; 
 
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
@@ -169,23 +180,26 @@ export default function UserServicesPage() {
     // Handle service selection
     const handleServiceSelect = (service) => {
         
-        // Navigate to the servicemen selection page
+        // Navigate to the servicemen selection page, passing ALL context data
         navigate('/user/servicemen', {
             state: {
                 ticketId: ticketId,
                 requestDetails: requestDetails,
                 selectedAddressId: selectedAddressId,
                 serviceName: service.name, // Pass the chosen service name
+                // ⭐️ ADDED: Pass the phone number to the next screen as well
+                phoneNumber: phoneNumber,
             }
         });
     };
 
     // Check if required data is missing from the state (Essential Agent Workflow Check)
-    if (!ticketId || !requestDetails || !selectedAddressId) {
+    // Now also checking for phoneNumber
+    if (!ticketId || !requestDetails || !selectedAddressId || !phoneNumber) {
         return (
             <div style={{ ...styles.container, justifyContent: 'center', alignItems: 'center' }}>
                 <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ef4444', marginBottom: '16px' }}>Error: Missing Call Context</h1>
-                <p style={{ color: '#6b7280', marginBottom: '24px' }}>Agent must start the process from the Dashboard with an active ticket and address.</p>
+                <p style={{ color: '#6b7280', marginBottom: '24px' }}>Agent must start the process from the Dashboard with an active ticket, phone number, and address.</p>
             </div>
         );
     }
@@ -216,13 +230,18 @@ export default function UserServicesPage() {
                             <h2 style={{ fontSize: '1.25rem', fontWeight: '700', color: '#1f2937', marginBottom: '12px', paddingBottom: '8px', borderBottom: '1px solid #e5e7eb' }}>
                                 🚨 Active Call Context
                             </h2>
-
+                            
+                            {/* ⭐️ ADDED: Phone Number Display */}
                             <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '8px' }}>
-                                **Ticket ID:** <span style={{ fontFamily: 'monospace', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5', fontWeight: '600' }}>{ticketId}</span>
+                                **Customer Phone:** <span style={styles.contextHighlight}>{phoneNumber}</span>
+                            </p>
+                            
+                            <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '8px' }}>
+                                **Ticket ID:** <span style={styles.contextHighlight}>{ticketId}</span>
                             </p>
                             
                             <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '16px' }}>
-                                **Address ID:** <span style={{ fontFamily: 'monospace', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5', fontWeight: '600' }}>{selectedAddressId}</span>
+                                **Address ID:** <span style={styles.contextHighlight}>{selectedAddressId}</span>
                             </p>
 
 
@@ -231,7 +250,7 @@ export default function UserServicesPage() {
                                     Customer Request:
                                 </p>
                                 <p style={{ color: '#374151', whiteSpace: 'pre-wrap', lineHeight: '1.6', fontSize: '0.9rem', marginTop: '4px' }}>
-                                     {requestDetails}
+                                    {requestDetails}
                                 </p>
                             </div>
 
