@@ -157,6 +157,9 @@ export default function UserServicesPage() {
     const ticketId = location.state?.ticketId;
     const requestDetails = location.state?.requestDetails;
     const selectedAddressId = location.state?.selectedAddressId;
+    
+    // 💡 FIX IS HERE: Extract phoneNumber from state
+    const phoneNumber = location.state?.phoneNumber;
 
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
@@ -176,6 +179,8 @@ export default function UserServicesPage() {
                 requestDetails: requestDetails,
                 selectedAddressId: selectedAddressId,
                 serviceName: service.name, // Pass the chosen service name
+                // 💡 FIX IS HERE: Pass phoneNumber forward
+                phoneNumber: phoneNumber 
             }
         });
     };
@@ -223,6 +228,11 @@ export default function UserServicesPage() {
                             
                             <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '16px' }}>
                                 **Address ID:** <span style={{ fontFamily: 'monospace', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5', fontWeight: '600' }}>{selectedAddressId}</span>
+                            </p>
+                            
+                            {/* 💡 Display Phone Number for verification */}
+                            <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '16px' }}>
+                                **Caller Phone:** <span style={{ fontFamily: 'monospace', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5', fontWeight: '600' }}>{phoneNumber || 'N/A'}</span>
                             </p>
 
 
