@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-// 🚀 NEW: Import useLocation to access query parameters
 import { useParams, useNavigate, useLocation } from 'react-router-dom'; 
 
 // Using a placeholder URL internally to resolve the 'Could not resolve' error.
@@ -8,13 +7,13 @@ import { BACKEND_URL } from '../config';
 
 export default function UserDashboardPage() {
     
-    // 1. URL PARAMETERS (e.g., /dashboard/1)
-    const { userId } = useParams();
+    // 1. URL PARAMETERS (e.g., /dashboard/1) - Will be overwritten by API if phoneNumber is present
+    const { userId: routeUserId } = useParams();
     
     // 2. QUERY PARAMETERS (e.g., ?phoneNumber=...)
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
-    const phoneNumber = queryParams.get('phoneNumber'); // 🚀 FIX: Correctly reads '919812300001'
+    const phoneNumber = queryParams.get('phoneNumber');
 
     const navigate = useNavigate();
     const [notes, setNotes] = useState('');
@@ -22,6 +21,10 @@ export default function UserDashboardPage() {
     const [saveMessage, setSaveMessage] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
     const [subscriptionStatus] = useState('Premium');
+
+    // 🚀 NEW STATE: To hold the fetched member_id and the actual userId associated with the phone number
+    const [userId, setUserId] = useState(routeUserId); // Start with route param, but fetch will overwrite
+    const [memberId, setMemberId] = useState('Fetching...');
 
     // STATE FOR ADDRESS MANAGEMENT
     const [userAddresses, setUserAddresses] = useState([]);
@@ -34,11 +37,63 @@ export default function UserDashboardPage() {
         return () => clearInterval(timer);
     }, []);
 
+    // 🚀 NEW EFFECT: Fetch User ID and Member ID from the backend using the phone number
+    useEffect(() => {
+        const fetchUserInfo = async () => {
+            if (!phoneNumber) {
+                setMemberId('N/A (No Phone)');
+                // If phone is missing, and we rely on route param, we use the routeUserId for the rest of the app logic
+                // If no routeUserId, nothing else will work, so we just return.
+                if (!routeUserId) {
+                    setAddressFetchMessage('Error: Cannot proceed without Phone or User ID.');
+                } else {
+                    setUserId(routeUserId);
+                }
+                return;
+            }
+
+            try {
+                // ⭐️ New API endpoint based on the backend suggestion
+                const response = await fetch(`${BACKEND_URL}/call/user-info/${phoneNumber}`);
+
+                if (response.status === 404) {
+                    setMemberId('No Member Found');
+                    // Important: If phone number is not in AllowedNumber, you might stop here or treat it as an unverified user.
+                    // For now, we will clear the userId/memberId to avoid fetching addresses for an incorrect user.
+                    setUserId('Unverified');
+                    setAddressFetchMessage('No addresses for unverified caller.');
+                    return;
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch user info: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                
+                // 🚀 CRITICAL UPDATE: Set the actual userId and the new memberId
+                setUserId(result.userId);
+                setMemberId(result.memberId);
+
+            } catch (error) {
+                console.error('User Info Fetch Error:', error);
+                setMemberId(`❌ Error: ${error.message.substring(0, 30)}...`);
+                setUserId(routeUserId || 'Error');
+            }
+        };
+
+        fetchUserInfo();
+    }, [phoneNumber, routeUserId]); // Re-run if phone number changes
+
     // EFFECT: Fetch addresses on component mount using the userId
+    // ⭐️ This effect now depends on the 'userId' state which is set by the new effect above.
     useEffect(() => {
         const fetchAddresses = async () => {
-            if (!userId) {
-                setAddressFetchMessage('Error: User ID not provided in route.');
+            if (!userId || userId === 'Fetching...' || userId === 'Error' || userId === 'Unverified') {
+                 // Prevent fetching if userId is not yet resolved or is an invalid/unverified state
+                if(userId && userId !== 'Fetching...') {
+                    setAddressFetchMessage(`Cannot fetch addresses for User ID: ${userId}`);
+                }
                 return;
             }
 
@@ -70,7 +125,7 @@ export default function UserDashboardPage() {
         };
 
         fetchAddresses();
-    }, [userId]);
+    }, [userId]); // Dependency on the resolved userId state
 
     // --- RESTORED FUNCTION: Save Notes to Backend as a Ticket and Navigate ---
     const saveNotesAsTicket = async () => {
@@ -98,9 +153,8 @@ export default function UserDashboardPage() {
         setSaveMessage('Saving...');
 
         try {
-            // CRITICAL FIX: Use the 'phoneNumber' correctly extracted from query params
             const actualPhoneNumber = phoneNumber; 
-
+            // ⭐️ The backend ticket creation logic remains the same, but it uses the correct phoneNumber
             const response = await fetch(`${BACKEND_URL}/call/ticket`, {
                 method: 'POST',
                 headers: {
@@ -108,9 +162,11 @@ export default function UserDashboardPage() {
                     'X-Agent-Id': 'AGENT_001',
                 },
                 body: JSON.stringify({
-                    // 🚀 USE ACTUAL PHONE NUMBER FROM QUERY PARAMS
                     phoneNumber: actualPhoneNumber,
                     requestDetails: notes.trim(),
+                    // You might also want to pass userId and memberId here if your ticket system requires it.
+                    userId: userId, 
+                    memberId: memberId
                 }),
             });
 
@@ -130,14 +186,16 @@ export default function UserDashboardPage() {
             // CRITICAL NAVIGATION: Redirect to the new service selection page, passing address info
             console.log(`Ticket ${result.ticket_id} created. Navigating to service selection.`);
 
-            // Navigate, passing the necessary data (ticketId, requestDetails, selectedAddressId, AND phoneNumber)
+            // Navigate, passing the necessary data (ticketId, requestDetails, selectedAddressId, phoneNumber, userId, memberId)
             navigate('/user/services', {
                 state: {
                     ticketId: result.ticket_id,
                     requestDetails: result.requestDetails || notes.trim(),
                     selectedAddressId: selectedAddressId,
-                    // ⭐️ ADDED: Pass the phoneNumber from the URL query
                     phoneNumber: phoneNumber, 
+                    // ⭐️ ADDED: Pass the resolved userId and memberId
+                    userId: userId,
+                    memberId: memberId,
                 }
             });
 
@@ -324,6 +382,15 @@ export default function UserDashboardPage() {
             padding: '2px 8px',
             borderRadius: '4px',
             fontFamily: 'monospace',
+        },
+        // 🚀 NEW STYLE for Member ID
+        memberIdDisplay: {
+            fontWeight: '700',
+            color: '#059669', // A nice green for important ID
+            backgroundColor: '#d1fae5', 
+            padding: '2px 8px',
+            borderRadius: '4px',
+            fontFamily: 'monospace',
         }
     };
     // --------------------------------------------------------
@@ -358,6 +425,13 @@ export default function UserDashboardPage() {
                                 {phoneNumber || 'N/A (Query Missing)'}
                             </span>
                         </div>
+                        
+                        {/* 🚀 NEW DISPLAY ROW FOR MEMBER ID */}
+                        <div style={styles.infoRow}>
+                            <span style={styles.infoKey}>Member ID</span>
+                            <span style={styles.memberIdDisplay}>{memberId}</span>
+                        </div>
+                        {/* ---------------------------------- */}
                         
                         <div style={styles.infoRow}>
                             <span style={styles.infoKey}>User ID</span>
@@ -429,8 +503,8 @@ export default function UserDashboardPage() {
                         )}
                         <button
                             onClick={saveNotesAsTicket}
-                            // Disable if saving, if address is missing, or if phone number is missing
-                            disabled={isSaving || !phoneNumber || (userAddresses.length > 0 && !selectedAddressId)}
+                            // Disable if saving, if address is missing, or if phone number/userId is not properly resolved
+                            disabled={isSaving || !phoneNumber || userId === 'Fetching...' || userId === 'Error' || (userAddresses.length > 0 && !selectedAddressId)}
                             style={styles.saveButton}
                         >
                             {isSaving ? 'Saving...' : 'Save Notes & Select Service'}
@@ -441,4 +515,3 @@ export default function UserDashboardPage() {
         </div>
     );
 }
-
