@@ -39,7 +39,7 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
     return parseFloat(distance.toFixed(2)); // Return number with 2 decimals
 };
 
-// --- INLINE STYLES (Kept as is for brevity) ---
+// --- INLINE STYLES (Using Tailwind-inspired classes for consistency) ---
 const styles = {
     container: {
         display: 'flex', flexDirection: 'column', minHeight: '100vh', 
@@ -62,7 +62,7 @@ const styles = {
     servicemanSelected: { backgroundColor: '#dcfce7', borderColor: '#10b981', fontWeight: '700', boxShadow: '0 4px 6px rgba(16, 185, 129, 0.2)' },
 };
 
-// Helper component for servicemen display (Kept as is for brevity)
+// Helper component for servicemen display
 const ServicemanCard = ({ serviceman, isSelected, onClick }) => {
     const [isHovered, setIsHovered] = useState(false);
     
@@ -80,7 +80,7 @@ const ServicemanCard = ({ serviceman, isSelected, onClick }) => {
             onMouseLeave={() => setIsHovered(false)}
         >
             <div>
-                {/* 🚀 UPDATED: Uses full_name from DB, falls back to name */}
+                {/* Uses full_name from DB, falls back to name */}
                 <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1f2937' }}>
                     {serviceman.full_name || serviceman.name || 'Unknown Technician'}
                 </h3>
@@ -92,7 +92,7 @@ const ServicemanCard = ({ serviceman, isSelected, onClick }) => {
                 <p style={{ fontSize: '1.1rem', fontWeight: '700', color: '#10b981' }}>
                     ⭐ {serviceman.rating || 'New'}
                 </p>
-                {/* 🚀 UPDATED: Shows calculated distance */}
+                {/* Shows calculated distance */}
                 <p style={{ fontSize: '0.875rem', color: '#4b5563', fontWeight: '600' }}>
                     {serviceman.calculatedDistance !== undefined 
                         ? `📍 ${serviceman.calculatedDistance} km away` 
@@ -103,7 +103,7 @@ const ServicemanCard = ({ serviceman, isSelected, onClick }) => {
     );
 };
 
-// Geocode function (Nominatim) (Kept as is for brevity)
+// Geocode function (Nominatim)
 const geocodeAddress = async (address) => {
     const encodedAddress = encodeURIComponent(address);
     const geocodingUrl = `https://nominatim.openstreetmap.org/search?q=${encodedAddress}&format=json&limit=1`;
@@ -132,6 +132,11 @@ const geocodeAddress = async (address) => {
     }
 };
 
+/**
+ * Fetches available servicemen based on the service category.
+ * @param {string} serviceName 
+ * @returns {Promise<Array>} List of servicemen
+ */
 const fetchServicemenFromBackend = async (serviceName) => {
     const url = `${API_BASE_URL}/call/servicemen/available`;
     console.log(`[SERVICEMEN FETCH] Requesting: ${url} for service: ${serviceName}`);
@@ -154,7 +159,11 @@ const fetchServicemenFromBackend = async (serviceName) => {
     }
 };
 
-// 🔑 NEW: Function to fetch member_id from the backend
+/**
+ * Fetches the member_id associated with a phone number.
+ * @param {string} phoneNumber 
+ * @returns {Promise<string>} member_id or status
+ */
 const fetchMemberId = async (phoneNumber) => {
     if (!phoneNumber) return null;
     const url = `${API_BASE_URL}/call/memberid/lookup`;
@@ -169,13 +178,13 @@ const fetchMemberId = async (phoneNumber) => {
         });
 
         if (!response.ok) {
-             // If phone number is not found, backend will return 404, which is okay.
+             // If phone number is not found, backend will return 404
              if (response.status === 404) return 'Not Found';
              throw new Error(`HTTP Error! Status: ${response.status}`);
         }
 
         const data = await response.json();
-        // The backend will return { member_id: "..." }
+        // The backend returns { member_id: "..." }
         console.log(`[MEMBER ID SUCCESS] Found Member ID: ${data.member_id}`);
         return data.member_id;
     } catch (error) {
@@ -189,40 +198,36 @@ export function ServiceManSelectionPage() {
     const location = useLocation();
     const navigate = useNavigate();
     
-    // Destructure all relevant props from state, including the phone number
+    // Destructure all relevant props from state
     const { ticketId, requestDetails, selectedAddressId, serviceName, phoneNumber } = location.state || {};
     
-    // 🔑 NEW STATE: For the unique order ID
+    // State for generated IDs and customer details
     const [orderId, setOrderId] = useState(null);
     const [fetchedAddressLine, setFetchedAddressLine] = useState('Loading address...');
     const [userCoordinates, setUserCoordinates] = useState(null); 
+    const [memberId, setMemberId] = useState('Searching...'); // For the fetched member ID
+
+    // UI and Dispatch State
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
-    
-    // Raw servicemen data from API
     const [rawServicemen, setRawServicemen] = useState([]);
-    // Processed servicemen (sorted by distance)
     const [sortedServicemen, setSortedServicemen] = useState([]);
-    
     const [selectedServiceman, setSelectedServiceman] = useState(null);
     const [dispatchStatus, setDispatchStatus] = useState(null);
     
-    // 🔑 NEW STATE: For the fetched member ID
-    const [memberId, setMemberId] = useState('Searching...');
-
-    // Clock timer (Kept as is)
+    // Clock timer
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
         return () => clearInterval(timer);
     }, []);
 
-    // 🔑 NEW: Generate orderId on component load (Kept as is)
+    // Generate orderId on component load
     useEffect(() => {
         const newOrderId = generateUniqueOrderId();
         setOrderId(newOrderId);
         console.log(`[ORDER CREATION] Generated unique Order ID: ${newOrderId}`);
-    }, []); // Empty dependency array ensures it runs only once on mount
+    }, []); 
     
-    // 🔑 NEW EFFECT: Fetch Member ID
+    // Fetch Member ID
     useEffect(() => {
         if (phoneNumber) {
             const loadMemberId = async () => {
@@ -235,7 +240,7 @@ export function ServiceManSelectionPage() {
         }
     }, [phoneNumber]);
 
-    // 1. Fetch Address & Geocode (Kept as is)
+    // 1. Fetch Address & Geocode
     useEffect(() => {
         if (!selectedAddressId) return;
 
@@ -274,7 +279,7 @@ export function ServiceManSelectionPage() {
     }, [selectedAddressId]); 
 
 
-    // 2. Fetch Servicemen (Raw Data) (Kept as is)
+    // 2. Fetch Servicemen (Raw Data)
     useEffect(() => {
         if (!serviceName) {
             setDispatchStatus('Error: Service type not specified.');
@@ -294,7 +299,7 @@ export function ServiceManSelectionPage() {
         loadServicemen();
     }, [serviceName]); 
 
-    // 3. Calculate Distance & Sort (Kept as is)
+    // 3. Calculate Distance & Sort
     useEffect(() => {
         if (rawServicemen.length > 0 && userCoordinates && userCoordinates.lat !== 'N/A') {
             
@@ -329,10 +334,9 @@ export function ServiceManSelectionPage() {
 
 
     /**
-     * UPDATED: Sends dispatch data including orderId, ticketId, and phoneNumber.
+     * Sends dispatch data including orderId, ticketId, and phoneNumber to the backend.
      */
     const handleDispatch = async () => {
-        // NOTE: Replacing alert() with a custom console log/status update
         if (!selectedServiceman) {
             setDispatchStatus('❗️ Please select a serviceman to dispatch.');
             return;
@@ -342,20 +346,18 @@ export function ServiceManSelectionPage() {
              return;
         }
 
-
         // 1. Prepare Data for Dispatch Table
         const dispatchData = {
             user_id: selectedServiceman.user_id, // Serviceman's ID
-            category: serviceName,          // Service/category name
+            category: serviceName,           // Service/category name
             request_address: fetchedAddressLine, // Full address line
             order_status: 'Assigned',            // Initial status
             order_request: requestDetails,       // Customer request details
 
-            // 🔑 FIX APPLIED HERE: Renamed 'customer_phone' to 'phone_number' 
-            // to match the backend validation requirement.
-            order_id: orderId,                   // Unique order identifier
-            ticket_id: ticketId,                 // Associated support ticket
-            phone_number: phoneNumber,           // Customer's phone number
+            // Renamed 'customer_phone' to 'phone_number' to match backend validation.
+            order_id: orderId,                 // Unique order identifier
+            ticket_id: ticketId,               // Associated support ticket
+            phone_number: phoneNumber,         // Customer's phone number
         };
 
         setDispatchStatus(`Dispatching ${selectedServiceman.full_name || selectedServiceman.name}...`);
@@ -398,7 +400,13 @@ export function ServiceManSelectionPage() {
         return (
             <div style={{ ...styles.container, justifyContent: 'center', alignItems: 'center' }}>
                 <h1 style={{ color: '#ef4444' }}>Error: Navigation Data Missing</h1>
-                <button onClick={() => navigate(-1)}>Go Back</button>
+                <p style={{ marginBottom: '20px' }}>Please ensure a Ticket ID, Address ID, and Service Name were provided from the previous step.</p>
+                <button 
+                    onClick={() => navigate('/')} 
+                    style={{ padding: '10px 20px', borderRadius: '6px', border: 'none', backgroundColor: '#4f46e5', color: 'white', cursor: 'pointer' }}
+                >
+                    Go to Home
+                </button>
             </div>
         );
     }
@@ -429,11 +437,12 @@ export function ServiceManSelectionPage() {
                     {/* Displaying new IDs */}
                     <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
                         **Ticket ID:** <span style={{ fontWeight: '600', backgroundColor: '#e5e7eb', padding: '2px 8px', borderRadius: '4px' }}>{ticketId}</span>
+                        {' | '}
                         **Order ID:** <span style={{ fontWeight: '600', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5' }}>{orderId || 'Generating...'}</span>
                     </p>
                     <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
                         **Customer Phone:** <span style={{ fontWeight: '600', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5' }}>{phoneNumber || 'N/A'}</span>
-                        <br/>
+                        {' | '}
                         **Member ID:** <span style={{ fontWeight: '600', backgroundColor: memberId === 'Not Found' ? '#fee2e2' : '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: memberId === 'Not Found' ? '#ef4444' : '#4f46e5' }}>
                             {memberId}
                         </span>
@@ -453,7 +462,7 @@ export function ServiceManSelectionPage() {
                     )}
                 </div>
 
-                {/* Serviceman List (Kept as is) */}
+                {/* Serviceman List */}
                 <div style={{ ...styles.card, padding: '32px' }}>
                     <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1f2937', marginBottom: '16px', borderBottom: '1px solid #e5e7eb', paddingBottom: '8px' }}>
                         Available {serviceName} Technicians (Sorted by Distance)
@@ -480,7 +489,7 @@ export function ServiceManSelectionPage() {
                         )}
                     </div>
                     
-                    {/* Dispatch Button (Kept as is) */}
+                    {/* Dispatch Button */}
                     <div style={{ marginTop: '24px', textAlign: 'right' }}>
                         <button
                             onClick={handleDispatch}
@@ -495,6 +504,7 @@ export function ServiceManSelectionPage() {
                                 backgroundColor: (!selectedServiceman || !orderId || dispatchStatus?.includes('Dispatching') || dispatchStatus?.includes('SUCCESSFUL')) ? '#9ca3af' : '#10b981',
                                 color: 'white',
                                 transition: 'background-color 0.3s',
+                                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                             }}
                         >
                             {dispatchStatus?.includes('Dispatching') ? 'Dispatching...' : dispatchStatus?.includes('SUCCESSFUL') ? 'Dispatched' : 'Confirm & Dispatch Serviceman'}
