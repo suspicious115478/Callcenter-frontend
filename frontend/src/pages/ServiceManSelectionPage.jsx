@@ -147,7 +147,8 @@ export function ServiceManSelectionPage() {
     const location = useLocation();
     const navigate = useNavigate();
     
-    const { ticketId, requestDetails, selectedAddressId, serviceName } = location.state || {};
+    // 💡 MODIFICATION: Added phoneNumber to destructuring
+    const { ticketId, requestDetails, selectedAddressId, serviceName, phoneNumber } = location.state || {};
     
     const [fetchedAddressLine, setFetchedAddressLine] = useState('Loading address...');
     const [userCoordinates, setUserCoordinates] = useState(null); 
@@ -276,6 +277,10 @@ export function ServiceManSelectionPage() {
             order_status: 'Assigned',                      // 🎯 initial status
             // Combine ticket details for the order_request column
             order_request: requestDetails,
+            
+            // 💡 MODIFICATION: Included ticket_id and phone_number in the payload
+            ticket_id: ticketId,
+            phone_number: phoneNumber
         };
 
         setDispatchStatus(`Dispatching ${selectedServiceman.full_name || selectedServiceman.name}...`);
@@ -346,6 +351,10 @@ export function ServiceManSelectionPage() {
                     <h2 style={{ fontSize: '1.1rem', fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>
                         User Location & Service Request (Ticket: {ticketId})
                     </h2>
+                    {/* 💡 MODIFICATION: Added Phone Number Display */}
+                    <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
+                        **Phone:** <span style={{ fontWeight: '600' }}>{phoneNumber || 'N/A'}</span>
+                    </p>
                     <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
                         **Address:** <span style={{ fontWeight: '600' }}>{fetchedAddressLine}</span>
                     </p>
