@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 // 🚀 NEW: Import useLocation to access query parameters
 import { useParams, useNavigate, useLocation } from 'react-router-dom'; 
 
-// Using a placeholder URL internally to resolve the 'Could not resolve' error.
-import { BACKEND_URL } from '../config';
+// 💡 FIX: Define the URL directly here since the config file is missing in this environment
+const BACKEND_URL = 'https://callcenter-baclend.onrender.com';
 
 
 export default function UserDashboardPage() {
@@ -136,6 +136,8 @@ export default function UserDashboardPage() {
                     ticketId: result.ticket_id,
                     requestDetails: result.requestDetails || notes.trim(),
                     selectedAddressId: selectedAddressId,
+                    // 💡 FIX IS HERE: PASS PHONE NUMBER TO NEXT PAGE
+                    phoneNumber: actualPhoneNumber 
                 }
             });
 
