@@ -20,7 +20,7 @@ export default function UserDashboardPage() {
     const [notes, setNotes] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState('');
-    const [currentTime, setCurrentTime] = new Date().toLocaleTimeString());
+    const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
     const [subscriptionStatus] = useState('Premium');
 
     // STATE FOR ADDRESS MANAGEMENT
@@ -441,3 +441,4 @@ export default function UserDashboardPage() {
         </div>
     );
 }
+
