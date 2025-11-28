@@ -155,10 +155,10 @@ export default function UserServicesPage() {
     
     // Extract state from location object
     const ticketId = location.state?.ticketId;
+    // 🚀 NEW: Extract Order ID
+    const orderId = location.state?.orderId;
     const requestDetails = location.state?.requestDetails;
     const selectedAddressId = location.state?.selectedAddressId;
-    
-    // 💡 FIX IS HERE: Extract phoneNumber from state
     const phoneNumber = location.state?.phoneNumber;
 
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
@@ -176,21 +176,27 @@ export default function UserServicesPage() {
         navigate('/user/servicemen', {
             state: {
                 ticketId: ticketId,
+                orderId: orderId, // 🚀 NEW: Passing Order ID to next page
                 requestDetails: requestDetails,
                 selectedAddressId: selectedAddressId,
                 serviceName: service.name, // Pass the chosen service name
-                // 💡 FIX IS HERE: Pass phoneNumber forward
                 phoneNumber: phoneNumber 
             }
         });
     };
 
     // Check if required data is missing from the state (Essential Agent Workflow Check)
-    if (!ticketId || !requestDetails || !selectedAddressId) {
+    // 🚀 UPDATED: Added orderId to validation check
+    if (!ticketId || !orderId || !requestDetails || !selectedAddressId) {
         return (
             <div style={{ ...styles.container, justifyContent: 'center', alignItems: 'center' }}>
                 <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#ef4444', marginBottom: '16px' }}>Error: Missing Call Context</h1>
-                <p style={{ color: '#6b7280', marginBottom: '24px' }}>Agent must start the process from the Dashboard with an active ticket and address.</p>
+                <p style={{ color: '#6b7280', marginBottom: '24px' }}>
+                    Agent must start the process from the Dashboard with an active ticket, order, and address.
+                </p>
+                <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '10px' }}>
+                    Debug info: Ticket:{ticketId ? 'OK' : 'MISSING'}, Order:{orderId ? 'OK' : 'MISSING'}, Address:{selectedAddressId ? 'OK' : 'MISSING'}
+                </div>
             </div>
         );
     }
@@ -222,15 +228,22 @@ export default function UserServicesPage() {
                                 🚨 Active Call Context
                             </h2>
 
-                            <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '8px' }}>
-                                **Ticket ID:** <span style={{ fontFamily: 'monospace', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5', fontWeight: '600' }}>{ticketId}</span>
-                            </p>
+                            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                                {/* Ticket ID Display */}
+                                <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                                    Ticket: <span style={{ fontFamily: 'monospace', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5', fontWeight: '600' }}>{ticketId}</span>
+                                </div>
+                                {/* 🚀 NEW: Order ID Display */}
+                                <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                                    Order: <span style={{ fontFamily: 'monospace', backgroundColor: '#f0fdf4', padding: '2px 8px', borderRadius: '4px', color: '#16a34a', fontWeight: '600' }}>{orderId}</span>
+                                </div>
+                            </div>
                             
                             <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '16px' }}>
                                 **Address ID:** <span style={{ fontFamily: 'monospace', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5', fontWeight: '600' }}>{selectedAddressId}</span>
                             </p>
                             
-                            {/* 💡 Display Phone Number for verification */}
+                            {/* Display Phone Number for verification */}
                             <p style={{ fontSize: '0.875rem', color: '#6b7280', marginBottom: '16px' }}>
                                 **Caller Phone:** <span style={{ fontFamily: 'monospace', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5', fontWeight: '600' }}>{phoneNumber || 'N/A'}</span>
                             </p>
