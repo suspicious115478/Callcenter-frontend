@@ -20,7 +20,7 @@ export default function UserDashboardPage() {
     const [notes, setNotes] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState('');
-    const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+    const [currentTime, setCurrentTime] = new Date().toLocaleTimeString());
     const [subscriptionStatus] = useState('Premium');
 
     // STATE FOR ADDRESS MANAGEMENT
@@ -130,12 +130,14 @@ export default function UserDashboardPage() {
             // CRITICAL NAVIGATION: Redirect to the new service selection page, passing address info
             console.log(`Ticket ${result.ticket_id} created. Navigating to service selection.`);
 
-            // Navigate, passing the necessary data (ticketId, requestDetails, and selectedAddressId)
+            // Navigate, passing the necessary data (ticketId, requestDetails, selectedAddressId, AND phoneNumber)
             navigate('/user/services', {
                 state: {
                     ticketId: result.ticket_id,
                     requestDetails: result.requestDetails || notes.trim(),
                     selectedAddressId: selectedAddressId,
+                    // ⭐️ ADDED: Pass the phoneNumber from the URL query
+                    phoneNumber: phoneNumber, 
                 }
             });
 
