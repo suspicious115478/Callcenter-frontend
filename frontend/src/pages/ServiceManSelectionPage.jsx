@@ -1,7 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+// 🔥 NEW IMPORTS for Firebase Auth
+import { getAuth } from 'firebase/auth'; 
+import { app } from '../config'; 
 
 const API_BASE_URL = 'https://callcenter-baclend.onrender.com';
+const auth = getAuth(app); // Initialize Firebase Auth
 
 // Placeholder for header icon
 const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>;
@@ -39,7 +43,31 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
     return parseFloat(distance.toFixed(2)); // Return number with 2 decimals
 };
 
-// --- INLINE STYLES (Using Tailwind-inspired classes for consistency) ---
+
+// --- 🔥 NEW HELPER: Fetch Agent's Admin ID from Backend ---
+const fetchAgentAdminId = async (firebaseUid) => {
+    if (!firebaseUid) return null;
+    const url = `${API_BASE_URL}/agent/adminid/${firebaseUid}`;
+    
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            if (response.status === 404) return 'Admin Not Found';
+            throw new Error(`HTTP Error! Status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        // Backend should return { admin_id: "..." }
+        console.log(`[AGENT ADMIN ID SUCCESS] Found Admin ID: ${data.admin_id}`);
+        return data.admin_id;
+    } catch (error) {
+        console.error("[AGENT ADMIN ID ERROR] Fetch failed:", error);
+        return 'Error Fetching Admin ID';
+    }
+};
+
+
+// --- INLINE STYLES (Unchanged) ---
 const styles = {
     container: {
         display: 'flex', flexDirection: 'column', minHeight: '100vh', 
@@ -62,7 +90,7 @@ const styles = {
     servicemanSelected: { backgroundColor: '#dcfce7', borderColor: '#10b981', fontWeight: '700', boxShadow: '0 4px 6px rgba(16, 185, 129, 0.2)' },
 };
 
-// Helper component for servicemen display
+// Helper component for servicemen display (Unchanged)
 const ServicemanCard = ({ serviceman, isSelected, onClick }) => {
     const [isHovered, setIsHovered] = useState(false);
     
@@ -103,7 +131,7 @@ const ServicemanCard = ({ serviceman, isSelected, onClick }) => {
     );
 };
 
-// Geocode function (Nominatim)
+// Geocode function (Nominatim) (Unchanged)
 const geocodeAddress = async (address) => {
     const encodedAddress = encodeURIComponent(address);
     const geocodingUrl = `https://nominatim.openstreetmap.org/search?q=${encodedAddress}&format=json&limit=1`;
@@ -206,6 +234,9 @@ export function ServiceManSelectionPage() {
     const [fetchedAddressLine, setFetchedAddressLine] = useState('Loading address...');
     const [userCoordinates, setUserCoordinates] = useState(null); 
     const [memberId, setMemberId] = useState('Searching...'); // For the fetched member ID
+    
+    // 🔥 NEW STATE: To hold the Agent's Admin ID
+    const [adminId, setAdminId] = useState('Fetching...'); 
 
     // UI and Dispatch State
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
@@ -227,7 +258,7 @@ export function ServiceManSelectionPage() {
         console.log(`[ORDER CREATION] Generated unique Order ID: ${newOrderId}`);
     }, []); 
     
-    // Fetch Member ID
+    // Fetch Member ID (Unchanged)
     useEffect(() => {
         if (phoneNumber) {
             const loadMemberId = async () => {
@@ -240,7 +271,22 @@ export function ServiceManSelectionPage() {
         }
     }, [phoneNumber]);
 
-    // 1. Fetch Address & Geocode
+    // 🔥 NEW EFFECT: Fetch Admin ID when component loads
+    useEffect(() => {
+        const user = auth.currentUser;
+        if (user) {
+            setAdminId('Loading...');
+            const loadAdminId = async () => {
+                const id = await fetchAgentAdminId(user.uid);
+                setAdminId(id);
+            };
+            loadAdminId();
+        } else {
+            setAdminId('N/A - Agent not logged in.');
+        }
+    }, []);
+
+    // 1. Fetch Address & Geocode (Unchanged)
     useEffect(() => {
         if (!selectedAddressId) return;
 
@@ -279,7 +325,7 @@ export function ServiceManSelectionPage() {
     }, [selectedAddressId]); 
 
 
-    // 2. Fetch Servicemen (Raw Data)
+    // 2. Fetch Servicemen (Raw Data) (Unchanged)
     useEffect(() => {
         if (!serviceName) {
             setDispatchStatus('Error: Service type not specified.');
@@ -299,7 +345,7 @@ export function ServiceManSelectionPage() {
         loadServicemen();
     }, [serviceName]); 
 
-    // 3. Calculate Distance & Sort
+    // 3. Calculate Distance & Sort (Unchanged)
     useEffect(() => {
         if (rawServicemen.length > 0 && userCoordinates && userCoordinates.lat !== 'N/A') {
             
@@ -324,7 +370,7 @@ export function ServiceManSelectionPage() {
             setSortedServicemen(sortedList);
             // Only update status if the list was loaded successfully and coordinates are available
             if (!dispatchStatus || dispatchStatus.includes('Searching') || dispatchStatus.includes('No active')) {
-                    setDispatchStatus(`${sortedList.length} specialists found near you.`);
+                     setDispatchStatus(`${sortedList.length} specialists found near you.`);
             }
         } else if (rawServicemen.length > 0) {
             // If we have servicemen but NO user coordinates yet, just show the list unsorted
@@ -334,7 +380,7 @@ export function ServiceManSelectionPage() {
 
 
     /**
-     * Sends dispatch data including orderId, ticketId, and phoneNumber to the backend.
+     * Sends dispatch data including admin_id, orderId, ticketId, and phoneNumber to the backend.
      */
     const handleDispatch = async () => {
         if (!selectedServiceman) {
@@ -345,19 +391,24 @@ export function ServiceManSelectionPage() {
              setDispatchStatus('❌ Error: Order ID was not generated. Cannot dispatch.');
              return;
         }
+        if (!adminId || adminId.startsWith('Error') || adminId.startsWith('N/A') || adminId.startsWith('Loading')) {
+            setDispatchStatus(`❌ Error: Admin ID is missing or loading (${adminId}). Cannot dispatch.`);
+            return;
+        }
 
         // 1. Prepare Data for Dispatch Table
         const dispatchData = {
             user_id: selectedServiceman.user_id, // Serviceman's ID
-            category: serviceName,           // Service/category name
+            category: serviceName,              // Service/category name
             request_address: fetchedAddressLine, // Full address line
-            order_status: 'Assigned',            // Initial status
-            order_request: requestDetails,       // Customer request details
+            order_status: 'Assigned',           // Initial status
+            order_request: requestDetails,      // Customer request details
 
-            // Renamed 'customer_phone' to 'phone_number' to match backend validation.
-            order_id: orderId,                 // Unique order identifier
-            ticket_id: ticketId,               // Associated support ticket
-            phone_number: phoneNumber,         // Customer's phone number
+            order_id: orderId,                  // Unique order identifier
+            ticket_id: ticketId,                // Associated support ticket
+            phone_number: phoneNumber,          // Customer's phone number
+            // 🔥 ADDED: The Admin ID of the currently logged-in Agent
+            admin_id: adminId,
         };
 
         setDispatchStatus(`Dispatching ${selectedServiceman.full_name || selectedServiceman.name}...`);
@@ -448,6 +499,11 @@ export function ServiceManSelectionPage() {
                         </span>
                     </p>
                     <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
+                        **Agent's Admin ID:** <span style={{ fontWeight: '600', backgroundColor: adminId.includes('Error') || adminId.includes('N/A') ? '#fee2e2' : '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: adminId.includes('Error') || adminId.includes('N/A') ? '#ef4444' : '#4f46e5' }}>
+                            {adminId}
+                        </span>
+                    </p>
+                    <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
                         **Address:** <span style={{ fontWeight: '600' }}>{fetchedAddressLine}</span>
                     </p>
                     <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
@@ -493,15 +549,15 @@ export function ServiceManSelectionPage() {
                     <div style={{ marginTop: '24px', textAlign: 'right' }}>
                         <button
                             onClick={handleDispatch}
-                            disabled={!selectedServiceman || !orderId || dispatchStatus?.includes('Dispatching') || dispatchStatus?.includes('SUCCESSFUL')}
+                            disabled={!selectedServiceman || !orderId || dispatchStatus?.includes('Dispatching') || dispatchStatus?.includes('SUCCESSFUL') || adminId.startsWith('Error') || adminId.startsWith('N/A') || adminId.startsWith('Loading')}
                             style={{
                                 padding: '12px 24px',
                                 borderRadius: '8px',
                                 border: 'none',
                                 fontWeight: '700',
                                 fontSize: '1rem',
-                                cursor: (!selectedServiceman || !orderId || dispatchStatus?.includes('Dispatching') || dispatchStatus?.includes('SUCCESSFUL')) ? 'default' : 'pointer',
-                                backgroundColor: (!selectedServiceman || !orderId || dispatchStatus?.includes('Dispatching') || dispatchStatus?.includes('SUCCESSFUL')) ? '#9ca3af' : '#10b981',
+                                cursor: (!selectedServiceman || !orderId || dispatchStatus?.includes('Dispatching') || dispatchStatus?.includes('SUCCESSFUL') || adminId.startsWith('Error') || adminId.startsWith('N/A') || adminId.startsWith('Loading')) ? 'default' : 'pointer',
+                                backgroundColor: (!selectedServiceman || !orderId || dispatchStatus?.includes('Dispatching') || dispatchStatus?.includes('SUCCESSFUL') || adminId.startsWith('Error') || adminId.startsWith('N/A') || adminId.startsWith('Loading')) ? '#9ca3af' : '#10b981',
                                 color: 'white',
                                 transition: 'background-color 0.3s',
                                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
