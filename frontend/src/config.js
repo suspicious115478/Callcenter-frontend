@@ -1,7 +1,7 @@
 // src/config.js
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
-
+import { getDatabase } from "firebase/database";
 export const BACKEND_URL = "https://callcenter-baclend.onrender.com";
 
 // ⚠️ IMPORTANT: Replace these with your actual Firebase Project Configuration
@@ -19,3 +19,6 @@ export const app = initializeApp(firebaseConfig);
 
 // Initialize Firebase Authentication and get a reference to the service
 export const auth = getAuth(app);
+
+export const database = getDatabase(app);
+
