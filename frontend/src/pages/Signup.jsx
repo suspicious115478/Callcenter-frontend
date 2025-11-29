@@ -42,11 +42,12 @@ const styles = {
     }
 };
 
-export default function Signup() {
+// 🔥 The component now accepts the onSuccessfulSignup prop
+export default function Signup({ onSuccessfulSignup }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [agentId, setAgentId] = useState('');
-    const [adminId, setAdminId] = useState(''); // New state for Admin-ID
+    const [adminId, setAdminId] = useState('');
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
@@ -68,7 +69,7 @@ export default function Signup() {
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const firebaseUid = userCredential.user.uid;
 
-            // 2. Send Agent details to your Backend (to save Agent-ID and Admin-ID)
+            // 2. Send Agent details to your Backend
             const backendResponse = await fetch(`${API_BASE_URL}/agent/register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -76,7 +77,7 @@ export default function Signup() {
                     firebase_uid: firebaseUid,
                     email: email,
                     agent_id: agentId,
-                    admin_id: adminId, // Send Admin-ID to backend
+                    admin_id: adminId,
                 }),
             });
 
@@ -88,8 +89,16 @@ export default function Signup() {
             }
 
             console.log('Agent successfully registered and details saved.');
-            // Successful signup automatically logs the user in, so navigate to dashboard
-            navigate('/'); 
+            
+            // 🔥 NEW STEP 3: Notify App.jsx of successful signup
+            // This is crucial to prevent the immediate redirect to the dashboard.
+            if (onSuccessfulSignup) {
+                onSuccessfulSignup();
+            }
+
+            // 🔥 NEW STEP 4: Redirect to the Login page.
+            // The user is still technically logged in, but App.jsx will catch the flag and keep them on /login.
+            navigate('/login'); 
 
         } catch (err) {
             console.error('Signup Error:', err);
@@ -101,6 +110,7 @@ export default function Signup() {
             } else if (err.code === 'auth/weak-password') {
                 setError('Password should be at least 6 characters.');
             } else {
+                // Handle errors from the backend fetch or unexpected Firebase errors
                 setError(err.message || 'An unexpected error occurred during signup.');
             }
         } finally {
