@@ -33,6 +33,11 @@ function App() {
     // isAuthenticated state: null (checking), true (logged in), false (logged out)
     const [isAuthenticated, setIsAuthenticated] = useState(null);
     const [loadingAuth, setLoadingAuth] = useState(true);
+    
+    // 🔥 NEW STATE: Tracks if the last action was a signup that resulted in auto-login.
+    // This state MUST be handled in the Signup page and passed back via state or a service.
+    // For this demonstration, we'll assume the Signup page redirects with a state flag.
+    const [justSignedUp, setJustSignedUp] = useState(false);
 
     useEffect(() => {
         // Firebase listener for auth state changes
@@ -51,8 +56,21 @@ function App() {
         return () => unsubscribe();
     }, []);
 
+    // Function to set the flag after a successful signup redirection (called from Signup page)
+    const handleSignupSuccess = () => {
+        setJustSignedUp(true);
+    };
+
     if (loadingAuth) {
         return <div style={{display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', fontSize: '24px', color: '#1f2937'}}>Loading App...</div>;
+    }
+    
+    // 🔥 NEW LOGIC: If authenticated but flagged as 'justSignedUp', redirect to /login
+    if (isAuthenticated && justSignedUp) {
+        // Clear the flag after redirecting
+        setJustSignedUp(false);
+        console.log("Redirecting new sign-up user to Login page.");
+        return <Navigate to="/login" replace />;
     }
 
     return (
@@ -60,8 +78,11 @@ function App() {
             <div className="app-container">
                 <Routes>
                     {/* --- 1. Public Auth Routes --- */}
+                    {/* 💡 Pass the callback function to the Signup page */}
                     <Route path="/login" element={<Login />} />
-                    <Route path="/signup" element={<Signup />} />
+                    <Route path="/signup" element={
+                        <Signup onSuccessfulSignup={handleSignupSuccess} />
+                    } />
                     
                     {/* --- 2. Protected Agent Routes (Wrapped in ProtectedRoute) --- */}
                     
