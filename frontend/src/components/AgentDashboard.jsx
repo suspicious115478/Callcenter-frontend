@@ -1,9 +1,13 @@
-// frontend/src/components/AgentDashboard.jsx
-
 import React, { useState, useEffect } from "react";
 import io from "socket.io-client";
 import { BACKEND_URL } from "../config";
 import CallCard from "./CallCard";
+// 🔥 NEW IMPORTS
+import { getAuth, signOut } from "firebase/auth";
+import { app } from "../config"; // Assuming 'app' is the initialized Firebase app
+
+// Initialize Firebase Auth
+const auth = getAuth(app); 
 
 export default function AgentDashboard() {
   const [status, setStatus] = useState("offline");
@@ -76,11 +80,36 @@ export default function AgentDashboard() {
     
     setStatus(newStatus);
   };
+  
+  // 🔥 NEW FUNCTION: Handles logging out the agent
+  const handleLogout = async () => {
+    try {
+      // 1. Tell the backend the agent is offline (optional, but good practice)
+      if (status === 'online') {
+          await fetch(`${BACKEND_URL}/agent/status`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ status: "offline" })
+          });
+      }
+      
+      // 2. Sign the user out of Firebase
+      await signOut(auth);
+      
+      console.log("Agent logged out successfully.");
+      // The App.jsx listener will detect the sign out and redirect to /login
+      
+    } catch (error) {
+      console.error("Logout Error:", error);
+      alert("Failed to log out. Please try again.");
+    }
+  };
 
   const isOnline = status === "online";
 
   // --- INLINE STYLES ---
   const styles = {
+    // ... (rest of the styles are unchanged)
     container: {
       display: 'flex',
       flexDirection: 'column',
@@ -117,6 +146,19 @@ export default function AgentDashboard() {
       fontFamily: 'monospace',
       color: '#9ca3af',
       fontSize: '0.95rem',
+    },
+    // 🔥 NEW STYLE: Logout button in the header
+    logoutButton: {
+      backgroundColor: '#f87171', // Red 400
+      color: 'white',
+      border: 'none',
+      padding: '8px 12px',
+      borderRadius: '6px',
+      fontSize: '0.875rem',
+      fontWeight: '600',
+      cursor: 'pointer',
+      transition: 'background-color 0.2s',
+      marginLeft: '15px',
     },
     avatar: {
       width: '36px',
@@ -279,6 +321,10 @@ export default function AgentDashboard() {
         <div style={styles.headerRight}>
           <span style={styles.clock}>{currentTime}</span>
           <div style={styles.avatar}>JD</div>
+          {/* 🔥 NEW LOGOUT BUTTON */}
+          <button style={styles.logoutButton} onClick={handleLogout}>
+              Logout
+          </button>
         </div>
       </header>
 
