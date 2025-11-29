@@ -1,9 +1,7 @@
-// frontend/src/components/AgentDashboard.jsx
-
 import React, { useState, useEffect } from "react";
 import io from "socket.io-client";
 import { BACKEND_URL } from "../config";
-import CallCard from "./CallCard";
+import CallCard from "./CallCard"; // Assumed CallCard handles 'type: cancellation'
 
 export default function AgentDashboard() {
   const [status, setStatus] = useState("offline");
@@ -23,39 +21,83 @@ export default function AgentDashboard() {
     // 2. Socket.IO Listener for Incoming Calls
     const socket = io(BACKEND_URL);
 
+    // EXISTING LISTENER for new calls
     socket.on("incoming-call", (callData) => {
       console.log("New call received:", callData);
-      // NOTE: Ensure the incoming callData includes a 'caller' property with the phone number
       setIncomingCalls(prevCalls => [
-        { ...callData, id: Date.now() },
+        { ...callData, id: Date.now(), type: 'new-call' },
         ...prevCalls 
       ]);
     });
 
+    // 🎯 NEW LISTENER: For Cancelled Orders (Re-Dispatch Required)
+    socket.on("order-cancelled-alert", (cancellationData) => {
+      console.log("Order cancellation received, re-dispatch required:", cancellationData);
+      
+      // Structure the cancellation data to look like an incoming call card
+      setIncomingCalls(prevCalls => [
+        { 
+          // Copy all payload data
+          ...cancellationData, 
+          // Unique ID for the list
+          id: `CANCEL-${cancellationData.order_id}-${Date.now()}`, 
+          // Key differentiator for the Agent to know it's a re-dispatch
+          type: 'cancellation', 
+          // Use phone_number as 'caller' for existing logic
+          caller: cancellationData.phone_number, 
+          // Target page for dispatch
+          dashboardLink: '/dispatch-serviceman' 
+        },
+        ...prevCalls 
+      ]);
+    });
+    // END OF NEW LISTENER
+
     // Cleanup socket listener on component unmount
     return () => {
       socket.off("incoming-call");
+      socket.off("order-cancelled-alert"); // Cleanup the new listener
       clearInterval(timer);
     };
   }, []);
 
   // Handle clicking "Accept" on a card
   const handleCallAccept = (acceptedCall) => {
-    // 🎯 CRITICAL FIX: Append phone number to the dashboardLink as a query parameter
-    // We assume the phone number is stored in the 'caller' property of acceptedCall
     const phoneNumber = acceptedCall.caller; 
     const dashboardLink = acceptedCall.dashboardLink;
+    
+    if (!dashboardLink || !phoneNumber) {
+      console.error("AgentDashboard: Cannot redirect. Missing dashboardLink or caller phone number.", acceptedCall);
+      return;
+    }
 
-    if (dashboardLink && phoneNumber) {
-      // Encode the phone number just in case it contains special characters (+, etc.)
-      const encodedPhoneNumber = encodeURIComponent(phoneNumber);
-      const redirectUrl = `${dashboardLink}?phoneNumber=${encodedPhoneNumber}`;
-      
-      console.log(`AgentDashboard: Accepting call. Redirecting to: ${redirectUrl}`); // 🚀 LOG
-      
-      window.location.href = redirectUrl;
+    if (acceptedCall.type === 'cancellation') {
+        // --- LOGIC FOR RE-DISPATCH (CANCELLATION) ---
+        console.log(`AgentDashboard: Accepting CANCELLATION alert. Preparing re-dispatch.`);
+        
+        const params = new URLSearchParams({
+            // Data needed by ServiceManSelectionPage for re-dispatch
+            ticketId: acceptedCall.ticket_id,
+            serviceName: acceptedCall.category,
+            requestDetails: acceptedCall.order_request,
+            phoneNumber: acceptedCall.phone_number,
+            requestAddress: acceptedCall.request_address,
+            // Pass the original order ID for UPDATE operation
+            existingOrderId: acceptedCall.order_id 
+        });
+        
+        const redirectUrl = `${dashboardLink}?${params.toString()}`;
+        
+        console.log(`AgentDashboard: Redirecting to: ${redirectUrl}`);
+        window.location.href = redirectUrl;
+
     } else {
-      console.error("AgentDashboard: Cannot redirect. Missing dashboardLink or caller phone number.", acceptedCall); // 🚀 LOG
+        // --- ORIGINAL LOGIC for new calls ---
+        const encodedPhoneNumber = encodeURIComponent(phoneNumber);
+        const redirectUrl = `${dashboardLink}?phoneNumber=${encodedPhoneNumber}`;
+        
+        console.log(`AgentDashboard: Accepting NEW call. Redirecting to: ${redirectUrl}`);
+        window.location.href = redirectUrl;
     }
     
     // Remove from list
@@ -64,7 +106,6 @@ export default function AgentDashboard() {
     );
   };
 
-  // Toggle Agent Status
   const toggleStatus = () => {
     const newStatus = status === "offline" ? "online" : "offline";
     fetch(`${BACKEND_URL}/agent/status`, {
@@ -79,8 +120,9 @@ export default function AgentDashboard() {
 
   const isOnline = status === "online";
 
-  // --- INLINE STYLES ---
+  // --- INLINE STYLES --- (Remain the same)
   const styles = {
+    // ... (Your existing styles)
     container: {
       display: 'flex',
       flexDirection: 'column',
