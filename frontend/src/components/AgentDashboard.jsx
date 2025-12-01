@@ -25,6 +25,7 @@ export default function AgentDashboard() {
       .catch(err => console.error("Failed to fetch status:", err));
 
     // 2. Socket.IO Listener for Incoming Calls
+    // The socket connection needs to be established only once.
     const socket = io(BACKEND_URL);
 
     socket.on("incoming-call", (callData) => {
@@ -40,26 +41,33 @@ export default function AgentDashboard() {
     return () => {
       socket.off("incoming-call");
       clearInterval(timer);
+      // Optional: Disconnect socket explicitly if needed, but 'off' is sufficient for event handlers
+      // socket.disconnect();
     };
   }, []);
 
   // Handle clicking "Accept" on a card
   const handleCallAccept = (acceptedCall) => {
     // 🎯 CRITICAL FIX: Append phone number to the dashboardLink as a query parameter
-    // We assume the phone number is stored in the 'caller' property of acceptedCall
     const phoneNumber = acceptedCall.caller; 
     const dashboardLink = acceptedCall.dashboardLink;
 
     if (dashboardLink && phoneNumber) {
       // Encode the phone number just in case it contains special characters (+, etc.)
       const encodedPhoneNumber = encodeURIComponent(phoneNumber);
-      const redirectUrl = `${dashboardLink}?phoneNumber=${encodedPhoneNumber}`;
       
-      console.log(`AgentDashboard: Accepting call. Redirecting to: ${redirectUrl}`); // 🚀 LOG
+      // Determine if a query already exists. Use '&' if '?' is present, otherwise use '?'
+      const separator = dashboardLink.includes('?') ? '&' : '?';
       
+      // 🚀 UPDATED: Construct the final redirect URL
+      const redirectUrl = `${dashboardLink}${separator}phoneNumber=${encodedPhoneNumber}`;
+      
+      console.log(`AgentDashboard: Accepting call. Redirecting to: ${redirectUrl}`); 
+      
+      // Redirect the agent's browser
       window.location.href = redirectUrl;
     } else {
-      console.error("AgentDashboard: Cannot redirect. Missing dashboardLink or caller phone number.", acceptedCall); // 🚀 LOG
+      console.error("AgentDashboard: Cannot redirect. Missing dashboardLink or caller phone number.", acceptedCall); 
     }
     
     // Remove from list
@@ -83,16 +91,21 @@ export default function AgentDashboard() {
   
   // 🔥 NEW FUNCTION: Handles logging out the agent
   const handleLogout = async () => {
+    // 1. Tell the backend the agent is offline (optional, but good practice)
+    if (status === 'online') {
+        try {
+            await fetch(`${BACKEND_URL}/agent/status`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ status: "offline" })
+            });
+            setStatus('offline');
+        } catch (e) {
+            console.error("Failed to set agent status offline on logout:", e.message);
+        }
+    }
+    
     try {
-      // 1. Tell the backend the agent is offline (optional, but good practice)
-      if (status === 'online') {
-          await fetch(`${BACKEND_URL}/agent/status`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ status: "offline" })
-          });
-      }
-      
       // 2. Sign the user out of Firebase
       await signOut(auth);
       
@@ -109,7 +122,7 @@ export default function AgentDashboard() {
 
   // --- INLINE STYLES ---
   const styles = {
-    // ... (rest of the styles are unchanged)
+    // ... (All existing styles remain, with the addition of the logoutButton style)
     container: {
       display: 'flex',
       flexDirection: 'column',
@@ -159,6 +172,9 @@ export default function AgentDashboard() {
       cursor: 'pointer',
       transition: 'background-color 0.2s',
       marginLeft: '15px',
+      ':hover': {
+        backgroundColor: '#ef4444' // A slightly darker red for hover effect (Note: Inline styles don't directly support :hover, this is illustrative)
+      }
     },
     avatar: {
       width: '36px',
