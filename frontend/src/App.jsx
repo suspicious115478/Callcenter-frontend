@@ -14,6 +14,8 @@ import NewCallSearchPage from "./pages/NewCallSearchPage";
 import UserDashboardPage from "./pages/UserDashboardPage";
 import UserServicesPage from "./pages/UserServicesPage"; 
 import { ServiceManSelectionPage } from "./pages/ServiceManSelectionPage"; // Named Import
+// 🚨 NEW IMPORT: Import the Employee Help Desk Page
+import EmployeeHelpDeskPage from "./pages/EmployeeHelpDeskPage"; 
 
 // Components
 import AgentDashboard from "./components/AgentDashboard";
@@ -35,8 +37,6 @@ function App() {
     const [loadingAuth, setLoadingAuth] = useState(true);
     
     // 🔥 NEW STATE: Tracks if the last action was a signup that resulted in auto-login.
-    // This state MUST be handled in the Signup page and passed back via state or a service.
-    // For this demonstration, we'll assume the Signup page redirects with a state flag.
     const [justSignedUp, setJustSignedUp] = useState(false);
 
     useEffect(() => {
@@ -88,6 +88,12 @@ function App() {
                     
                     {/* Primary Agent Dashboard (Default View) */}
                     <Route path="/" element={<ProtectedRoute isAuthenticated={isAuthenticated}><AgentDashboard /></ProtectedRoute>} />
+
+                    {/* 🚀 NEW ROUTE: Employee Help Desk */}
+                    <Route 
+                        path="/employeehelpdesk" 
+                        element={<ProtectedRoute isAuthenticated={isAuthenticated}><EmployeeHelpDeskPage /></ProtectedRoute>} 
+                    />
 
                     {/* Target for UNVERIFIED calls */}
                     <Route path="/new-call/search" element={<ProtectedRoute isAuthenticated={isAuthenticated}><NewCallSearchPage /></ProtectedRoute>} />
