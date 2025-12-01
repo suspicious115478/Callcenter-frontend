@@ -45,31 +45,38 @@ export default function AgentDashboard() {
     };
   }, []);
 
-  // Handle clicking "Accept" on a card
-  const handleCallAccept = (acceptedCall) => {
-    const dashboardLink = acceptedCall.dashboardLink;
+ // Handle clicking "Accept" on a card
+  const handleCallAccept = (acceptedCall) => {
+    // 1. Check for the mandatory redirection link
+    const dashboardLink = acceptedCall.dashboardLink;
 
-    if (dashboardLink) {
-      console.log(`AgentDashboard: Accepting call. Redirecting to: ${dashboardLink}`); // 🚀 LOG
+    // 2. Collect all state data, even if undefined in the source payload
+    const callerNumber = acceptedCall.caller || null;
+    const dispatchData = acceptedCall.dispatchDetails || null; 
+    const customerName = acceptedCall.userName || null;
 
-      // 🎯 CRITICAL FIX: Use 'navigate' to push state, not window.location.href
-      navigate(dashboardLink, {
-        state: {
-          // Map backend properties to frontend component expectations
-          callerNumber: acceptedCall.caller, // EmployeeHelpDeskPage expects 'callerNumber'
-          dispatchData: acceptedCall.dispatchDetails, // Ensure backend provides this for Employee/Dispatch status
-          customerName: acceptedCall.userName // EmployeeHelpDeskPage expects 'customerName'
-        }
-      });
-    } else {
-      console.error("AgentDashboard: Cannot redirect. Missing dashboardLink.", acceptedCall); // 🚀 LOG
-    }
-    
-    // Remove from list
-    setIncomingCalls(prevCalls =>
-      prevCalls.filter(call => call.id !== acceptedCall.id)
-    );
-  };
+    if (dashboardLink) {
+      console.log(`AgentDashboard: Accepting call. Redirecting to: ${dashboardLink}`); // 🚀 LOG
+      
+      // Use 'navigate' to push state, passing explicit (or null) values
+      navigate(dashboardLink, {
+        state: {
+          // Pass the values. If they were null/undefined above, they are passed as such.
+          callerNumber: callerNumber,
+          dispatchData: dispatchData,
+          customerName: customerName
+        }
+      });
+    } else {
+      // If dashboardLink is missing, this is the current blocker from the backend
+      console.error("AgentDashboard: Cannot redirect. Missing dashboardLink.", acceptedCall); 
+    }
+    
+    // Remove from list
+    setIncomingCalls(prevCalls =>
+      prevCalls.filter(call => call.id !== acceptedCall.id)
+    );
+  };
 
   // Toggle Agent Status
   const toggleStatus = () => {
@@ -395,3 +402,4 @@ export default function AgentDashboard() {
     </div>
   );
 }
+
