@@ -2,12 +2,30 @@ import React from 'react';
 
 export default function CallCard({ callData, onAccept }) {
     
+    // Determine status flags
+    const isInternal = callData.subscriptionStatus === "Internal";
     const isVerified = callData.subscriptionStatus === "Verified";
     
-    // Colors based on status
-    const accentColor = isVerified ? '#10b981' : '#f59e0b'; // Green vs Amber
-    const bgBadge = isVerified ? '#ecfdf5' : '#fffbeb';
-    const textBadge = isVerified ? '#047857' : '#b45309';
+    // --- Colors based on status ---
+    let accentColor, bgBadge, textBadge;
+
+    if (isInternal) {
+        // Internal/Employee Call (Neutral/Grey)
+        accentColor = '#6b7280'; 
+        bgBadge = '#f3f4f6';
+        textBadge = '#374151';
+    } else if (isVerified) {
+        // Verified Customer (Green)
+        accentColor = '#10b981'; 
+        bgBadge = '#ecfdf5';
+        textBadge = '#047857';
+    } else {
+        // Unverified Caller (Amber)
+        accentColor = '#f59e0b'; 
+        bgBadge = '#fffbeb';
+        textBadge = '#b45309';
+    }
+
 
     const styles = {
         card: {
@@ -15,12 +33,13 @@ export default function CallCard({ callData, onAccept }) {
             borderRadius: '12px',
             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
             border: '1px solid #e5e7eb',
-            borderLeft: `5px solid ${accentColor}`,
+            // 🎯 Dynamic left border color
+            borderLeft: `5px solid ${accentColor}`, 
             padding: '20px',
             display: 'flex',
             flexDirection: 'column',
             gap: '16px',
-            transition: 'transform 0.2s, box-shadow 0.2s',
+            transition: 'transform 0.2s, boxShadow 0.2s',
             cursor: 'default',
         },
         header: {
@@ -33,7 +52,8 @@ export default function CallCard({ callData, onAccept }) {
             alignItems: 'center',
             padding: '4px 10px',
             borderRadius: '9999px',
-            backgroundColor: bgBadge,
+            // 🎯 Dynamic badge colors
+            backgroundColor: bgBadge, 
             color: textBadge,
             fontSize: '0.75rem',
             fontWeight: '700',
@@ -89,11 +109,18 @@ export default function CallCard({ callData, onAccept }) {
         }
     };
 
+    // Helper to determine badge text based on the three states
+    const getBadgeText = () => {
+        if (isInternal) return 'Internal Helpdesk';
+        if (isVerified) return 'Verified Customer';
+        return 'Unverified Caller';
+    };
+
     return (
         <div style={styles.card}>
             <div style={styles.header}>
                 <span style={styles.badge}>
-                    {isVerified ? 'Verified Customer' : 'Unverified Caller'}
+                    {getBadgeText()}
                 </span>
                 <span style={styles.time}>Just Now</span>
             </div>
@@ -104,13 +131,15 @@ export default function CallCard({ callData, onAccept }) {
             </div>
 
             <div style={styles.meta}>
-                <span style={{fontSize: '1.1em'}}>🎫</span> 
+                {/* Change icon based on call type if desired, keeping default ticket icon here */}
+                <span style={{fontSize: '1.1em'}}>{isInternal ? '⚙️' : '🎫'}</span> 
                 <span>{callData.ticket}</span>
             </div>
 
             <button 
                 style={styles.button}
                 onClick={() => onAccept(callData)}
+                // Re-added hover effect from earlier suggestion
                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#111827'}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#1f2937'}
             >
