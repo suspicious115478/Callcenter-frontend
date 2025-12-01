@@ -2,14 +2,17 @@ import React, { useState, useEffect } from "react";
 import io from "socket.io-client";
 import { BACKEND_URL } from "../config";
 import CallCard from "./CallCard";
-// 🔥 NEW IMPORTS
+// 🚨 NEW IMPORT: Import useNavigate for clean, stateful redirection
+import { useNavigate } from "react-router-dom"; 
 import { getAuth, signOut } from "firebase/auth";
-import { app } from "../config"; // Assuming 'app' is the initialized Firebase app
+import { app } from "../config"; 
 
 // Initialize Firebase Auth
 const auth = getAuth(app); 
 
 export default function AgentDashboard() {
+  const navigate = useNavigate(); // 👈 Initialize useNavigate hook
+
   const [status, setStatus] = useState("offline");
   const [incomingCalls, setIncomingCalls] = useState([]);
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
@@ -29,7 +32,6 @@ export default function AgentDashboard() {
 
     socket.on("incoming-call", (callData) => {
       console.log("New call received:", callData);
-      // NOTE: Ensure the incoming callData includes a 'caller' property with the phone number
       setIncomingCalls(prevCalls => [
         { ...callData, id: Date.now() },
         ...prevCalls 
@@ -45,21 +47,22 @@ export default function AgentDashboard() {
 
   // Handle clicking "Accept" on a card
   const handleCallAccept = (acceptedCall) => {
-    // 🎯 CRITICAL FIX: Append phone number to the dashboardLink as a query parameter
-    // We assume the phone number is stored in the 'caller' property of acceptedCall
-    const phoneNumber = acceptedCall.caller; 
     const dashboardLink = acceptedCall.dashboardLink;
 
-    if (dashboardLink && phoneNumber) {
-      // Encode the phone number just in case it contains special characters (+, etc.)
-      const encodedPhoneNumber = encodeURIComponent(phoneNumber);
-      const redirectUrl = `${dashboardLink}?phoneNumber=${encodedPhoneNumber}`;
-      
-      console.log(`AgentDashboard: Accepting call. Redirecting to: ${redirectUrl}`); // 🚀 LOG
-      
-      window.location.href = redirectUrl;
+    if (dashboardLink) {
+      console.log(`AgentDashboard: Accepting call. Redirecting to: ${dashboardLink}`); // 🚀 LOG
+
+      // 🎯 CRITICAL FIX: Use 'navigate' to push state, not window.location.href
+      navigate(dashboardLink, {
+        state: {
+          // Map backend properties to frontend component expectations
+          callerNumber: acceptedCall.caller, // EmployeeHelpDeskPage expects 'callerNumber'
+          dispatchData: acceptedCall.dispatchDetails, // Ensure backend provides this for Employee/Dispatch status
+          customerName: acceptedCall.userName // EmployeeHelpDeskPage expects 'customerName'
+        }
+      });
     } else {
-      console.error("AgentDashboard: Cannot redirect. Missing dashboardLink or caller phone number.", acceptedCall); // 🚀 LOG
+      console.error("AgentDashboard: Cannot redirect. Missing dashboardLink.", acceptedCall); // 🚀 LOG
     }
     
     // Remove from list
@@ -81,7 +84,7 @@ export default function AgentDashboard() {
     setStatus(newStatus);
   };
   
-  // 🔥 NEW FUNCTION: Handles logging out the agent
+  // Handles logging out the agent
   const handleLogout = async () => {
     try {
       // 1. Tell the backend the agent is offline (optional, but good practice)
@@ -97,7 +100,6 @@ export default function AgentDashboard() {
       await signOut(auth);
       
       console.log("Agent logged out successfully.");
-      // The App.jsx listener will detect the sign out and redirect to /login
       
     } catch (error) {
       console.error("Logout Error:", error);
@@ -108,8 +110,8 @@ export default function AgentDashboard() {
   const isOnline = status === "online";
 
   // --- INLINE STYLES ---
+  // ... (styles object remains unchanged) ...
   const styles = {
-    // ... (rest of the styles are unchanged)
     container: {
       display: 'flex',
       flexDirection: 'column',
@@ -120,7 +122,7 @@ export default function AgentDashboard() {
     },
     header: {
       height: '64px',
-      backgroundColor: '#1f2937', // Dark slate gray
+      backgroundColor: '#1f2937', 
       color: 'white',
       display: 'flex',
       alignItems: 'center',
@@ -147,9 +149,8 @@ export default function AgentDashboard() {
       color: '#9ca3af',
       fontSize: '0.95rem',
     },
-    // 🔥 NEW STYLE: Logout button in the header
     logoutButton: {
-      backgroundColor: '#f87171', // Red 400
+      backgroundColor: '#f87171', 
       color: 'white',
       border: 'none',
       padding: '8px 12px',
@@ -308,6 +309,7 @@ export default function AgentDashboard() {
     }
   };
 
+
   return (
     <div style={styles.container}>
       {/* HEADER */}
@@ -321,9 +323,9 @@ export default function AgentDashboard() {
         <div style={styles.headerRight}>
           <span style={styles.clock}>{currentTime}</span>
           <div style={styles.avatar}>JD</div>
-          {/* 🔥 NEW LOGOUT BUTTON */}
+          {/* LOGOUT BUTTON */}
           <button style={styles.logoutButton} onClick={handleLogout}>
-              Logout
+            Logout
           </button>
         </div>
       </header>
