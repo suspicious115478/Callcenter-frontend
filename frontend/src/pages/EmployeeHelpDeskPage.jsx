@@ -16,7 +16,7 @@ const EmployeeHelpDeskPage = () => {
     const [fetchError, setFetchError] = useState(null);
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
-    // ⚡ NEW: State for Notes & Cancellation Processing
+    // State for Notes & Cancellation Processing
     const [noteText, setNoteText] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
 
@@ -84,7 +84,7 @@ const EmployeeHelpDeskPage = () => {
 
 
     // ----------------------------------------------------------------------
-    // ⚡ LOGIC: Handle Cancellation
+    // ⚡ LOGIC: Handle Cancellation & Redirect
     // ----------------------------------------------------------------------
     const handleCancelTicket = async () => {
         const orderId = currentDispatchData.order_id;
@@ -98,7 +98,7 @@ const EmployeeHelpDeskPage = () => {
             alert("⚠️ Please enter a reason for cancellation in the note box.");
             return;
         }
-        if (!window.confirm("⚠️ Are you sure you want to CANCEL this ticket?\n\nThis will update the status to 'Cancelled' in the database.")) {
+        if (!window.confirm("⚠️ Are you sure you want to CANCEL this ticket?\n\nThis will redirect you to assign a NEW technician.")) {
             return;
         }
 
@@ -110,7 +110,8 @@ const EmployeeHelpDeskPage = () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     order_id: orderId,
-                    cancellation_reason: noteText
+                    cancellation_reason: noteText,
+                    admin_id: 'ADMIN_001' // REPLACE with actual logged-in Admin ID if available
                 })
             });
 
@@ -120,15 +121,29 @@ const EmployeeHelpDeskPage = () => {
                 throw new Error(result.message || "Failed to cancel order");
             }
 
-            alert("✅ Ticket Cancelled Successfully.");
+            // ✅ SUCCESS: Now Redirect to ServiceManSelectionPage
+            // We pass the data returned from the backend (reDispatchDetails)
+            if (result.reDispatchDetails) {
+                alert("✅ Ticket Cancelled. Redirecting to assign new technician...");
+                
+                navigate('/serviceman-selection', { 
+                    state: {
+                        isReDispatch: true, // Flag to tell the next page this is a re-assignment
+                        ticketData: result.reDispatchDetails, // Pass the original order details
+                        adminId: 'ADMIN_001'
+                    }
+                });
+            } else {
+                alert("✅ Ticket Cancelled, but could not retrieve details for re-dispatch.");
+                // Fallback: Just update local state
+                setEmployeeDispatchData(prev => ({
+                    ...prev,
+                    order_status: 'Cancelled',
+                    order_request: (prev.order_request || '') + `\n\n[CANCELLED]: ${noteText}`
+                }));
+            }
             
-            // Optimistic UI Update: Update local state immediately
-            setEmployeeDispatchData(prev => ({
-                ...prev,
-                order_status: 'Cancelled',
-                order_request: (prev.order_request || '') + `\n\n[CANCELLED]: ${noteText}`
-            }));
-            setNoteText(''); // Clear input
+            setNoteText(''); 
 
         } catch (error) {
             console.error("Cancel Error:", error);
@@ -324,7 +339,7 @@ const EmployeeHelpDeskPage = () => {
                             ></textarea>
 
                             <div style={styles.buttonRow}>
-                                {/* Save Note Button (Optional placeholder logic) */}
+                                {/* Save Note Button */}
                                 <button style={styles.saveButton} disabled={isProcessing}>
                                     💾 Save Note Only
                                 </button>
@@ -335,7 +350,7 @@ const EmployeeHelpDeskPage = () => {
                                     onClick={handleCancelTicket}
                                     disabled={isProcessing || !currentDispatchData.order_id}
                                 >
-                                    {isProcessing ? 'Processing...' : '🚫 CANCEL TICKET'}
+                                    {isProcessing ? 'Processing...' : '🚫 CANCEL & RE-ASSIGN'}
                                 </button>
                             </div>
                         </div>
