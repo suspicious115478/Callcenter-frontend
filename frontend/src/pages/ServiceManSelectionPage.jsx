@@ -226,11 +226,19 @@ export function ServiceManSelectionPage() {
     const location = useLocation();
     const navigate = useNavigate();
     
-    // Destructure all relevant props from state
-    const { ticketId, requestDetails, selectedAddressId, serviceName, phoneNumber } = location.state || {};
+    // 🚨 MODIFICATION: Destructure originalOrderId and customerUserId for reassignment flow
+    const { 
+        ticketId, 
+        requestDetails, 
+        selectedAddressId, 
+        serviceName, 
+        phoneNumber,
+        originalOrderId,    // <-- NEW: Existing Order ID if reassigning
+        customerUserId      // <-- NEW: Customer's user_id if reassigning
+    } = location.state || {}; 
     
-    // State for generated IDs and customer details
-    const [orderId, setOrderId] = useState(null);
+    // 🚨 MODIFICATION: Initialize orderId with originalOrderId if present
+    const [orderId, setOrderId] = useState(originalOrderId || null);
     const [fetchedAddressLine, setFetchedAddressLine] = useState('Loading address...');
     const [userCoordinates, setUserCoordinates] = useState(null); 
     const [memberId, setMemberId] = useState('Searching...'); // For the fetched member ID
@@ -251,12 +259,16 @@ export function ServiceManSelectionPage() {
         return () => clearInterval(timer);
     }, []);
 
-    // Generate orderId on component load
+    // 🚨 MODIFICATION: Only generate new orderId if originalOrderId is NOT provided (Initial Dispatch)
     useEffect(() => {
-        const newOrderId = generateUniqueOrderId();
-        setOrderId(newOrderId);
-        console.log(`[ORDER CREATION] Generated unique Order ID: ${newOrderId}`);
-    }, []); 
+        if (!originalOrderId) {
+            const newOrderId = generateUniqueOrderId();
+            setOrderId(newOrderId);
+            console.log(`[ORDER CREATION] Generated unique Order ID: ${newOrderId}`);
+        } else {
+            console.log(`[ORDER REASSIGN] Using existing Order ID: ${originalOrderId}`);
+        }
+    }, [originalOrderId]); 
     
     // Fetch Member ID (Unchanged)
     useEffect(() => {
@@ -380,7 +392,7 @@ export function ServiceManSelectionPage() {
 
 
     /**
-     * Sends dispatch data including admin_id, orderId, ticketId, and phoneNumber to the backend.
+     * Sends dispatch data (or reassign data) to the backend.
      */
     const handleDispatch = async () => {
         if (!selectedServiceman) {
@@ -388,37 +400,50 @@ export function ServiceManSelectionPage() {
             return;
         }
         if (!orderId) {
-             setDispatchStatus('❌ Error: Order ID was not generated. Cannot dispatch.');
+             setDispatchStatus('❌ Error: Order ID was not generated/found. Cannot dispatch.');
              return;
         }
+        // ... (other checks remain the same)
         if (!adminId || adminId.startsWith('Error') || adminId.startsWith('N/A') || adminId.startsWith('Loading')) {
             setDispatchStatus(`❌ Error: Admin ID is missing or loading (${adminId}). Cannot dispatch.`);
             return;
         }
+        
+        // Determine if this is a Reassignment (an existing order)
+        const isReassignment = !!originalOrderId;
+        const actionType = isReassignment ? 'Reassign' : 'Dispatch';
 
-        // 1. Prepare Data for Dispatch Table
+        // 1. Prepare Data for Dispatch/Reassign Table
         const dispatchData = {
-            user_id: selectedServiceman.user_id, // Serviceman's ID
-            category: serviceName,              // Service/category name
-            request_address: fetchedAddressLine, // Full address line
-            order_status: 'Assigned',           // Initial status
-            order_request: requestDetails,      // Customer request details
+            user_id: selectedServiceman.user_id,    // Serviceman's ID
+            category: serviceName,              
+            request_address: fetchedAddressLine, 
+            order_status: 'Assigned',           
+            order_request: requestDetails,      
 
-            order_id: orderId,                  // Unique order identifier
-            ticket_id: ticketId,                // Associated support ticket
-            phone_number: phoneNumber,          // Customer's phone number
-            // 🔥 ADDED: The Admin ID of the currently logged-in Agent
+            order_id: orderId,                  
+            ticket_id: ticketId,                
+            phone_number: phoneNumber,          
             admin_id: adminId,
+            
+            // 🚨 NEW: Include customerUserId ONLY for the Reassign endpoint
+            ...(isReassignment && { customerUserId: customerUserId }),
+            address_id: selectedAddressId // Include address_id as well
         };
 
-        setDispatchStatus(`Dispatching ${selectedServiceman.full_name || selectedServiceman.name}...`);
+        setDispatchStatus(`${actionType}ing ${selectedServiceman.full_name || selectedServiceman.name}...`);
 
         try {
-            // 2. Make API Call to Backend
-            const dispatchUrl = `${API_BASE_URL}/call/dispatch`;
+            // 2. Determine API Endpoint
+            const dispatchUrl = isReassignment 
+                ? `${API_BASE_URL}/call/reassign` 
+                : `${API_BASE_URL}/call/dispatch`;
             
+            console.log(`[API CALL] Using endpoint: ${dispatchUrl} (Type: ${actionType})`);
+            
+            // 3. Make API Call to Backend
             const response = await fetch(dispatchUrl, {
-                method: 'POST',
+                method: 'POST', // Both dispatch and reassign are POST requests
                 headers: { 
                     'Content-Type': 'application/json',
                 },
@@ -428,13 +453,13 @@ export function ServiceManSelectionPage() {
             if (!response.ok) {
                 // Try to read JSON error body if available
                 const errorBody = await response.json().catch(() => ({ message: 'Unknown error' }));
-                throw new Error(`Dispatch failed: ${errorBody.message || response.statusText}`);
+                throw new Error(`${actionType} failed: ${errorBody.message || response.statusText}`);
             }
 
-            // 3. Success Handling
-            setDispatchStatus(`✅ DISPATCH SUCCESSFUL: Assigned to ${selectedServiceman.full_name || selectedServiceman.name}. Order ID: ${orderId}`);
+            // 4. Success Handling
+            setDispatchStatus(`✅ ${actionType.toUpperCase()} SUCCESSFUL: Assigned to ${selectedServiceman.full_name || selectedServiceman.name}. Order ID: ${orderId}`);
             
-            console.log("Dispatch data sent:", dispatchData);
+            console.log(`${actionType} data sent:`, dispatchData);
             
             // Navigate away after a delay
             setTimeout(() => {
@@ -442,8 +467,8 @@ export function ServiceManSelectionPage() {
             }, 3000);
 
         } catch (error) {
-            console.error("DISPATCH ERROR:", error);
-            setDispatchStatus(`❌ DISPATCH FAILED: ${error.message}. Please check backend logs.`);
+            console.error(`${actionType} ERROR:`, error);
+            setDispatchStatus(`❌ ${actionType.toUpperCase()} FAILED: ${error.message}. Please check backend logs.`);
         }
     };
 
@@ -462,6 +487,8 @@ export function ServiceManSelectionPage() {
         );
     }
 
+    const isReassignment = !!originalOrderId;
+
     return (
         <div style={styles.container}>
             <header style={styles.header}>
@@ -477,7 +504,9 @@ export function ServiceManSelectionPage() {
 
             <div style={styles.mainContent}>
                 <h1 style={{ fontSize: '2rem', fontWeight: '700', color: '#1f2937', marginBottom: '16px' }}>
-                    <span style={{ color: '#10b981' }}>{serviceName}</span> Servicemen Near User
+                    <span style={{ color: isReassignment ? '#f59e0b' : '#10b981' }}>
+                        {isReassignment ? 'Reassigning' : serviceName}
+                    </span> Servicemen Near User
                 </h1>
                 
                 {/* Request Summary Card */}
@@ -489,8 +518,18 @@ export function ServiceManSelectionPage() {
                     <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
                         **Ticket ID:** <span style={{ fontWeight: '600', backgroundColor: '#e5e7eb', padding: '2px 8px', borderRadius: '4px' }}>{ticketId}</span>
                         {' | '}
-                        **Order ID:** <span style={{ fontWeight: '600', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5' }}>{orderId || 'Generating...'}</span>
+                        **Order ID:** <span style={{ fontWeight: '600', backgroundColor: isReassignment ? '#fffbeb' : '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: isReassignment ? '#f59e0b' : '#4f46e5' }}>
+                            {orderId || 'Generating...'}
+                            {isReassignment && ' (REASSIGNMENT)'}
+                        </span>
                     </p>
+                    {isReassignment && (
+                        <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
+                            **Customer User ID:** <span style={{ fontWeight: '600', backgroundColor: '#fffbeb', padding: '2px 8px', borderRadius: '4px', color: '#f59e0b' }}>
+                                {customerUserId}
+                            </span>
+                        </p>
+                    )}
                     <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
                         **Customer Phone:** <span style={{ fontWeight: '600', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5' }}>{phoneNumber || 'N/A'}</span>
                         {' | '}
@@ -557,13 +596,17 @@ export function ServiceManSelectionPage() {
                                 fontWeight: '700',
                                 fontSize: '1rem',
                                 cursor: (!selectedServiceman || !orderId || dispatchStatus?.includes('Dispatching') || dispatchStatus?.includes('SUCCESSFUL') || adminId.startsWith('Error') || adminId.startsWith('N/A') || adminId.startsWith('Loading')) ? 'default' : 'pointer',
-                                backgroundColor: (!selectedServiceman || !orderId || dispatchStatus?.includes('Dispatching') || dispatchStatus?.includes('SUCCESSFUL') || adminId.startsWith('Error') || adminId.startsWith('N/A') || adminId.startsWith('Loading')) ? '#9ca3af' : '#10b981',
+                                backgroundColor: (!selectedServiceman || !orderId || dispatchStatus?.includes('Dispatching') || dispatchStatus?.includes('SUCCESSFUL') || adminId.startsWith('Error') || adminId.startsWith('N/A') || adminId.startsWith('Loading')) ? '#9ca3af' : (isReassignment ? '#f59e0b' : '#10b981'), // Highlight Reassign button
                                 color: 'white',
                                 transition: 'background-color 0.3s',
                                 boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                             }}
                         >
-                            {dispatchStatus?.includes('Dispatching') ? 'Dispatching...' : dispatchStatus?.includes('SUCCESSFUL') ? 'Dispatched' : 'Confirm & Dispatch Serviceman'}
+                            {dispatchStatus?.includes('Dispatching') || dispatchStatus?.includes('Reassigning') 
+                                ? `${isReassignment ? 'Reassigning' : 'Dispatching'}...` 
+                                : dispatchStatus?.includes('SUCCESSFUL') 
+                                    ? 'Dispatched' 
+                                    : isReassignment ? 'Confirm & Reassign Serviceman' : 'Confirm & Dispatch Serviceman'}
                         </button>
                     </div>
 
