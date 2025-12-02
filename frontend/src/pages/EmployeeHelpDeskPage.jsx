@@ -84,10 +84,11 @@ const EmployeeHelpDeskPage = () => {
 
 
     // ----------------------------------------------------------------------
-    // ⚡ LOGIC: Handle Cancellation
+    // ⚡ UPDATED LOGIC: Handle Cancellation & Redirect
     // ----------------------------------------------------------------------
     const handleCancelTicket = async () => {
         const orderId = currentDispatchData.order_id;
+        const currentCustomerPhone = currentDispatchData.customer_phone; // Get customer phone for re-navigation
 
         // Validation
         if (!orderId) {
@@ -98,7 +99,7 @@ const EmployeeHelpDeskPage = () => {
             alert("⚠️ Please enter a reason for cancellation in the note box.");
             return;
         }
-        if (!window.confirm("⚠️ Are you sure you want to CANCEL this ticket?\n\nThis will update the status to 'Cancelled' in the database.")) {
+        if (!window.confirm("⚠️ Are you sure you want to CANCEL this ticket?\n\nThis will update the status to 'Cancelled' in the database and redirect to Serviceman Selection.")) {
             return;
         }
 
@@ -120,19 +121,26 @@ const EmployeeHelpDeskPage = () => {
                 throw new Error(result.message || "Failed to cancel order");
             }
 
-            alert("✅ Ticket Cancelled Successfully.");
+            alert("✅ Ticket Cancelled Successfully. Redirecting to reassign...");
             
-            // Optimistic UI Update: Update local state immediately
-            setEmployeeDispatchData(prev => ({
-                ...prev,
-                order_status: 'Cancelled',
-                order_request: (prev.order_request || '') + `\n\n[CANCELLED]: ${noteText}`
-            }));
-            setNoteText(''); // Clear input
+            // --- 🚀 NEW NAVIGATION STEP ---
+            // Navigate to ServicemanSelectionPage, carrying over the necessary call and cancelled order info
+            navigate('/serviceman-selection', {
+                state: {
+                    // Carry over the current employee/caller details for the next page
+                    callerNumber: callerNumber,
+                    customerName: customerName,
+                    // Pass the CANCELLED order details for context or logging on the next screen
+                    cancelledOrderId: orderId,
+                    customerPhoneNumber: currentCustomerPhone // Pass this if needed for new ticket creation flow
+                }
+            });
+            // -----------------------------
 
         } catch (error) {
             console.error("Cancel Error:", error);
             alert(`❌ Error cancelling ticket: ${error.message}`);
+            // If cancellation fails, we don't navigate, we stay on the page.
         } finally {
             setIsProcessing(false);
         }
@@ -312,7 +320,7 @@ const EmployeeHelpDeskPage = () => {
                             <h3 style={styles.cardTitle}>💬 Resolution & Cancellation</h3>
                             
                             <p style={{fontSize: '0.9rem', color: '#6b7280', marginBottom: '10px'}}>
-                                To <b>Cancel</b> this ticket, please write the reason below and click the red Cancel button.
+                                To **Cancel** this ticket, please write the reason below and click the red Cancel button. You will be redirected to the **Serviceman Selection** screen to re-dispatch.
                             </p>
 
                             <textarea
@@ -335,7 +343,7 @@ const EmployeeHelpDeskPage = () => {
                                     onClick={handleCancelTicket}
                                     disabled={isProcessing || !currentDispatchData.order_id}
                                 >
-                                    {isProcessing ? 'Processing...' : '🚫 CANCEL TICKET'}
+                                    {isProcessing ? 'Processing...' : '🚫 CANCEL TICKET & REDIRECT'}
                                 </button>
                             </div>
                         </div>
