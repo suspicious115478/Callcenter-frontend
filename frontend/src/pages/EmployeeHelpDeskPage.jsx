@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-// Ensure you have the BACKEND_URL configured or defined globally, e.g., in a config file
+
+// Ensure you have the BACKEND_URL configured or defined globally
 const BACKEND_URL = 'https://callcenter-baclend.onrender.com'; 
+// !!! NOTE: The correct base URL for all Call APIs is now BACKEND_URL + /call
 
 const EmployeeHelpDeskPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   
   // Retrieve data passed from the incoming call socket event (via navigation state)
-  // **REMOVED dispatchData**
   const { callerNumber, customerName } = location.state || {};
   
   // State to manage the fetched data
@@ -29,25 +30,25 @@ const EmployeeHelpDeskPage = () => {
 // ⚡ FINALIZED LOGIC: Fetch Employee & Dispatch details from API ONLY
 // ----------------------------------------------------------------------
 useEffect(() => {
-    if (!callerNumber) return; // Stop if no phone number is provided
+    if (!callerNumber) return; 
 
-    // 💡 Frontend Log for Debugging
     console.log(`[Frontend Fetch] Attempting lookup for number: ${callerNumber}`);
 
     const fetchEmployeeDetails = async () => {
         setIsFetchingData(true);
         setFetchError(null);
-        setEmployeeDispatchData(null); // Clear old data when starting a fresh fetch
+        setEmployeeDispatchData(null); 
 
         try {
             // STEP 1: Fetch Employee user_id and other basic details using the phone number
-            const userUrl = `${BACKEND_URL}/api/employee/details?mobile_number=${callerNumber}`;
+            // !!! FIX: Changed /api/employee/details to /call/employee/details
+            const userUrl = `${BACKEND_URL}/call/employee/details?mobile_number=${callerNumber}`;
             console.log(`[Frontend Fetch] STEP 1: Calling: ${userUrl}`);
             const userResponse = await fetch(userUrl);
             
             if (!userResponse.ok) {
-                // If it's a 404, we treat it as "Employee Not Found" and stop
                 if (userResponse.status === 404) {
+                    // We now expect the backend to return 404 if the number isn't found in the DB
                     throw new Error("Employee not found for this number (404).");
                 }
                 throw new Error(`Failed to fetch employee details. Status: ${userResponse.status}`);
@@ -65,7 +66,8 @@ useEffect(() => {
 
 
             // STEP 2: Use the fetched user_id to get the active dispatch/order details
-            const dispatchUrl = `${BACKEND_URL}/api/dispatch/active-order?user_id=${employeeId}`;
+            // !!! FIX: Changed /api/dispatch/active-order to /call/dispatch/active-order
+            const dispatchUrl = `${BACKEND_URL}/call/dispatch/active-order?user_id=${employeeId}`;
             console.log(`[Frontend Fetch] STEP 2: Calling: ${dispatchUrl}`);
             const dispatchResponse = await fetch(dispatchUrl);
 
@@ -92,8 +94,6 @@ useEffect(() => {
 
 }, [callerNumber]); // Re-run only when callerNumber changes
 
-  // Use the fetched data for rendering. Prioritize the explicitly fetched data, 
-  // **Removed fallback to dispatchData**
   const currentDispatchData = employeeDispatchData || {};
 
 
