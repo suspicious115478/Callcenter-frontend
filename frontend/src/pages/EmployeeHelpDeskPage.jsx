@@ -88,7 +88,11 @@ const EmployeeHelpDeskPage = () => {
     // ----------------------------------------------------------------------
     const handleCancelTicket = async () => {
         const orderId = currentDispatchData.order_id;
-        const currentCustomerPhone = currentDispatchData.customer_phone; // Get customer phone for re-navigation
+        
+        // 🚀 NEW: Extract required IDs for re-dispatch from the fetched data
+        const customerUserId = currentDispatchData.customer_user_id;
+        const selectedAddressId = currentDispatchData.address_id;
+        const currentCustomerPhone = currentDispatchData.customer_phone; 
 
         // Validation
         if (!orderId) {
@@ -99,6 +103,13 @@ const EmployeeHelpDeskPage = () => {
             alert("⚠️ Please enter a reason for cancellation in the note box.");
             return;
         }
+        
+        // 🚨 IMPORTANT VALIDATION: Ensure critical re-dispatch data is available
+        if (!customerUserId || !selectedAddressId) {
+             alert("❌ Critical customer/address data is missing. Cannot re-dispatch. Please review the database record or API response.");
+             return;
+        }
+        
         if (!window.confirm("⚠️ Are you sure you want to CANCEL this ticket?\n\nThis will update the status to 'Cancelled' in the database and redirect to Serviceman Selection.")) {
             return;
         }
@@ -123,16 +134,21 @@ const EmployeeHelpDeskPage = () => {
 
             alert("✅ Ticket Cancelled Successfully. Redirecting to reassign...");
             
-            // --- 🚀 NEW NAVIGATION STEP ---
-            // Navigate to ServicemanSelectionPage, carrying over the necessary call and cancelled order info
+            // --- 🚀 UPDATED NAVIGATION STEP ---
+            // Navigate to ServicemanSelectionPage, carrying all necessary data for the new dispatch
             navigate('/serviceman-selection', {
                 state: {
-                    // Carry over the current employee/caller details for the next page
+                    // Current call context (caller is the employee/serviceman)
                     callerNumber: callerNumber,
                     customerName: customerName,
-                    // Pass the CANCELLED order details for context or logging on the next screen
+                    
+                    // Critical data for new dispatch (from the cancelled order)
+                    customerUserId: customerUserId, 
+                    selectedAddressId: selectedAddressId,
+                    customerPhoneNumber: currentCustomerPhone,
+                    
+                    // Contextual data (Cancelled Order ID)
                     cancelledOrderId: orderId,
-                    customerPhoneNumber: currentCustomerPhone // Pass this if needed for new ticket creation flow
                 }
             });
             // -----------------------------
@@ -140,7 +156,6 @@ const EmployeeHelpDeskPage = () => {
         } catch (error) {
             console.error("Cancel Error:", error);
             alert(`❌ Error cancelling ticket: ${error.message}`);
-            // If cancellation fails, we don't navigate, we stay on the page.
         } finally {
             setIsProcessing(false);
         }
@@ -267,6 +282,9 @@ const EmployeeHelpDeskPage = () => {
                     <div style={styles.detailItem}><span style={styles.detailLabel}>Customer Contact</span><span style={styles.detailValue}>{currentDispatchData.customer_phone || 'N/A'}</span></div>
                 </div>
                 <div style={styles.fullDetail}><span style={styles.detailLabel}>Service Address</span><p style={styles.detailValue}>{currentDispatchData.request_address || 'N/A'}</p></div>
+                    {/* Add Customer ID and Address ID for debugging/visibility if needed, though they are primarily for navigation */}
+                    <div style={styles.detailItem}><span style={styles.detailLabel}>Customer User ID</span><span style={styles.detailValue}>{currentDispatchData.customer_user_id || 'N/A'}</span></div>
+                    <div style={styles.detailItem}><span style={styles.detailLabel}>Address ID</span><span style={styles.detailValue}>{currentDispatchData.address_id || 'N/A'}</span></div>
                 <div style={styles.fullDetail}><span style={styles.detailLabel}>Employee's Last Note/Request</span><p style={styles.requestText}>"{currentDispatchData.order_request || 'No specific note or request filed.'}"</p></div>
             </div>
         );
