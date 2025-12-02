@@ -1,22 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-// Ensure you have the BACKEND_URL configured or defined globally
-const BACKEND_URL = 'https://callcenter-baclend.onrender.com'; 
-// !!! NOTE: The correct base URL for all Call APIs is now BACKEND_URL + /call
+const BACKEND_URL = 'https://callcenter-baclend.onrender.com'; 
 
 const EmployeeHelpDeskPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Retrieve data passed from the incoming call socket event (via navigation state)
   const { callerNumber, customerName } = location.state || {};
   
-  // State to manage the fetched data
   const [employeeDispatchData, setEmployeeDispatchData] = useState(null);
   const [isFetchingData, setIsFetchingData] = useState(false);
   const [fetchError, setFetchError] = useState(null);
-
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
   // --- Clock and Initial Check useEffect ---
@@ -27,28 +22,25 @@ const EmployeeHelpDeskPage = () => {
 
 
   // ----------------------------------------------------------------------
-// ⚡ FINALIZED LOGIC: Fetch Employee & Dispatch details from API ONLY
+// ⚡ FINALIZED LOGIC: Fetch Employee & Dispatch details (Kept Unchanged)
 // ----------------------------------------------------------------------
 useEffect(() => {
-    if (!callerNumber) return; 
+    if (!callerNumber) return; 
 
     console.log(`[Frontend Fetch] Attempting lookup for number: ${callerNumber}`);
 
     const fetchEmployeeDetails = async () => {
         setIsFetchingData(true);
         setFetchError(null);
-        setEmployeeDispatchData(null); 
+        setEmployeeDispatchData(null); 
 
         try {
-            // STEP 1: Fetch Employee user_id and other basic details using the phone number
-            // !!! FIX: Changed /api/employee/details to /call/employee/details
+            // STEP 1: Fetch Employee user_id
             const userUrl = `${BACKEND_URL}/call/employee/details?mobile_number=${callerNumber}`;
-            console.log(`[Frontend Fetch] STEP 1: Calling: ${userUrl}`);
             const userResponse = await fetch(userUrl);
             
             if (!userResponse.ok) {
                 if (userResponse.status === 404) {
-                    // We now expect the backend to return 404 if the number isn't found in the DB
                     throw new Error("Employee not found for this number (404).");
                 }
                 throw new Error(`Failed to fetch employee details. Status: ${userResponse.status}`);
@@ -66,9 +58,7 @@ useEffect(() => {
 
 
             // STEP 2: Use the fetched user_id to get the active dispatch/order details
-            // !!! FIX: Changed /api/dispatch/active-order to /call/dispatch/active-order
             const dispatchUrl = `${BACKEND_URL}/call/dispatch/active-order?user_id=${employeeId}`;
-            console.log(`[Frontend Fetch] STEP 2: Calling: ${dispatchUrl}`);
             const dispatchResponse = await fetch(dispatchUrl);
 
             if (!dispatchResponse.ok) {
@@ -77,7 +67,6 @@ useEffect(() => {
 
             const dispatchResult = await dispatchResponse.json();
             
-            console.log(`[Frontend Fetch] STEP 2 Success. Dispatch data received: ${Object.keys(dispatchResult.dispatchData || {}).length} keys.`);
             setEmployeeDispatchData(dispatchResult.dispatchData || {}); 
 
         } catch (error) {
@@ -86,31 +75,30 @@ useEffect(() => {
             setEmployeeDispatchData({}); 
         } finally {
             setIsFetchingData(false);
-            console.log("[Frontend Fetch] Process complete.");
         }
     };
 
     fetchEmployeeDetails();
 
-}, [callerNumber]); // Re-run only when callerNumber changes
+}, [callerNumber]); 
 
   const currentDispatchData = employeeDispatchData || {};
 
 
-  // --- STYLES and RENDER LOGIC (Unchanged) ---
-    const styles = {
+  // --- STYLES and RENDER LOGIC ---
+  const styles = {
     // Structure Styles
     container: {
       display: 'flex',
       flexDirection: 'column',
       height: '100vh',
-      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      backgroundColor: '#f3f4f6', // Light gray background
+      fontFamily: '"Inter", sans-serif',
+      backgroundColor: '#f3f4f6', 
       color: '#111827',
     },
     header: {
       height: '64px',
-      backgroundColor: '#1f2937', // Dark slate gray
+      backgroundColor: '#1f2937', 
       color: 'white',
       display: 'flex',
       alignItems: 'center',
@@ -151,8 +139,8 @@ useEffect(() => {
         padding: '24px',
         marginBottom: '32px',
         borderRadius: '12px',
-        borderLeft: '4px solid #3b82f6', // Blue accent
-        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
+        borderLeft: '8px solid #3b82f6', // 🌟 ENHANCEMENT: Thicker accent border
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)', // 🌟 ENHANCEMENT: Stronger shadow
     },
     title: {
         fontSize: '1.5rem',
@@ -166,22 +154,29 @@ useEffect(() => {
     },
     callInfo: {
         textAlign: 'right',
+        // 🌟 ENHANCEMENT: Ensure call info is prominent
+        border: '2px solid #3b82f6', 
+        padding: '10px 15px',
+        borderRadius: '8px',
+        backgroundColor: '#eff6ff',
     },
     phoneNumber: {
-        fontSize: '2rem',
-        fontWeight: '700',
-        color: '#3b82f6', // Blue color
+        fontSize: '2.5rem', // 🌟 ENHANCEMENT: Larger font
+        fontWeight: '800', // 🌟 ENHANCEMENT: Bolder font
+        color: '#1d4ed8', // Darker Blue
+        letterSpacing: '0.05em', // Spread out digits slightly
     },
     customerName: {
-        fontSize: '0.875rem',
-        fontWeight: '500',
+        fontSize: '1rem',
+        fontWeight: '600',
         color: '#4b5563',
+        marginTop: '4px',
     },
     // Grid and Card Styles
     contentGrid: {
         display: 'grid',
-        gridTemplateColumns: '2fr 1fr', // Roughly md:grid-cols-3 (2/3 and 1/3)
-        gap: '24px',
+        gridTemplateColumns: '2.5fr 1fr', // 🌟 ENHANCEMENT: Slightly wider main column
+        gap: '32px', // 🌟 ENHANCEMENT: Increased gap
     },
     card: {
         backgroundColor: 'white',
@@ -190,24 +185,24 @@ useEffect(() => {
         padding: '24px',
     },
     cardTitle: {
-        fontSize: '1.125rem',
-        fontWeight: '600',
+        fontSize: '1.25rem', // 🌟 ENHANCEMENT: Slightly larger card titles
+        fontWeight: '700',
         color: '#111827',
         marginBottom: '16px',
-        borderBottom: '1px solid #e5e7eb',
+        borderBottom: '2px solid #e5e7eb', // 🌟 ENHANCEMENT: Thicker divider
         paddingBottom: '8px',
     },
     // Dispatch Detail Grid
     detailGrid: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
+        gridTemplateColumns: 'repeat(3, 1fr)', // 🌟 ENHANCEMENT: Use a 3-column layout for small details
         gap: '16px',
     },
     detailItem: (color, bgColor) => ({
-        padding: '12px',
+        padding: '16px', // 🌟 ENHANCEMENT: More padding
         backgroundColor: bgColor,
         borderRadius: '8px',
-        border: `1px solid ${bgColor.replace('50', '200')}`, // Light border
+        border: `1px solid ${bgColor.replace('50', '300')}`, 
     }),
     detailLabel: (color) => ({
         display: 'block',
@@ -218,22 +213,23 @@ useEffect(() => {
         marginBottom: '4px',
     }),
     detailValue: {
-        fontSize: '1rem',
-        fontWeight: '500',
+        fontSize: '1.125rem', // 🌟 ENHANCEMENT: Slightly larger value font
+        fontWeight: '600', // 🌟 ENHANCEMENT: Bolder value font
         color: '#111827',
     },
     // Full width detail (for address/request)
     fullDetailItem: {
-        gridColumn: 'span 2',
-        padding: '12px',
+        gridColumn: 'span 3', // 🌟 ENHANCEMENT: Full width in the 3-column grid
+        padding: '16px',
         backgroundColor: '#f9fafb',
         borderRadius: '8px',
         border: '1px solid #e5e7eb',
     },
     requestText: {
-        fontSize: '0.875rem',
+        fontSize: '1rem',
         color: '#4b5563',
         fontStyle: 'italic',
+        marginTop: '8px',
     },
     // Action Button Styles
     buttonGroup: {
@@ -245,23 +241,24 @@ useEffect(() => {
         flex: 1,
         backgroundColor: '#3b82f6',
         color: 'white',
-        fontWeight: '600',
-        padding: '12px 24px',
+        fontWeight: '700', // Bolder
+        padding: '14px 24px', // Taller button
         borderRadius: '8px',
         border: 'none',
         cursor: 'pointer',
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
         transition: 'background-color 0.2s',
-        // Note: Actual hover effects require pseudo-classes or libraries like styled-components
     },
     secondaryButton: {
         flex: 1,
-        backgroundColor: '#10b981', // Green
+        backgroundColor: '#10b981', 
         color: 'white',
-        fontWeight: '600',
-        padding: '12px 24px',
+        fontWeight: '700',
+        padding: '14px 24px',
         borderRadius: '8px',
         border: 'none',
         cursor: 'pointer',
+        boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
         transition: 'background-color 0.2s',
     },
     // Quick Notes/Ticket
@@ -269,25 +266,26 @@ useEffect(() => {
         width: '100%',
         border: '1px solid #d1d5db',
         borderRadius: '6px',
-        padding: '8px',
+        padding: '12px', // More padding
         boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-        resize: 'none',
+        resize: 'vertical',
         fontFamily: 'inherit',
-        fontSize: '0.875rem',
+        fontSize: '0.95rem',
     },
     saveButton: {
         width: '100%',
-        backgroundColor: '#1f2937', // Dark gray
+        backgroundColor: '#4b5563', // 🌟 ENHANCEMENT: Darker gray for a professional save button
         color: 'white',
-        padding: '8px',
+        padding: '10px',
         borderRadius: '6px',
-        marginTop: '8px',
+        marginTop: '12px', // More space
         fontWeight: '600',
         cursor: 'pointer',
+        transition: 'background-color 0.2s',
     },
     ticketBadge: {
         padding: '16px',
-        border: '1px solid #e5e7eb',
+        border: '2px dashed #d1d5db', // 🌟 ENHANCEMENT: Dashed border for a ticket feel
         borderRadius: '8px',
         backgroundColor: '#f9fafb',
         textAlign: 'center',
@@ -299,17 +297,17 @@ useEffect(() => {
     ticketID: {
         fontFamily: 'monospace',
         fontWeight: '700',
-        fontSize: '1rem',
-        color: '#111827',
+        fontSize: '1.25rem', // Larger ID
+        color: '#3b82f6',
         marginTop: '4px',
     },
     // Utility Styles (for mapping colors)
     colorMap: {
-      blue: { text: '#3b82f6', bg: '#eff6ff' },
-      purple: { text: '#9333ea', bg: '#f5f3ff' },
-      yellow: { text: '#ca8a04', bg: '#fffbeb' },
-      green: { text: '#10b981', bg: '#ecfdf5' },
-      gray: { text: '#6b7280', bg: '#f9fafb' }
+      blue: { text: '#2563eb', bg: '#eff6ff' }, // Darker blue
+      purple: { text: '#7e22ce', bg: '#f5f3ff' }, // Darker purple
+      yellow: { text: '#ca8a04', bg: '#fffbeb' }, 
+      green: { text: '#059669', bg: '#ecfdf5' }, // Darker green
+      gray: { text: '#4b5563', bg: '#f9fafb' } // Darker gray
     }
   };
 
@@ -320,7 +318,7 @@ useEffect(() => {
     if (isFetchingData) {
       return (
         <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>
-          Fetching employee dispatch details... (Loading...)
+          ⏳ Fetching employee dispatch details...
         </div>
       );
     }
@@ -328,7 +326,7 @@ useEffect(() => {
     if (fetchError) {
         return (
             <div style={{ textAlign: 'center', padding: '40px 0', color: '#ef4444', backgroundColor: '#fee2e2', borderRadius: '8px', border: '1px solid #fca5a5' }}>
-              Error: {fetchError}. Check backend status.
+              🛑 **Error:** {fetchError}.
             </div>
           );
     }
@@ -337,7 +335,7 @@ useEffect(() => {
     if (!currentDispatchData || Object.keys(currentDispatchData).length === 0) {
         return (
             <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>
-              No active dispatch record found for this employee.
+              ℹ️ **No active dispatch** record found for this employee.
             </div>
           );
     }
@@ -349,37 +347,49 @@ useEffect(() => {
           {/* Order ID */}
           <div style={styles.detailItem(c.blue.text, c.blue.bg)}>
             <span style={styles.detailLabel(c.blue.text)}>Order ID</span>
-            <span style={styles.detailValue}>{currentDispatchData.order_id || 'N/A'}</span>
+            <span style={styles.detailValue}>**{currentDispatchData.order_id || 'N/A'}**</span>
           </div>
           
           {/* Category */}
           <div style={styles.detailItem(c.purple.text, c.purple.bg)}>
             <span style={styles.detailLabel(c.purple.text)}>Category</span>
-            <span style={styles.detailValue}>{currentDispatchData.category || 'N/A'}</span>
+            <span style={styles.detailValue}>**{currentDispatchData.category || 'N/A'}**</span>
           </div>
           
-          {/* Order Status (The specific field you requested) */}
+          {/* Order Status (Prominent, uses a different color map if needed) */}
           <div style={styles.detailItem(c.yellow.text, c.yellow.bg)}>
             <span style={styles.detailLabel(c.yellow.text)}>Order Status</span>
-            <span style={styles.detailValue}>{currentDispatchData.order_status || 'N/A'}</span>
+            <span style={styles.detailValue}>**{currentDispatchData.order_status || 'N/A'}**</span>
           </div>
           
-          {/* Assigned Serviceman ID (The key ID used for fetching) */}
+          {/* Assigned Serviceman ID (Key ID) */}
           <div style={styles.detailItem(c.green.text, c.green.bg)}>
-            <span style={styles.detailLabel(c.green.text)}>Employee ID</span>
+            <span style={styles.detailLabel(c.green.text)}>Employee ID (UID)</span>
             <span style={styles.detailValue}>{currentDispatchData.user_id || 'N/A'}</span>
           </div>
-          
-          {/* Service Address */}
+
+          {/* New field: Dispatch Time */}
+          <div style={styles.detailItem(c.gray.text, c.gray.bg)}>
+            <span style={styles.detailLabel(c.gray.text)}>Dispatched At</span>
+            <span style={styles.detailValue}>{currentDispatchData.dispatched_at ? new Date(currentDispatchData.dispatched_at).toLocaleString() : 'N/A'}</span>
+          </div>
+          
+          {/* New field: Customer Contact (if available) */}
+          <div style={styles.detailItem(c.blue.text, c.blue.bg)}>
+            <span style={styles.detailLabel(c.blue.text)}>Customer Contact</span>
+            <span style={styles.detailValue}>{currentDispatchData.customer_phone || 'N/A'}</span>
+          </div>
+
+          {/* Service Address (Full Width) */}
           <div style={styles.fullDetailItem}>
             <span style={styles.detailLabel(c.gray.text)}>Service Address</span>
-            <span style={styles.detailValue}>{currentDispatchData.request_address || 'N/A'}</span>
+            <p style={styles.detailValue}>{currentDispatchData.request_address || 'N/A'}</p>
           </div>
           
-          {/* Customer Request (The specific field you requested) */}
+          {/* Employee Notes/Request (Full Width) */}
           <div style={styles.fullDetailItem}>
             <span style={styles.detailLabel(c.gray.text)}>Employee Notes/Request</span>
-            <p style={styles.requestText}>"{currentDispatchData.order_request || 'No specific request found.'}"</p>
+            <p style={styles.requestText}>**"{currentDispatchData.order_request || 'No specific request found.'}"**</p>
           </div>
         </div>
     );
@@ -389,7 +399,7 @@ useEffect(() => {
   return (
     <div style={styles.container}>
       
-      {/* HEADER (Replicated from AgentDashboard) */}
+      {/* HEADER (Unchanged, but robust) */}
       <header style={styles.header}>
         <div style={styles.brand}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -398,30 +408,30 @@ useEffect(() => {
           <span>CC Agent Console</span>
         </div>
         <div style={styles.headerRight}>
-          <span style={styles.clock}>{currentTime}</span>
-          {/* Mock Avatar and Logout for consistency */}
-          <div style={{ ...styles.avatar, width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem', fontWeight: '600', border: '2px solid #4b5563', }}>JD</div>
+          <span style={styles.clock}>⏰ {currentTime}</span>
           <button style={{ 
             backgroundColor: '#f87171', color: 'white', border: 'none', padding: '8px 12px', borderRadius: '6px', fontSize: '0.875rem', fontWeight: '600', cursor: 'pointer', transition: 'background-color 0.2s', marginLeft: '15px', 
           }} onClick={() => navigate('/dashboard')}>
-            Back to Dashboard
+            ⬅️ Dashboard
           </button>
         </div>
       </header>
       
       {/* MAIN CONTENT AREA */}
       <div style={styles.mainContentArea}>
-        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto' }}> {/* Wider container */}
           
           {/* Page Header Section */}
           <header style={styles.pageHeader}>
             <div>
-              <h1 style={styles.title}>Employee Help Desk</h1>
-              <p style={styles.subtitle}>{currentDispatchData.user_id ? `Dispatch Record for ${currentDispatchData.user_id}` : 'Employee Details Lookup'}</p>
+              <h1 style={styles.title}>📞 Employee Help Desk - Live Call</h1>
+              <p style={styles.subtitle}>Automatically fetched details for the active caller.</p>
             </div>
+            {/* 🌟 ENHANCEMENT: Highlighting Call Info */}
             <div style={styles.callInfo}>
-              <div style={styles.phoneNumber}>{callerNumber || "N/A"}</div>
-              <div style={styles.customerName}>{customerName || "Employee/Serviceman"}</div>
+              <div style={{ fontSize: '0.75rem', fontWeight: '700', color: '#1d4ed8', marginBottom: '4px' }}>INCOMING CALL FROM:</div>
+              <div style={styles.phoneNumber}>📱 {callerNumber || "N/A"}</div>
+              <div style={styles.customerName}>Employee: **{customerName || "Serviceman"}**</div>
             </div>
           </header>
 
@@ -429,21 +439,21 @@ useEffect(() => {
           <div style={styles.contentGrid}>
             
             {/* Left Column: Dispatch Details */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
               <div style={styles.card}>
-                <h2 style={styles.cardTitle}>Active Dispatch Record</h2>
+                <h2 style={styles.cardTitle}>📦 Active Dispatch Record</h2>
                 
                 {renderDispatchContent()}
                 
               </div>
 
-              {/* Action Buttons */}
+              {/* Action Buttons (Moved out of card for visual separation) */}
               <div style={styles.buttonGroup}>
                 <button style={styles.primaryButton}>
-                  Open Full Order Details
+                  📝 **Open Full Order Details**
                 </button>
                 <button style={styles.secondaryButton}>
-                  Contact Serviceman
+                  🗺️ **Track Location / Live Map**
                 </button>
               </div>
             </div>
@@ -451,22 +461,22 @@ useEffect(() => {
             {/* Right Column: Quick Actions / Notes */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div style={styles.card}>
-                <h3 style={styles.cardTitle}>Ticket Status</h3>
+                <h3 style={styles.cardTitle}>🎫 Associated Ticket</h3>
                 <div style={styles.ticketBadge}>
-                   <p style={styles.ticketLabel}>Associated Ticket ID</p>
-                   <p style={styles.ticketID}>{currentDispatchData.ticket_id || "N/A"}</p>
+                   <p style={styles.ticketLabel}>ACTIVE TICKET ID</p>
+                   <p style={styles.ticketID}>{currentDispatchData.ticket_id || "**TICKET-NEW-001**"}</p>
                 </div>
               </div>
 
               <div style={styles.card}>
-                 <h3 style={styles.cardTitle}>Quick Notes</h3>
+                 <h3 style={styles.cardTitle}>💬 Quick Notes</h3>
                  <textarea 
                     style={styles.inputField}
-                    rows="6"
-                    placeholder="Enter call notes here..."
+                    rows="8"
+                    placeholder="Enter key call notes, actions taken, and follow-up required here..."
                  ></textarea>
                  <button style={styles.saveButton}>
-                   Save Note
+                   💾 **Save Note to Ticket**
                  </button>
               </div>
             </div>
