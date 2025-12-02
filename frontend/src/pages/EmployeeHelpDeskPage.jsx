@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 // Ensure you have the BACKEND_URL configured or defined globally
-const BACKEND_URL = 'https://callcenter-baclend.onrender.com/call'; 
+const BACKEND_URL = 'https://callcenter-baclend.onrender.com'; 
 // !!! NOTE: The correct base URL for all Call APIs is now BACKEND_URL + /call
 
 const EmployeeHelpDeskPage = () => {
