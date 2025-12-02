@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 // Ensure you have the BACKEND_URL configured or defined globally, e.g., in a config file
-const BACKEND_URL = 'http://localhost:3000'; // REPLACE WITH YOUR ACTUAL BACKEND URL
+const BACKEND_URL = 'https://callcenter-baclend.onrender.com'; // REPLACE WITH YOUR ACTUAL BACKEND URL
 
 const EmployeeHelpDeskPage = () => {
   const location = useLocation();
