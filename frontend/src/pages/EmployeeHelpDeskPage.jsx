@@ -1,31 +1,99 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+// Ensure you have the BACKEND_URL configured or defined globally, e.g., in a config file
+const BACKEND_URL = 'http://localhost:3000'; // REPLACE WITH YOUR ACTUAL BACKEND URL
 
 const EmployeeHelpDeskPage = () => {
   const location = useLocation();
   const navigate = useNavigate();
   
   // Retrieve data passed from the incoming call socket event (via navigation state)
+  // We assume the backend passes the callerNumber (phone number) and userName
   const { callerNumber, dispatchData, customerName } = location.state || {};
   
-  const [loading, setLoading] = useState(false);
+  // New state to manage the fetched data specifically for the employee's dispatch
+  const [employeeDispatchData, setEmployeeDispatchData] = useState(null);
+  const [isFetchingData, setIsFetchingData] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
+
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
+  // --- Clock and Initial Check useEffect ---
   useEffect(() => {
-    // Start the clock timer for the header
     const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
-    
-    // Check if critical data is missing (e.g., accessed directly)
-    if (!callerNumber && !dispatchData) {
-      // Optional: Redirect back to /dashboard if no data is present
-      // navigate('/dashboard'); 
+    return () => clearInterval(timer);
+  }, []);
+
+  // ----------------------------------------------------------------------
+  // ⚡ NEW LOGIC: Separate Fetching Hook for Employee/Dispatch Details 
+  // ----------------------------------------------------------------------
+  useEffect(() => {
+    if (!callerNumber) return; // Stop if no phone number is provided
+
+    const fetchEmployeeDetails = async () => {
+      setIsFetchingData(true);
+      setFetchError(null);
+      setEmployeeDispatchData(null); // Clear previous data
+
+      try {
+        // STEP 1: Fetch Employee user_id and other basic details using the phone number
+        // We assume a backend endpoint that resolves the phone number to the unique employee ID
+        const userResponse = await fetch(`${BACKEND_URL}/api/employee/details?mobile_number=${callerNumber}`);
+        
+        if (!userResponse.ok) {
+          throw new Error('Failed to fetch employee details or ID.');
+        }
+
+        const employeeDetails = await userResponse.json();
+        // The backend response should contain: { success: true, user_id: 'E123', name: 'John Doe', ... }
+        const employeeId = employeeDetails.user_id;
+
+        if (!employeeId) {
+            setFetchError("Employee ID not found for this number.");
+            setIsFetchingData(false);
+            return;
+        }
+
+        // STEP 2: Use the fetched user_id to get the active dispatch/order details
+        // This endpoint fetches the latest active order/dispatch for the given user_id
+        const dispatchResponse = await fetch(`${BACKEND_URL}/api/dispatch/active-order?user_id=${employeeId}`);
+
+        if (!dispatchResponse.ok) {
+          throw new Error('Failed to fetch active dispatch details.');
+        }
+
+        const dispatchResult = await dispatchResponse.json();
+        
+        // Assuming the dispatchResult is the dispatch object:
+        setEmployeeDispatchData(dispatchResult.dispatchData || null); 
+
+      } catch (error) {
+        console.error("Error fetching employee dispatch data:", error);
+        setFetchError(error.message);
+      } finally {
+        setIsFetchingData(false);
+      }
+    };
+
+    // If initial dispatchData was passed from the socket (for quick display), use it.
+    // Otherwise, start the dedicated fetch process.
+    if (dispatchData) {
+        setEmployeeDispatchData(dispatchData);
+    } else {
+        fetchEmployeeDetails();
     }
 
-    return () => clearInterval(timer);
-  }, [callerNumber, dispatchData, navigate]);
+  }, [callerNumber]); // Re-run only when callerNumber changes
+
+  // Use the fetched data for rendering. Prioritize the explicitly fetched data, 
+  // falling back to the initial state data if fetching hasn't occurred yet, 
+  // or default to an empty object for safe destructuring.
+  const currentDispatchData = employeeDispatchData || dispatchData || {};
+
 
   // --- REPLICATED STYLES FROM AGENTDASHBOARD ---
-  const styles = {
+  // ... (Your styles object remains unchanged, using the same variables) ...
+    const styles = {
     // Structure Styles
     container: {
       display: 'flex',
@@ -240,7 +308,78 @@ const EmployeeHelpDeskPage = () => {
     }
   };
 
-  const c = styles.colorMap; // Shorthand for color map
+  const c = styles.colorMap;
+
+  // --- RENDERING LOGIC ---
+  const renderDispatchContent = () => {
+    if (isFetchingData) {
+      return (
+        <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>
+          Fetching employee dispatch details... (Loading...)
+        </div>
+      );
+    }
+
+    if (fetchError) {
+        return (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#ef4444', backgroundColor: '#fee2e2', borderRadius: '8px', border: '1px solid #fca5a5' }}>
+              Error: {fetchError}. Check backend status.
+            </div>
+          );
+    }
+    
+    // Check for data availability
+    if (!currentDispatchData || Object.keys(currentDispatchData).length === 0) {
+        return (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>
+              No active dispatch record found for this employee.
+            </div>
+          );
+    }
+
+    // Render data when available
+    return (
+        <div style={styles.detailGrid}>
+          
+          {/* Order ID */}
+          <div style={styles.detailItem(c.blue.text, c.blue.bg)}>
+            <span style={styles.detailLabel(c.blue.text)}>Order ID</span>
+            <span style={styles.detailValue}>{currentDispatchData.order_id || 'N/A'}</span>
+          </div>
+          
+          {/* Category */}
+          <div style={styles.detailItem(c.purple.text, c.purple.bg)}>
+            <span style={styles.detailLabel(c.purple.text)}>Category</span>
+            <span style={styles.detailValue}>{currentDispatchData.category || 'N/A'}</span>
+          </div>
+          
+          {/* Order Status (The specific field you requested) */}
+          <div style={styles.detailItem(c.yellow.text, c.yellow.bg)}>
+            <span style={styles.detailLabel(c.yellow.text)}>Order Status</span>
+            <span style={styles.detailValue}>{currentDispatchData.order_status || 'N/A'}</span>
+          </div>
+          
+          {/* Assigned Serviceman ID (The key ID used for fetching) */}
+          <div style={styles.detailItem(c.green.text, c.green.bg)}>
+            <span style={styles.detailLabel(c.green.text)}>Employee ID</span>
+            <span style={styles.detailValue}>{currentDispatchData.user_id || 'N/A'}</span>
+          </div>
+          
+          {/* Service Address */}
+          <div style={styles.fullDetailItem}>
+            <span style={styles.detailLabel(c.gray.text)}>Service Address</span>
+            <span style={styles.detailValue}>{currentDispatchData.request_address || 'N/A'}</span>
+          </div>
+          
+          {/* Customer Request (The specific field you requested) */}
+          <div style={styles.fullDetailItem}>
+            <span style={styles.detailLabel(c.gray.text)}>Employee Notes/Request</span>
+            <p style={styles.requestText}>"{currentDispatchData.order_request || 'No specific request found.'}"</p>
+          </div>
+        </div>
+    );
+  };
+
 
   return (
     <div style={styles.container}>
@@ -273,7 +412,7 @@ const EmployeeHelpDeskPage = () => {
           <header style={styles.pageHeader}>
             <div>
               <h1 style={styles.title}>Employee Help Desk</h1>
-              <p style={styles.subtitle}>{dispatchData ? 'Dispatch Record Detected' : 'No Active Dispatch'}</p>
+              <p style={styles.subtitle}>{currentDispatchData ? 'Dispatch Record Lookup' : 'Employee Details Lookup'}</p>
             </div>
             <div style={styles.callInfo}>
               <div style={styles.phoneNumber}>{callerNumber || "N/A"}</div>
@@ -289,50 +428,8 @@ const EmployeeHelpDeskPage = () => {
               <div style={styles.card}>
                 <h2 style={styles.cardTitle}>Active Dispatch Record</h2>
                 
-                {dispatchData ? (
-                  <div style={styles.detailGrid}>
-                    
-                    {/* Order ID */}
-                    <div style={styles.detailItem(c.blue.text, c.blue.bg)}>
-                      <span style={styles.detailLabel(c.blue.text)}>Order ID</span>
-                      <span style={styles.detailValue}>{dispatchData.order_id}</span>
-                    </div>
-                    
-                    {/* Category */}
-                    <div style={styles.detailItem(c.purple.text, c.purple.bg)}>
-                      <span style={styles.detailLabel(c.purple.text)}>Category</span>
-                      <span style={styles.detailValue}>{dispatchData.category}</span>
-                    </div>
-                    
-                    {/* Order Status */}
-                    <div style={styles.detailItem(c.yellow.text, c.yellow.bg)}>
-                      <span style={styles.detailLabel(c.yellow.text)}>Order Status</span>
-                      <span style={styles.detailValue}>{dispatchData.order_status}</span>
-                    </div>
-                    
-                    {/* Assigned Serviceman ID */}
-                    <div style={styles.detailItem(c.green.text, c.green.bg)}>
-                      <span style={styles.detailLabel(c.green.text)}>Assigned Serviceman ID</span>
-                      <span style={styles.detailValue}>{dispatchData.user_id}</span>
-                    </div>
-                    
-                    {/* Service Address */}
-                    <div style={styles.fullDetailItem}>
-                      <span style={styles.detailLabel(c.gray.text)}>Service Address</span>
-                      <span style={styles.detailValue}>{dispatchData.request_address}</span>
-                    </div>
-                    
-                    {/* Customer Request */}
-                    <div style={styles.fullDetailItem}>
-                      <span style={styles.detailLabel(c.gray.text)}>Customer Request</span>
-                      <p style={styles.requestText}>"{dispatchData.order_request}"</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>
-                    Loading dispatch details...
-                  </div>
-                )}
+                {renderDispatchContent()}
+                
               </div>
 
               {/* Action Buttons */}
@@ -352,7 +449,7 @@ const EmployeeHelpDeskPage = () => {
                 <h3 style={styles.cardTitle}>Ticket Status</h3>
                 <div style={styles.ticketBadge}>
                    <p style={styles.ticketLabel}>Associated Ticket ID</p>
-                   <p style={styles.ticketID}>{dispatchData?.ticket_id || "N/A"}</p>
+                   <p style={styles.ticketID}>{currentDispatchData.ticket_id || "N/A"}</p>
                 </div>
               </div>
 
