@@ -24,66 +24,79 @@ const EmployeeHelpDeskPage = () => {
     return () => clearInterval(timer);
   }, []);
 
+
   // ----------------------------------------------------------------------
-  // ⚡ NEW LOGIC: Separate Fetching Hook for Employee/Dispatch Details 
-  // ----------------------------------------------------------------------
-  useEffect(() => {
+// ⚡ REVISED LOGIC: Always fetch when callerNumber is present
+// ----------------------------------------------------------------------
+useEffect(() => {
     if (!callerNumber) return; // Stop if no phone number is provided
 
+    // If initial dispatchData was passed, set it immediately for quick UI response
+    if (dispatchData && !employeeDispatchData) {
+        setEmployeeDispatchData(dispatchData);
+    }
+    
+    // 💡 Frontend Log for Debugging
+    console.log(`[Frontend Fetch] Attempting lookup for number: ${callerNumber}`);
+
     const fetchEmployeeDetails = async () => {
-      setIsFetchingData(true);
-      setFetchError(null);
-      setEmployeeDispatchData(null); // Clear previous data
+        setIsFetchingData(true);
+        setFetchError(null);
+        // Do NOT clear employeeDispatchData here, let it update when the fetch succeeds/fails.
 
-      try {
-        // STEP 1: Fetch Employee user_id and other basic details using the phone number
-        // We assume a backend endpoint that resolves the phone number to the unique employee ID
-        const userResponse = await fetch(`${BACKEND_URL}/api/employee/details?mobile_number=${callerNumber}`);
-        
-        if (!userResponse.ok) {
-          throw new Error('Failed to fetch employee details or ID.');
-        }
+        try {
+            // STEP 1: Fetch Employee user_id and other basic details using the phone number
+            const userUrl = `${BACKEND_URL}/api/employee/details?mobile_number=${callerNumber}`;
+            console.log(`[Frontend Fetch] STEP 1: Calling: ${userUrl}`);
+            const userResponse = await fetch(userUrl);
+            
+            if (!userResponse.ok) {
+                // If it's a 404, we treat it as "Employee Not Found" and stop
+                if (userResponse.status === 404) {
+                    throw new Error("Employee not found for this number (404).");
+                }
+                throw new Error(`Failed to fetch employee details. Status: ${userResponse.status}`);
+            }
 
-        const employeeDetails = await userResponse.json();
-        // The backend response should contain: { success: true, user_id: 'E123', name: 'John Doe', ... }
-        const employeeId = employeeDetails.user_id;
+            const employeeDetails = await userResponse.json();
+            const employeeId = employeeDetails.user_id;
 
-        if (!employeeId) {
-            setFetchError("Employee ID not found for this number.");
+            if (!employeeId) {
+                setFetchError("Employee ID not resolved from mobile number.");
+                setIsFetchingData(false);
+                return;
+            }
+            console.log(`[Frontend Fetch] STEP 1 Success. Found Employee ID: ${employeeId}`);
+
+
+            // STEP 2: Use the fetched user_id to get the active dispatch/order details
+            const dispatchUrl = `${BACKEND_URL}/api/dispatch/active-order?user_id=${employeeId}`;
+            console.log(`[Frontend Fetch] STEP 2: Calling: ${dispatchUrl}`);
+            const dispatchResponse = await fetch(dispatchUrl);
+
+            if (!dispatchResponse.ok) {
+                throw new Error(`Failed to fetch active dispatch details. Status: ${dispatchResponse.status}`);
+            }
+
+            const dispatchResult = await dispatchResponse.json();
+            
+            console.log(`[Frontend Fetch] STEP 2 Success. Dispatch data received: ${Object.keys(dispatchResult.dispatchData || {}).length} keys.`);
+            setEmployeeDispatchData(dispatchResult.dispatchData || {}); 
+
+        } catch (error) {
+            console.error("[Frontend Fetch] Total Error:", error.message);
+            setFetchError(error.message);
+            // In case of error, ensure no dispatch data is displayed from the old state
+            setEmployeeDispatchData({}); 
+        } finally {
             setIsFetchingData(false);
-            return;
+            console.log("[Frontend Fetch] Process complete.");
         }
-
-        // STEP 2: Use the fetched user_id to get the active dispatch/order details
-        // This endpoint fetches the latest active order/dispatch for the given user_id
-        const dispatchResponse = await fetch(`${BACKEND_URL}/api/dispatch/active-order?user_id=${employeeId}`);
-
-        if (!dispatchResponse.ok) {
-          throw new Error('Failed to fetch active dispatch details.');
-        }
-
-        const dispatchResult = await dispatchResponse.json();
-        
-        // Assuming the dispatchResult is the dispatch object:
-        setEmployeeDispatchData(dispatchResult.dispatchData || null); 
-
-      } catch (error) {
-        console.error("Error fetching employee dispatch data:", error);
-        setFetchError(error.message);
-      } finally {
-        setIsFetchingData(false);
-      }
     };
 
-    // If initial dispatchData was passed from the socket (for quick display), use it.
-    // Otherwise, start the dedicated fetch process.
-    if (dispatchData) {
-        setEmployeeDispatchData(dispatchData);
-    } else {
-        fetchEmployeeDetails();
-    }
+    fetchEmployeeDetails();
 
-  }, [callerNumber]); // Re-run only when callerNumber changes
+}, [callerNumber]); // Re-run only when callerNumber changes
 
   // Use the fetched data for rendering. Prioritize the explicitly fetched data, 
   // falling back to the initial state data if fetching hasn't occurred yet, 
