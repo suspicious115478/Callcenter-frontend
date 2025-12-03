@@ -84,7 +84,7 @@ const EmployeeHelpDeskPage = () => {
 
 
     // ----------------------------------------------------------------------
-    // ⚡ LOGIC: Handle Cancellation with Redirect to Reassignment
+    // ⚡ LOGIC: Handle Cancellation
     // ----------------------------------------------------------------------
     const handleCancelTicket = async () => {
         const orderId = currentDispatchData.order_id;
@@ -98,14 +98,13 @@ const EmployeeHelpDeskPage = () => {
             alert("⚠️ Please enter a reason for cancellation in the note box.");
             return;
         }
-        if (!window.confirm("⚠️ Are you sure you want to CANCEL this ticket?\n\nYou will be redirected to assign a new technician.")) {
+        if (!window.confirm("⚠️ Are you sure you want to CANCEL this ticket?\n\nThis will update the status to 'Cancelled' in the database.")) {
             return;
         }
 
         setIsProcessing(true);
 
         try {
-            // Step 1: Cancel the order
             const response = await fetch(`${BACKEND_URL}/call/dispatch/cancel`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
@@ -121,40 +120,20 @@ const EmployeeHelpDeskPage = () => {
                 throw new Error(result.message || "Failed to cancel order");
             }
 
-            alert("✅ Ticket Cancelled Successfully. Redirecting to assign new technician...");
-
-            // Step 2: Fetch address_id using phone number
-            const phoneNumber = currentDispatchData.phone_number || currentDispatchData.customer_phone;
+            alert("✅ Ticket Cancelled Successfully.");
             
-            if (!phoneNumber) {
-                throw new Error("Phone number not available for address lookup");
-            }
-
-            const addressResponse = await fetch(`${BACKEND_URL}/call/address/by-phone?phoneNumber=${phoneNumber}`);
-            
-            if (!addressResponse.ok) {
-                throw new Error("Failed to fetch address details");
-            }
-
-            const addressData = await addressResponse.json();
-
-            // Step 3: Navigate to ServiceManSelectionPage with all required data
-            navigate('/serviceman-selection', {
-                state: {
-                    ticketId: currentDispatchData.ticket_id,
-                    orderId: currentDispatchData.order_id,
-                    requestDetails: `${currentDispatchData.order_request || ''}\n\n[REASSIGNMENT REASON]: ${noteText}`,
-                    selectedAddressId: addressData.address_id,
-                    serviceName: currentDispatchData.category,
-                    phoneNumber: phoneNumber,
-                    isReassignment: true,
-                    cancelledOrderId: currentDispatchData.order_id
-                }
-            });
+            // Optimistic UI Update: Update local state immediately
+            setEmployeeDispatchData(prev => ({
+                ...prev,
+                order_status: 'Cancelled',
+                order_request: (prev.order_request || '') + `\n\n[CANCELLED]: ${noteText}`
+            }));
+            setNoteText(''); // Clear input
 
         } catch (error) {
             console.error("Cancel Error:", error);
-            alert(`❌ Error during cancellation: ${error.message}`);
+            alert(`❌ Error cancelling ticket: ${error.message}`);
+        } finally {
             setIsProcessing(false);
         }
     };
@@ -277,7 +256,7 @@ const EmployeeHelpDeskPage = () => {
                     <div style={styles.detailItem}><span style={styles.detailLabel}>Assigned Employee ID</span><span style={styles.detailValue}>**{currentDispatchData.user_id || 'N/A'}**</span></div>
                     <div style={styles.detailItem}><span style={styles.detailLabel}>Service Category</span><span style={styles.detailValue}>**{currentDispatchData.category || 'N/A'}**</span></div>
                     <div style={styles.detailItem}><span style={styles.detailLabel}>Dispatch Date</span><span style={styles.detailValue}>{currentDispatchData.dispatched_at ? new Date(currentDispatchData.dispatched_at).toLocaleDateString() : 'N/A'}</span></div>
-                    <div style={styles.detailItem}><span style={styles.detailLabel}>Customer Contact</span><span style={styles.detailValue}>{currentDispatchData.customer_phone || currentDispatchData.phone_number || 'N/A'}</span></div>
+                    <div style={styles.detailItem}><span style={styles.detailLabel}>Customer Contact</span><span style={styles.detailValue}>{currentDispatchData.customer_phone || 'N/A'}</span></div>
                 </div>
                 <div style={styles.fullDetail}><span style={styles.detailLabel}>Service Address</span><p style={styles.detailValue}>{currentDispatchData.request_address || 'N/A'}</p></div>
                 <div style={styles.fullDetail}><span style={styles.detailLabel}>Employee's Last Note/Request</span><p style={styles.requestText}>"{currentDispatchData.order_request || 'No specific note or request filed.'}"</p></div>
@@ -333,13 +312,13 @@ const EmployeeHelpDeskPage = () => {
                             <h3 style={styles.cardTitle}>💬 Resolution & Cancellation</h3>
                             
                             <p style={{fontSize: '0.9rem', color: '#6b7280', marginBottom: '10px'}}>
-                                To <b>Cancel</b> this ticket and reassign to a new technician, please write the reason below and click the red Cancel button.
+                                To <b>Cancel</b> this ticket, please write the reason below and click the red Cancel button.
                             </p>
 
                             <textarea
                                 style={styles.inputField}
                                 rows="8"
-                                placeholder="Reason for cancellation (Required) - Will be used for reassignment..."
+                                placeholder="Reason for cancellation (Required) OR General Notes..."
                                 value={noteText}
                                 onChange={(e) => setNoteText(e.target.value)}
                             ></textarea>
@@ -356,7 +335,7 @@ const EmployeeHelpDeskPage = () => {
                                     onClick={handleCancelTicket}
                                     disabled={isProcessing || !currentDispatchData.order_id}
                                 >
-                                    {isProcessing ? 'Processing...' : '🚫 CANCEL & REASSIGN'}
+                                    {isProcessing ? 'Processing...' : '🚫 CANCEL TICKET'}
                                 </button>
                             </div>
                         </div>
