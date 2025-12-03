@@ -129,6 +129,7 @@ const EmployeeHelpDeskPage = () => {
 navigate('/user/servicemen', { // <-- CORRECTED PATH HERE
     state: {
         orderId: orderId,
+        category: serviceCategory,
         // Passing these along in case the next page needs context
         previousEmployeeId: currentDispatchData.user_id,
         cancellationReason: noteText,
