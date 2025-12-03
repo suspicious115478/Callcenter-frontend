@@ -93,6 +93,7 @@ const EmployeeHelpDeskPage = () => {
         const orderRequest = currentDispatchData.order_request;
         const customerPhone = currentDispatchData.customer_phone;
         const ticketId = currentDispatchData.ticket_id; // Include this if your backend needs it
+        const activeCustomerName = customerName || "Unknown Customer";
         // Validation
         if (!orderId) {
             alert("No active ticket ID found to cancel.");
@@ -138,6 +139,7 @@ navigate('/user/servicemen', { // <-- CORRECTED PATH HERE
         orderRequest: orderRequest,     // <-- NEW: Request
         customerPhone: customerPhone,   // <-- NEW: Customer Contact
         ticketId: ticketId,
+        customerName: activeCustomerName,
         // Passing these along in case the next page needs context
         previousEmployeeId: currentDispatchData.user_id,
         cancellationReason: noteText,
