@@ -327,7 +327,34 @@ export function ServiceManSelectionPage() {
         }
     }, [previousOrderId, cancellationReason]);
 
+// ------------------------------------------------------------------
+    // 🔥 FIX: NEW useEffect to trigger serviceman fetch
+    // This runs whenever the service name or coordinates are ready.
+    // ------------------------------------------------------------------
+    useEffect(() => {
+        if (activeServiceName && userCoordinates) {
+            setDispatchStatus(`Searching for ${activeServiceName} specialists...`);
+            
+            fetchServicemenFromBackend(activeServiceName)
+                .then(data => {
+                    setRawServicemen(data);
 
+                    if (data.length === 0) {
+                        setDispatchStatus(`⚠️ No active ${activeServiceName} specialists found.`);
+                    } else {
+                        // In a real scenario, you'd sort by distance/rating here
+                        setSortedServicemen(data); 
+                        setDispatchStatus(`Found ${data.length} available specialists. Select one to dispatch.`);
+                    }
+                })
+                .catch(() => {
+                    setDispatchStatus("Error fetching servicemen.");
+                });
+        } else if (activeServiceName && !userCoordinates) {
+             setDispatchStatus("Waiting for address geocoding to determine distance...");
+        }
+    }, [activeServiceName, userCoordinates]); // Dependencies are key to re-triggering the fetch!
+    
     // ------------------------------------------------------------------
     // ⚡ NORMAL ADDRESS LOGIC (If NOT Re-dispatch)
     // ------------------------------------------------------------------
