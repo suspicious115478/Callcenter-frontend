@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-// Note: Kept URL exactly as provided
 const BACKEND_URL = 'https://callcenter-baclend.onrender.com';
 
 const EmployeeHelpDeskPage = () => {
@@ -17,7 +16,7 @@ const EmployeeHelpDeskPage = () => {
     const [fetchError, setFetchError] = useState(null);
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
-    // ⚡ State for Notes & Cancellation Processing
+    // ⚡ NEW: State for Notes & Cancellation Processing
     const [noteText, setNoteText] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
 
@@ -85,7 +84,7 @@ const EmployeeHelpDeskPage = () => {
 
 
     // ----------------------------------------------------------------------
-    // ⚡ LOGIC: Handle Cancellation & Redirect
+    // ⚡ LOGIC: Handle Cancellation & Navigation
     // ----------------------------------------------------------------------
     const handleCancelTicket = async () => {
         const orderId = currentDispatchData.order_id;
@@ -99,7 +98,7 @@ const EmployeeHelpDeskPage = () => {
             alert("⚠️ Please enter a reason for cancellation in the note box.");
             return;
         }
-        if (!window.confirm("⚠️ Are you sure you want to CANCEL this ticket?\n\nThis will update the status to 'Cancelled' and redirect you to select a new serviceman.")) {
+        if (!window.confirm("⚠️ Are you sure you want to CANCEL this ticket?\n\nThis will update the status to 'Cancelled' and redirect you to assign a new technician.")) {
             return;
         }
 
@@ -121,22 +120,26 @@ const EmployeeHelpDeskPage = () => {
                 throw new Error(result.message || "Failed to cancel order");
             }
 
-            alert("✅ Ticket Cancelled Successfully. Redirecting to dispatch new technician...");
-
-            // ⚡ UPDATE: Redirect to ServiceManSelectionPage with order_id
+            alert("✅ Ticket Cancelled Successfully. Redirecting to Technician Selection...");
+            
+            // ---------------------------------------------------------
+            // 🚀 NAVIGATION UPDATE: 
+            // Navigate to ServiceManSelectionPage with the order_id
+            // ---------------------------------------------------------
             navigate('/service-man-selection', { 
                 state: { 
-                    order_id: orderId,
-                    // Optional: Pass these if needed for context on the next page
-                    previous_agent_note: noteText,
-                    customer_phone: callerNumber 
+                    orderId: orderId,
+                    // Passing these along in case the next page needs context
+                    previousEmployeeId: currentDispatchData.user_id,
+                    cancellationReason: noteText,
+                    callerNumber: callerNumber 
                 } 
             });
 
         } catch (error) {
             console.error("Cancel Error:", error);
             alert(`❌ Error cancelling ticket: ${error.message}`);
-            setIsProcessing(false); // Only stop processing on error (on success we navigate away)
+            setIsProcessing(false); // Only stop processing on error (if success, we navigate away)
         }
     };
 
@@ -337,7 +340,7 @@ const EmployeeHelpDeskPage = () => {
                                     onClick={handleCancelTicket}
                                     disabled={isProcessing || !currentDispatchData.order_id}
                                 >
-                                    {isProcessing ? 'Processing...' : '🚫 CANCEL & REDISPATCH'}
+                                    {isProcessing ? 'Processing...' : '🚫 CANCEL & REASSIGN'}
                                 </button>
                             </div>
                         </div>
