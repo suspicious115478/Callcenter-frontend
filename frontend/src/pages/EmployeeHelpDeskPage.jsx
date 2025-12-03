@@ -122,19 +122,20 @@ const EmployeeHelpDeskPage = () => {
 
             alert("✅ Ticket Cancelled Successfully. Redirecting to Technician Selection...");
             
-            // ---------------------------------------------------------
-            // 🚀 NAVIGATION UPDATE: 
-            // Navigate to ServiceManSelectionPage with the order_id
-            // ---------------------------------------------------------
-            navigate('/service-man-selection', { 
-                state: { 
-                    orderId: orderId,
-                    // Passing these along in case the next page needs context
-                    previousEmployeeId: currentDispatchData.user_id,
-                    cancellationReason: noteText,
-                    callerNumber: callerNumber 
-                } 
-            });
+         // ---------------------------------------------------------
+// 🚀 NAVIGATION UPDATE:
+// Navigate to ServiceManSelectionPage with the order_id
+// ---------------------------------------------------------
+navigate('/user/servicemen', { // <-- CORRECTED PATH HERE
+    state: {
+        orderId: orderId,
+        // Passing these along in case the next page needs context
+        previousEmployeeId: currentDispatchData.user_id,
+        cancellationReason: noteText,
+        callerNumber: callerNumber
+    }
+});
+
 
         } catch (error) {
             console.error("Cancel Error:", error);
