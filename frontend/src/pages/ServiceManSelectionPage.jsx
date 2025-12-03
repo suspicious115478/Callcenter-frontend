@@ -39,7 +39,6 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
     return parseFloat(distance.toFixed(2)); // Return number with 2 decimals
 };
 
-
 // --- HELPER: Fetch Agent's Admin ID from Backend ---
 const fetchAgentAdminId = async (firebaseUid) => {
     if (!firebaseUid) return null;
@@ -60,7 +59,6 @@ const fetchAgentAdminId = async (firebaseUid) => {
         return 'Error Fetching Admin ID';
     }
 };
-
 
 // --- INLINE STYLES (Unchanged) ---
 const styles = {
@@ -216,7 +214,7 @@ export function ServiceManSelectionPage() {
     const navigate = useNavigate();
     
     // ------------------------------------------------------------------
-    // ⚡ EXTRACT STATE: Handle both Normal Flow and Re-Dispatch Flow
+    // ⚡ INITIAL STATE FROM ROUTER
     // ------------------------------------------------------------------
     const { 
         // Normal Flow Props
@@ -229,27 +227,35 @@ export function ServiceManSelectionPage() {
         // Re-Dispatch/Cancellation Flow Props
         orderId: previousOrderId, // The cancelled ID
         cancellationReason,
-        // Fallbacks if mapping from different pages
+        // Fallbacks
         callerNumber, 
         category, 
         request_address 
     } = location.state || {};
     
-    // normalize variables
-    const activePhoneNumber = paramPhoneNumber || callerNumber;
-    const activeServiceName = paramServiceName || category;
-    const activeTicketId = paramTicketId || 'UNKNOWN_TKT'; // In re-dispatch, we might not have TKT ID if not passed, handled below
-    const activeRequest = paramRequestDetails || (cancellationReason ? `Re-dispatch after cancel: ${cancellationReason}` : 'Service Request');
-
-    // State
-    const [orderId, setOrderId] = useState(null);
-    const [fetchedAddressLine, setFetchedAddressLine] = useState('Loading address...');
-    const [userCoordinates, setUserCoordinates] = useState(null); 
-    const [memberId, setMemberId] = useState('Searching...');
+    // ------------------------------------------------------------------
+    // ⚡ STATE VARIABLES
+    // We use state now because we might update these values via API fetch 
+    // if a previousOrderId is present.
+    // ------------------------------------------------------------------
+    const [activeTicketId, setActiveTicketId] = useState(paramTicketId || 'UNKNOWN_TKT');
+    const [activePhoneNumber, setActivePhoneNumber] = useState(paramPhoneNumber || callerNumber);
+    const [activeServiceName, setActiveServiceName] = useState(paramServiceName || category);
+    const [activeRequest, setActiveRequest] = useState(
+        paramRequestDetails || (cancellationReason ? `Re-dispatch after cancel: ${cancellationReason}` : 'Service Request')
+    );
+    const [fetchedAddressLine, setFetchedAddressLine] = useState(request_address || 'Loading address...');
+    
+    // Admin ID & Member ID
     const [adminId, setAdminId] = useState('Fetching...'); 
-
-    // UI and Dispatch State
+    const [memberId, setMemberId] = useState('Searching...');
+    
+    // Core Logic State
+    const [orderId, setOrderId] = useState(null);
+    const [userCoordinates, setUserCoordinates] = useState(null); 
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+    
+    // Servicemen Data
     const [rawServicemen, setRawServicemen] = useState([]);
     const [sortedServicemen, setSortedServicemen] = useState([]);
     const [selectedServiceman, setSelectedServiceman] = useState(null);
@@ -261,47 +267,73 @@ export function ServiceManSelectionPage() {
         return () => clearInterval(timer);
     }, []);
 
-    // Generate NEW unique orderId (Even for re-dispatch, we usually create a new order row)
+    // Generate NEW unique orderId (Even for re-dispatch, we create a new order row)
     useEffect(() => {
         const newOrderId = generateUniqueOrderId();
         setOrderId(newOrderId);
         console.log(`[ORDER CREATION] Generated unique Order ID: ${newOrderId}`);
     }, []); 
     
-    // Fetch Member ID
-    useEffect(() => {
-        if (activePhoneNumber) {
-            const loadMemberId = async () => {
-                const id = await fetchMemberId(activePhoneNumber);
-                setMemberId(id);
-            };
-            loadMemberId();
-        } else {
-            setMemberId('N/A');
-        }
-    }, [activePhoneNumber]);
-
-    // Fetch Admin ID
-    useEffect(() => {
-        const user = auth.currentUser;
-        if (user) {
-            setAdminId('Loading...');
-            const loadAdminId = async () => {
-                const id = await fetchAgentAdminId(user.uid);
-                setAdminId(id);
-            };
-            loadAdminId();
-        } else {
-            setAdminId('N/A - Agent not logged in.');
-        }
-    }, []);
-
     // ------------------------------------------------------------------
-    // ⚡ ADDRESS LOGIC: Handle ID lookup OR Raw String (from cancellation)
+    // ⚡ CRITICAL: FETCH DETAILS IF PREVIOUS ORDER ID EXISTS
     // ------------------------------------------------------------------
     useEffect(() => {
-        // Case 1: We have an Address ID (Normal flow)
-        if (selectedAddressId) {
+        if (previousOrderId) {
+            console.log(`[RE-DISPATCH DETECTED] Fetching details for Source Order ID: ${previousOrderId}`);
+            setDispatchStatus("Fetching details from cancelled order...");
+
+            const fetchSourceOrderDetails = async () => {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/call/dispatch/details/${previousOrderId}`);
+                    if (!response.ok) throw new Error("Failed to fetch source order details");
+                    
+                    const data = await response.json();
+                    
+                    if (data) {
+                        console.log("[SOURCE DATA FETCHED]", data);
+                        // Update State with DB data (Overwrites passed props)
+                        if (data.ticket_id) setActiveTicketId(data.ticket_id);
+                        if (data.phone_number) setActivePhoneNumber(data.phone_number);
+                        if (data.admin_id) setAdminId(data.admin_id);
+                        if (data.request_address) {
+                            setFetchedAddressLine(data.request_address);
+                            handleGeocoding(data.request_address); // Trigger geocode for fetched address
+                        }
+                        if (data.category) setActiveServiceName(data.category);
+                        
+                        // Append previous request info
+                        const newRequestNote = data.order_request 
+                            ? `${data.order_request} (Re-dispatch Reason: ${cancellationReason || 'Admin Action'})`
+                            : `Re-dispatch Reason: ${cancellationReason}`;
+                        setActiveRequest(newRequestNote);
+                    }
+                } catch (error) {
+                    console.error("Error fetching source order details:", error);
+                    setDispatchStatus("⚠️ Error loading previous order details.");
+                }
+            };
+
+            fetchSourceOrderDetails();
+        } 
+        // If no previousOrderId, but we have an admin logged in via Firebase
+        else {
+             const user = auth.currentUser;
+             if (user) {
+                 setAdminId('Loading...');
+                 fetchAgentAdminId(user.uid).then(id => setAdminId(id));
+             } else {
+                 setAdminId('N/A - Agent not logged in.');
+             }
+        }
+    }, [previousOrderId, cancellationReason]);
+
+
+    // ------------------------------------------------------------------
+    // ⚡ NORMAL ADDRESS LOGIC (If NOT Re-dispatch)
+    // ------------------------------------------------------------------
+    useEffect(() => {
+        // Only run this if we DIDN'T just fetch the address from previousOrderId logic
+        if (!previousOrderId && selectedAddressId) {
             const fetchAndGeocodeAddress = async () => {
                 const fullUrl = `${API_BASE_URL}/call/address/lookup/${selectedAddressId}`;
                 setFetchedAddressLine('Fetching address details...');
@@ -321,15 +353,12 @@ export function ServiceManSelectionPage() {
             };
             fetchAndGeocodeAddress();
         } 
-        // Case 2: We have the raw address string (Re-dispatch flow)
-        else if (request_address) {
+        else if (!previousOrderId && request_address) {
+            // Fallback for passed address string without ID
             setFetchedAddressLine(request_address);
             handleGeocoding(request_address);
         }
-        else {
-             setFetchedAddressLine('Unknown Address');
-        }
-    }, [selectedAddressId, request_address]); 
+    }, [selectedAddressId, request_address, previousOrderId]); 
 
     // Helper to process geocoding
     const handleGeocoding = async (rawAddress) => {
@@ -345,6 +374,21 @@ export function ServiceManSelectionPage() {
             setUserCoordinates({ lat: 'N/A', lon: 'N/A' });
         }
     };
+
+    // ------------------------------------------------------------------
+    // ⚡ FETCH MEMBER ID
+    // ------------------------------------------------------------------
+    useEffect(() => {
+        if (activePhoneNumber) {
+            const loadMemberId = async () => {
+                const id = await fetchMemberId(activePhoneNumber);
+                setMemberId(id);
+            };
+            loadMemberId();
+        } else {
+            setMemberId('N/A');
+        }
+    }, [activePhoneNumber]);
 
 
     // ------------------------------------------------------------------
@@ -390,7 +434,7 @@ export function ServiceManSelectionPage() {
             });
 
             setSortedServicemen(sortedList);
-            if (!dispatchStatus || dispatchStatus.includes('Searching') || dispatchStatus.includes('No active')) {
+            if (!dispatchStatus || dispatchStatus.includes('Searching') || dispatchStatus.includes('No active') || dispatchStatus.includes('Fetching')) {
                      setDispatchStatus(`${sortedList.length} specialists found near you.`);
             }
         } else if (rawServicemen.length > 0) {
@@ -464,9 +508,7 @@ export function ServiceManSelectionPage() {
     // ------------------------------------------------------------------
     // ⚡ ERROR / MISSING DATA STATE
     // ------------------------------------------------------------------
-    // We check for minimal required data to function. 
-    // If Re-dispatching, we might not have TicketID, but we need at least Service Name and Address.
-    if ((!activeServiceName || !fetchedAddressLine) && !location.state) {
+    if ((!activeServiceName || !fetchedAddressLine) && !location.state && !previousOrderId) {
         return (
             <div style={{ ...styles.container, justifyContent: 'center', alignItems: 'center' }}>
                 <h1 style={{ color: '#ef4444' }}>Error: Navigation Data Missing</h1>
@@ -563,7 +605,7 @@ export function ServiceManSelectionPage() {
                             ))
                         ) : (
                             <p style={{ color: '#ef4444', fontStyle: 'italic' }}>
-                                {dispatchStatus?.includes('Searching') ? 'Loading technicians...' : 'No available technicians match the criteria.'}
+                                {dispatchStatus?.includes('Searching') || dispatchStatus?.includes('Fetching') ? 'Loading technicians...' : 'No available technicians match the criteria.'}
                             </p>
                         )}
                     </div>
