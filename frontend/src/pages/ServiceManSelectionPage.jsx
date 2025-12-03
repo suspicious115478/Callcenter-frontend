@@ -474,6 +474,15 @@ export function ServiceManSelectionPage() {
     // ⚡ DISPATCH LOGIC
     // ------------------------------------------------------------------
     const handleDispatch = async () => {
+        // 1. Get the raw state passed from the previous page
+    const { 
+        category, 
+        requestAddress, 
+        orderRequest, 
+        customerPhone, 
+        customerName, // <-- We now receive this
+        ticketId 
+    } = location.state || {};
         if (!selectedServiceman) {
             setDispatchStatus('❗️ Please select a serviceman to dispatch.');
             return;
@@ -487,21 +496,27 @@ export function ServiceManSelectionPage() {
             return;
         }
 
-        const dispatchData = {
-            user_id: selectedServiceman.user_id, // Serviceman's ID
-            category: activeServiceName,            
-            request_address: fetchedAddressLine, 
-            order_status: 'Assigned',            
-            order_request: activeRequest,       
-
-            order_id: orderId,                   // The NEW Order ID
-            ticket_id: activeTicketId,           // Keep the original ticket ID
-            phone_number: activePhoneNumber,          
-            admin_id: adminId,
-            
-            // Optional: Track if this was a re-dispatch
-            previous_order_id: previousOrderId || null 
-        };
+       const dispatchData = {
+        user_id: selectedServiceman.user_id,
+        
+        // Fix: Use local state OR fallback to passed prop
+        category: activeServiceName || category,            
+        request_address: fetchedAddressLine || requestAddress, 
+        order_request: activeRequest || orderRequest,       
+        phone_number: activePhoneNumber || customerPhone,    
+        
+        ticket_id: activeTicketId || ticketId,           
+        order_id: orderId,
+        admin_id: adminId,
+        order_status: 'Assigned',
+        
+        // 🔥 FIX 2: Add missing fields to prevent 500 Error
+        customer_name: customerName || "Valued Customer", 
+        customer_phone: activePhoneNumber || customerPhone, // Backend often checks this key specifically
+        dispatched_at: new Date().toISOString(), // TIMESTAMP IS CRITICAL
+        
+        previous_order_id: previousOrderId || null 
+    };
 
         setDispatchStatus(`Dispatching ${selectedServiceman.full_name || selectedServiceman.name}...`);
 
