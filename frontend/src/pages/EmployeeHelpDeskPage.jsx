@@ -88,7 +88,7 @@ const EmployeeHelpDeskPage = () => {
     // ----------------------------------------------------------------------
     const handleCancelTicket = async () => {
         const orderId = currentDispatchData.order_id;
-
+const serviceCategory = currentDispatchData.category;
         // Validation
         if (!orderId) {
             alert("No active ticket ID found to cancel.");
