@@ -88,7 +88,11 @@ const EmployeeHelpDeskPage = () => {
     // ----------------------------------------------------------------------
     const handleCancelTicket = async () => {
         const orderId = currentDispatchData.order_id;
-const serviceCategory = currentDispatchData.category;
+        const serviceCategory = currentDispatchData.category;
+        const requestAddress = currentDispatchData.request_address;
+        const orderRequest = currentDispatchData.order_request;
+        const customerPhone = currentDispatchData.customer_phone;
+        const ticketId = currentDispatchData.ticket_id; // Include this if your backend needs it
         // Validation
         if (!orderId) {
             alert("No active ticket ID found to cancel.");
@@ -130,6 +134,10 @@ navigate('/user/servicemen', { // <-- CORRECTED PATH HERE
     state: {
         orderId: orderId,
         category: serviceCategory,
+        requestAddress: requestAddress, // <-- NEW: Address
+        orderRequest: orderRequest,     // <-- NEW: Request
+        customerPhone: customerPhone,   // <-- NEW: Customer Contact
+        ticketId: ticketId,
         // Passing these along in case the next page needs context
         previousEmployeeId: currentDispatchData.user_id,
         cancellationReason: noteText,
