@@ -149,7 +149,7 @@ export default function UserDashboardPage() {
         try {
             const actualPhoneNumber = phoneNumber; 
 
-            const response = await fetch(`${BACKEND_URL}/ticket`, {
+            const response = await fetch(`${BACKEND_URL}/call/ticket`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -540,4 +540,5 @@ export default function UserDashboardPage() {
         </div>
     );
 }
+
 
