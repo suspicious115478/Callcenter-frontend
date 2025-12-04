@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import io from "socket.io-client";
 import { BACKEND_URL } from "../config";
 import CallCard from "./CallCard";
+// 🚨 NEW IMPORT: Import useNavigate for clean, stateful redirection
 import { useNavigate } from "react-router-dom"; 
 import { getAuth, signOut } from "firebase/auth";
 import { app } from "../config"; 
@@ -10,25 +11,23 @@ import { app } from "../config";
 const auth = getAuth(app); 
 
 export default function AgentDashboard() {
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // 👈 Initialize useNavigate hook
 
   const [status, setStatus] = useState("offline");
   const [incomingCalls, setIncomingCalls] = useState([]);
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
-  
-  // UI State for hover effects (simulating CSS hover in inline styles)
-  const [isHoveringLogout, setIsHoveringLogout] = useState(false);
-
-  const isOnline = status === "online";
 
   useEffect(() => {
+    // Clock timer for the header
     const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
 
+    // 1. Initial status fetch
     fetch(`${BACKEND_URL}/agent/status`)
       .then(res => res.json())
       .then(data => setStatus(data.status))
       .catch(err => console.error("Failed to fetch status:", err));
 
+    // 2. Socket.IO Listener for Incoming Calls
     const socket = io(BACKEND_URL);
 
     socket.on("incoming-call", (callData) => {
@@ -39,37 +38,47 @@ export default function AgentDashboard() {
       ]);
     });
 
+    // Cleanup socket listener on component unmount
     return () => {
       socket.off("incoming-call");
       clearInterval(timer);
     };
   }, []);
 
-  const handleCallAccept = (acceptedCall) => {
-    const dashboardLink = acceptedCall.dashboardLink;
-    const callerNumber = acceptedCall.caller || null;
-    const dispatchData = acceptedCall.dispatchDetails || null; 
-    const customerName = acceptedCall.userName || null;
+ // Handle clicking "Accept" on a card
+  const handleCallAccept = (acceptedCall) => {
+    // 1. Check for the mandatory redirection link
+    const dashboardLink = acceptedCall.dashboardLink;
 
-    if (dashboardLink) {
-      console.log(`AgentDashboard: Accepting call. Redirecting to: ${dashboardLink}`);
-      
-      navigate(dashboardLink, {
-        state: {
-          callerNumber: callerNumber,
-          dispatchData: dispatchData,
-          customerName: customerName
-        }
-      });
-    } else {
-      console.error("AgentDashboard: Cannot redirect. Missing dashboardLink.", acceptedCall); 
-    }
-    
-    setIncomingCalls(prevCalls =>
-      prevCalls.filter(call => call.id !== acceptedCall.id)
-    );
-  };
+    // 2. Collect all state data, even if undefined in the source payload
+    const callerNumber = acceptedCall.caller || null;
+    const dispatchData = acceptedCall.dispatchDetails || null; 
+    const customerName = acceptedCall.userName || null;
 
+    if (dashboardLink) {
+      console.log(`AgentDashboard: Accepting call. Redirecting to: ${dashboardLink}`); // 🚀 LOG
+      
+      // Use 'navigate' to push state, passing explicit (or null) values
+      navigate(dashboardLink, {
+        state: {
+          // Pass the values. If they were null/undefined above, they are passed as such.
+          callerNumber: callerNumber,
+          dispatchData: dispatchData,
+          customerName: customerName
+        }
+      });
+    } else {
+      // If dashboardLink is missing, this is the current blocker from the backend
+      console.error("AgentDashboard: Cannot redirect. Missing dashboardLink.", acceptedCall); 
+    }
+    
+    // Remove from list
+    setIncomingCalls(prevCalls =>
+      prevCalls.filter(call => call.id !== acceptedCall.id)
+    );
+  };
+
+  // Toggle Agent Status
   const toggleStatus = () => {
     const newStatus = status === "offline" ? "online" : "offline";
     fetch(`${BACKEND_URL}/agent/status`, {
@@ -82,8 +91,10 @@ export default function AgentDashboard() {
     setStatus(newStatus);
   };
   
+  // Handles logging out the agent
   const handleLogout = async () => {
     try {
+      // 1. Tell the backend the agent is offline (optional, but good practice)
       if (status === 'online') {
           await fetch(`${BACKEND_URL}/agent/status`, {
               method: "POST",
@@ -91,321 +102,304 @@ export default function AgentDashboard() {
               body: JSON.stringify({ status: "offline" })
           });
       }
+      
+      // 2. Sign the user out of Firebase
       await signOut(auth);
+      
+      console.log("Agent logged out successfully.");
+      
     } catch (error) {
       console.error("Logout Error:", error);
       alert("Failed to log out. Please try again.");
     }
   };
 
-  // --- MODERNIZED STYLES ---
+  const isOnline = status === "online";
+
+  // --- INLINE STYLES ---
+  // ... (styles object remains unchanged) ...
   const styles = {
     container: {
       display: 'flex',
       flexDirection: 'column',
       height: '100vh',
-      fontFamily: '"Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-      backgroundColor: '#f8fafc', // Very light slate
-      color: '#1e293b',
+      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      backgroundColor: '#f3f4f6',
+      color: '#111827',
     },
-    // Header is now white with a subtle border, cleaner look
     header: {
-      height: '70px',
-      backgroundColor: '#ffffff', 
-      borderBottom: '1px solid #e2e8f0',
+      height: '64px',
+      backgroundColor: '#1f2937', 
+      color: 'white',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'space-between',
-      padding: '0 32px',
-      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+      padding: '0 24px',
+      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
       zIndex: 20,
     },
-    brandGroup: {
+    brand: {
+      fontSize: '1.25rem',
+      fontWeight: '700',
+      letterSpacing: '-0.025em',
       display: 'flex',
       alignItems: 'center',
-      gap: '12px',
-    },
-    brandText: {
-      fontSize: '1.25rem',
-      fontWeight: '800',
-      background: 'linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%)',
-      WebkitBackgroundClip: 'text',
-      WebkitTextFillColor: 'transparent',
-      letterSpacing: '-0.025em',
+      gap: '10px',
     },
     headerRight: {
       display: 'flex',
       alignItems: 'center',
       gap: '24px',
     },
-    // The Status Switch is now prominent in the header
-    statusSwitch: {
-      display: 'flex',
-      alignItems: 'center',
-      backgroundColor: isOnline ? '#dcfce7' : '#f1f5f9',
-      padding: '4px',
-      borderRadius: '24px',
-      cursor: 'pointer',
-      border: `1px solid ${isOnline ? '#86efac' : '#cbd5e1'}`,
-      transition: 'all 0.3s ease',
+    clock: {
+      fontFamily: 'monospace',
+      color: '#9ca3af',
+      fontSize: '0.95rem',
     },
-    statusText: {
-      fontSize: '0.85rem',
-      fontWeight: '600',
-      padding: '0 12px',
-      color: isOnline ? '#166534' : '#64748b',
-      userSelect: 'none',
-    },
-    statusKnob: {
-      width: '24px',
-      height: '24px',
-      borderRadius: '50%',
-      backgroundColor: isOnline ? '#16a34a' : '#94a3b8',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-      transition: 'transform 0.3s ease',
-    },
-    clockCard: {
-      backgroundColor: '#f1f5f9',
-      padding: '6px 12px',
-      borderRadius: '8px',
-      fontFamily: '"JetBrains Mono", monospace',
-      fontSize: '0.9rem',
-      color: '#475569',
-      fontWeight: '600',
-    },
-    logoutBtn: {
-      backgroundColor: isHoveringLogout ? '#fee2e2' : 'transparent',
-      color: '#ef4444',
-      border: '1px solid #ef4444',
-      padding: '8px 16px',
-      borderRadius: '8px',
+    logoutButton: {
+      backgroundColor: '#f87171', 
+      color: 'white',
+      border: 'none',
+      padding: '8px 12px',
+      borderRadius: '6px',
       fontSize: '0.875rem',
       fontWeight: '600',
       cursor: 'pointer',
-      transition: 'all 0.2s',
+      transition: 'background-color 0.2s',
+      marginLeft: '15px',
+    },
+    avatar: {
+      width: '36px',
+      height: '36px',
+      borderRadius: '50%',
+      backgroundColor: '#374151',
       display: 'flex',
       alignItems: 'center',
-      gap: '6px',
+      justifyContent: 'center',
+      fontSize: '0.875rem',
+      fontWeight: '600',
+      border: '2px solid #4b5563',
     },
-    mainLayout: {
+    main: {
       display: 'flex',
       flex: 1,
       overflow: 'hidden',
     },
     sidebar: {
-      width: '300px',
-      backgroundColor: '#ffffff',
-      borderRight: '1px solid #e2e8f0',
-      padding: '32px 24px',
+      width: '280px',
+      backgroundColor: 'white',
+      borderRight: '1px solid #e5e7eb',
+      padding: '24px',
       display: 'flex',
       flexDirection: 'column',
-      gap: '40px',
+      gap: '32px',
     },
-    sectionTitle: {
+    statusCard: {
+      padding: '20px',
+      backgroundColor: 'white',
+      borderRadius: '12px',
+      border: '1px solid #e5e7eb',
+      boxShadow: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+      textAlign: 'center',
+    },
+    statusLabel: {
       fontSize: '0.75rem',
       textTransform: 'uppercase',
-      letterSpacing: '0.1em',
-      color: '#94a3b8',
-      fontWeight: '700',
-      marginBottom: '16px',
+      letterSpacing: '0.05em',
+      color: '#6b7280',
+      fontWeight: '600',
+      marginBottom: '12px',
     },
-    statsContainer: {
+    statusBadge: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '8px',
+      padding: '6px 16px',
+      borderRadius: '9999px',
+      fontSize: '0.875rem',
+      fontWeight: '600',
+      backgroundColor: isOnline ? '#ecfdf5' : '#f3f4f6',
+      color: isOnline ? '#047857' : '#374151',
+      border: `1px solid ${isOnline ? '#a7f3d0' : '#d1d5db'}`,
+      marginBottom: '20px',
+    },
+    statusDot: {
+      width: '8px',
+      height: '8px',
+      borderRadius: '50%',
+      backgroundColor: isOnline ? '#10b981' : '#9ca3af',
+    },
+    toggleBtn: {
+      width: '100%',
+      padding: '10px',
+      borderRadius: '8px',
+      border: 'none',
+      fontWeight: '600',
+      fontSize: '0.875rem',
+      cursor: 'pointer',
+      transition: 'all 0.2s',
+      backgroundColor: isOnline ? '#ef4444' : '#10b981',
+      color: 'white',
+      boxShadow: isOnline 
+        ? '0 4px 6px -1px rgba(239, 68, 68, 0.2)' 
+        : '0 4px 6px -1px rgba(16, 185, 129, 0.2)',
+    },
+    stats: {
       display: 'flex',
       flexDirection: 'column',
       gap: '16px',
     },
-    statCard: {
-      padding: '16px',
-      backgroundColor: '#ffffff',
-      border: '1px solid #e2e8f0',
-      borderRadius: '12px',
-      boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
+    statRow: {
       display: 'flex',
       justifyContent: 'space-between',
       alignItems: 'center',
+      padding: '12px',
+      backgroundColor: '#f9fafb',
+      borderRadius: '8px',
+      border: '1px solid #f3f4f6',
     },
-    statValue: {
-      fontSize: '1.25rem',
-      fontWeight: '700',
-      color: '#0f172a',
-    },
-    statLabel: {
+    statKey: {
       fontSize: '0.875rem',
-      color: '#64748b',
+      color: '#6b7280',
+    },
+    statVal: {
+      fontSize: '0.875rem',
+      fontWeight: '700',
+      color: '#111827',
     },
     contentArea: {
       flex: 1,
-      padding: '40px',
-      backgroundColor: '#f8fafc',
+      padding: '32px',
+      backgroundColor: '#f3f4f6',
       overflowY: 'auto',
-      backgroundImage: 'radial-gradient(#e2e8f0 1px, transparent 1px)',
-      backgroundSize: '24px 24px',
-    },
-    queueContainer: {
-      maxWidth: '1200px',
-      margin: '0 auto',
     },
     queueHeader: {
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: '32px',
+      gap: '16px',
+      marginBottom: '24px',
     },
-    pageTitle: {
-      fontSize: '1.875rem',
-      fontWeight: '800',
-      color: '#0f172a',
-      letterSpacing: '-0.025em',
+    queueTitle: {
+      fontSize: '1.5rem',
+      fontWeight: '700',
+      color: '#111827',
       margin: 0,
     },
-    liveBadge: {
-      backgroundColor: '#fee2e2',
-      color: '#dc2626',
+    countBadge: {
+      backgroundColor: '#3b82f6',
+      color: 'white',
+      fontSize: '0.875rem',
+      fontWeight: '600',
       padding: '4px 12px',
       borderRadius: '9999px',
-      fontSize: '0.75rem',
-      fontWeight: '700',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '6px',
-      animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
     },
     grid: {
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
       gap: '24px',
     },
-    emptyState: {
-      minHeight: '400px',
+    empty: {
+      height: '400px',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: 'white',
       borderRadius: '16px',
-      border: '1px dashed #cbd5e1',
-      textAlign: 'center',
-      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+      border: '2px dashed #e5e7eb',
+      color: '#9ca3af',
     },
+    emptyIcon: {
+      fontSize: '3rem',
+      marginBottom: '16px',
+      opacity: 0.5,
+    }
   };
+
 
   return (
     <div style={styles.container}>
       {/* HEADER */}
       <header style={styles.header}>
-        <div style={styles.brandGroup}>
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <div style={styles.brand}>
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
           </svg>
-          <span style={styles.brandText}>ConnectOne</span>
+          <span>CC Agent Console</span>
         </div>
-
         <div style={styles.headerRight}>
-          {/* Status Toggle moved to header for easy access */}
-          <div style={styles.statusSwitch} onClick={toggleStatus} title="Toggle Availability">
-            <span style={styles.statusText}>{isOnline ? 'ONLINE' : 'OFFLINE'}</span>
-            <div style={styles.statusKnob}></div>
-          </div>
-
-          <div style={styles.clockCard}>
-            {currentTime}
-          </div>
-
-          <button 
-            style={styles.logoutBtn} 
-            onClick={handleLogout}
-            onMouseEnter={() => setIsHoveringLogout(true)}
-            onMouseLeave={() => setIsHoveringLogout(false)}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-              <polyline points="16 17 21 12 16 7"></polyline>
-              <line x1="21" y1="12" x2="9" y2="12"></line>
-            </svg>
-            Exit
+          <span style={styles.clock}>{currentTime}</span>
+          <div style={styles.avatar}>JD</div>
+          {/* LOGOUT BUTTON */}
+          <button style={styles.logoutButton} onClick={handleLogout}>
+            Logout
           </button>
         </div>
       </header>
 
-      <div style={styles.mainLayout}>
-        {/* SIDEBAR: Performance Metrics */}
+      <div style={styles.main}>
+        {/* SIDEBAR */}
         <aside style={styles.sidebar}>
-          <div>
-            <div style={styles.sectionTitle}>Agent Performance</div>
-            <div style={styles.statsContainer}>
-              <div style={styles.statCard}>
-                <span style={styles.statLabel}>Calls Taken</span>
-                <span style={styles.statValue}>24</span>
-              </div>
-              <div style={styles.statCard}>
-                <span style={styles.statLabel}>Avg Handle Time</span>
-                <span style={styles.statValue}>3m 12s</span>
-              </div>
-              <div style={styles.statCard}>
-                <span style={styles.statLabel}>Satisfaction</span>
-                <span style={{...styles.statValue, color: '#16a34a'}}>4.8/5</span>
-              </div>
+          <div style={styles.statusCard}>
+            <div style={styles.statusLabel}>Current Status</div>
+            <div style={styles.statusBadge}>
+              <span style={styles.statusDot}></span>
+              {status.toUpperCase()}
             </div>
+            <button style={styles.toggleBtn} onClick={toggleStatus}>
+              {isOnline ? 'Go Offline' : 'Go Online'}
+            </button>
           </div>
-          
-          <div>
-             <div style={styles.sectionTitle}>Agent Profile</div>
-             <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                <div style={{width: '48px', height: '48px', borderRadius: '50%', background: '#3b82f6', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'}}>JD</div>
-                <div>
-                  <div style={{fontWeight: '700', color: '#334155'}}>John Doe</div>
-                  <div style={{fontSize: '0.8rem', color: '#94a3b8'}}>Senior Agent</div>
-                </div>
-             </div>
+
+          <div style={styles.stats}>
+            <div style={styles.statRow}>
+              <span style={styles.statKey}>Calls Today</span>
+              <span style={styles.statVal}>12</span>
+            </div>
+            <div style={styles.statRow}>
+              <span style={styles.statKey}>Avg Handle Time</span>
+              <span style={styles.statVal}>4m 22s</span>
+            </div>
+            <div style={styles.statRow}>
+              <span style={styles.statKey}>Utilization</span>
+              <span style={styles.statVal}>85%</span>
+            </div>
           </div>
         </aside>
 
-        {/* MAIN CONTENT: The Call Queue */}
+        {/* CONTENT AREA */}
         <main style={styles.contentArea}>
-          <div style={styles.queueContainer}>
-            <div style={styles.queueHeader}>
-              <div>
-                <h2 style={styles.pageTitle}>Call Queue</h2>
-                <p style={{color: '#64748b', margin: '4px 0 0 0'}}>
-                  {isOnline ? 'You are visible to the routing system.' : 'You are currently hidden from the routing system.'}
-                </p>
-              </div>
-              {incomingCalls.length > 0 && (
-                <div style={styles.liveBadge}>
-                  <span style={{width:'8px', height:'8px', background:'currentColor', borderRadius:'50%'}}></span>
-                  LIVE TRAFFIC
-                </div>
-              )}
-            </div>
-
-            {incomingCalls.length === 0 ? (
-              <div style={styles.emptyState}>
-                <div style={{fontSize: '4rem', marginBottom: '16px', opacity: 0.8}}>
-                   {isOnline ? '📡' : '💤'}
-                </div>
-                <h3 style={{fontSize: '1.5rem', color: '#1e293b', margin: '0 0 8px 0'}}>
-                  {isOnline ? 'Waiting for incoming calls...' : 'You are currently offline'}
-                </h3>
-                <p style={{color: '#64748b', maxWidth: '400px'}}>
-                  {isOnline 
-                    ? 'Calls will appear here automatically as they are routed to your station.' 
-                    : 'Toggle your status to "Online" in the top bar to start receiving calls.'}
-                </p>
-              </div>
-            ) : (
-              <div style={styles.grid}>
-                {incomingCalls.map(call => (
-                  <CallCard 
-                    key={call.id} 
-                    callData={call} 
-                    onAccept={handleCallAccept} 
-                  />
-                ))}
-              </div>
-            )}
+          <div style={styles.queueHeader}>
+            <h2 style={styles.queueTitle}>Incoming Call Queue</h2>
+            <span style={styles.countBadge}>{incomingCalls.length} Waiting</span>
           </div>
+
+          {incomingCalls.length === 0 ? (
+            <div style={styles.empty}>
+              <div style={styles.emptyIcon}>
+                {isOnline ? '📡' : '🌙'}
+              </div>
+              <h3 style={{margin: 0, color: '#374151'}}>
+                {isOnline ? 'Waiting for calls...' : 'You are currently offline'}
+              </h3>
+              <p style={{marginTop: '8px', fontSize: '0.875rem'}}>
+                {isOnline ? 'System is active and listening.' : 'Go online to start receiving calls.'}
+              </p>
+            </div>
+          ) : (
+            <div style={styles.grid}>
+              {incomingCalls.map(call => (
+                <CallCard 
+                  key={call.id} 
+                  callData={call} 
+                  onAccept={handleCallAccept} 
+                />
+              ))}
+            </div>
+          )}
         </main>
       </div>
     </div>
   );
 }
+
