@@ -1,30 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-// 🔥 NEW IMPORTS for Firebase Auth
 import { getAuth } from 'firebase/auth'; 
 import { app } from '../config'; 
 
 const API_BASE_URL = 'https://callcenter-baclend.onrender.com';
-const auth = getAuth(app); // Initialize Firebase Auth
+const auth = getAuth(app);
 
-// Placeholder for header icon
 const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>;
 
-// --- HELPER: Generate Unique Order ID ---
 const generateUniqueOrderId = () => {
     const now = new Date();
-    const datePart = now.toISOString().slice(2, 10).replace(/-/g, ''); // YYMMDD
-    const timePart = now.toTimeString().slice(0, 8).replace(/:/g, ''); // HHMMSS
-    const randomPart = Math.floor(Math.random() * 9000) + 1000; // 4-digit random
+    const datePart = now.toISOString().slice(2, 10).replace(/-/g, '');
+    const timePart = now.toTimeString().slice(0, 8).replace(/:/g, '');
+    const randomPart = Math.floor(Math.random() * 9000) + 1000;
     return `ORD-${datePart}-${timePart}-${randomPart}`;
 };
 
-// --- HELPER: Haversine Formula for Distance (Km) ---
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
     if (!lat1 || !lon1 || !lat2 || !lon2) return null;
     
     const toRad = (value) => (value * Math.PI) / 180;
-    const R = 6371; // Radius of Earth in km
+    const R = 6371;
     
     const dLat = toRad(lat2 - lat1);
     const dLon = toRad(lon2 - lon1);
@@ -34,12 +30,11 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
         Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
         
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    const distance = R * c; // Distance in km
+    const distance = R * c;
     
-    return parseFloat(distance.toFixed(2)); // Return number with 2 decimals
+    return parseFloat(distance.toFixed(2));
 };
 
-// --- HELPER: Fetch Agent's Admin ID from Backend ---
 const fetchAgentAdminId = async (firebaseUid) => {
     if (!firebaseUid) return null;
     const url = `${API_BASE_URL}/agent/adminid/${firebaseUid}`;
@@ -60,7 +55,6 @@ const fetchAgentAdminId = async (firebaseUid) => {
     }
 };
 
-// --- INLINE STYLES (Unchanged) ---
 const styles = {
     container: {
         display: 'flex', flexDirection: 'column', minHeight: '100vh', 
@@ -83,7 +77,6 @@ const styles = {
     servicemanSelected: { backgroundColor: '#dcfce7', borderColor: '#10b981', fontWeight: '700', boxShadow: '0 4px 6px rgba(16, 185, 129, 0.2)' },
 };
 
-// Helper component for servicemen display
 const ServicemanCard = ({ serviceman, isSelected, onClick }) => {
     const [isHovered, setIsHovered] = useState(false);
     
@@ -122,7 +115,6 @@ const ServicemanCard = ({ serviceman, isSelected, onClick }) => {
     );
 };
 
-// Geocode function (Nominatim)
 const geocodeAddress = async (address) => {
     const encodedAddress = encodeURIComponent(address);
     const geocodingUrl = `https://nominatim.openstreetmap.org/search?q=${encodedAddress}&format=json&limit=1`;
@@ -151,9 +143,6 @@ const geocodeAddress = async (address) => {
     }
 };
 
-/**
- * Fetches available servicemen based on the service category.
- */
 const fetchServicemenFromBackend = async (serviceName) => {
     const url = `${API_BASE_URL}/call/servicemen/available`;
     console.log(`[SERVICEMEN FETCH] Requesting: ${url} for service: ${serviceName}`);
@@ -176,9 +165,6 @@ const fetchServicemenFromBackend = async (serviceName) => {
     }
 };
 
-/**
- * Fetches the member_id associated with a phone number.
- */
 const fetchMemberId = async (phoneNumber) => {
     if (!phoneNumber) return null;
     const url = `${API_BASE_URL}/call/memberid/lookup`;
@@ -205,39 +191,23 @@ const fetchMemberId = async (phoneNumber) => {
     }
 };
 
-
-// --------------------------------------------------------------------------------
-// ⚡ MAIN COMPONENT
-// --------------------------------------------------------------------------------
 export function ServiceManSelectionPage() {
     const location = useLocation();
     const navigate = useNavigate();
     
-    // ------------------------------------------------------------------
-    // ⚡ INITIAL STATE FROM ROUTER
-    // ------------------------------------------------------------------
     const { 
-        // Normal Flow Props
         ticketId: paramTicketId, 
         requestDetails: paramRequestDetails, 
         selectedAddressId, 
         serviceName: paramServiceName, 
         phoneNumber: paramPhoneNumber,
-
-        // Re-Dispatch/Cancellation Flow Props
-        orderId: previousOrderId, // The cancelled ID
+        previousOrderId,
         cancellationReason,
-        // Fallbacks
         callerNumber, 
         category, 
         request_address 
     } = location.state || {};
     
-    // ------------------------------------------------------------------
-    // ⚡ STATE VARIABLES
-    // We use state now because we might update these values via API fetch 
-    // if a previousOrderId is present.
-    // ------------------------------------------------------------------
     const [activeTicketId, setActiveTicketId] = useState(paramTicketId || 'UNKNOWN_TKT');
     const [activePhoneNumber, setActivePhoneNumber] = useState(paramPhoneNumber || callerNumber);
     const [activeServiceName, setActiveServiceName] = useState(paramServiceName || category);
@@ -246,37 +216,30 @@ export function ServiceManSelectionPage() {
     );
     const [fetchedAddressLine, setFetchedAddressLine] = useState(request_address || 'Loading address...');
     
-    // Admin ID & Member ID
     const [adminId, setAdminId] = useState('Fetching...'); 
     const [memberId, setMemberId] = useState('Searching...');
     
-    // Core Logic State
     const [orderId, setOrderId] = useState(null);
     const [userCoordinates, setUserCoordinates] = useState(null); 
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
     
-    // Servicemen Data
     const [rawServicemen, setRawServicemen] = useState([]);
     const [sortedServicemen, setSortedServicemen] = useState([]);
     const [selectedServiceman, setSelectedServiceman] = useState(null);
     const [dispatchStatus, setDispatchStatus] = useState(null);
     
-    // Clock timer
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
         return () => clearInterval(timer);
     }, []);
 
-    // Generate NEW unique orderId (Even for re-dispatch, we create a new order row)
     useEffect(() => {
         const newOrderId = generateUniqueOrderId();
         setOrderId(newOrderId);
         console.log(`[ORDER CREATION] Generated unique Order ID: ${newOrderId}`);
     }, []); 
     
-    // ------------------------------------------------------------------
-    // ⚡ CRITICAL: FETCH DETAILS IF PREVIOUS ORDER ID EXISTS
-    // ------------------------------------------------------------------
+    // 🔥 CRITICAL FIX: Fetch details if previousOrderId exists
     useEffect(() => {
         if (previousOrderId) {
             console.log(`[RE-DISPATCH DETECTED] Fetching details for Source Order ID: ${previousOrderId}`);
@@ -291,17 +254,19 @@ export function ServiceManSelectionPage() {
                     
                     if (data) {
                         console.log("[SOURCE DATA FETCHED]", data);
-                        // Update State with DB data (Overwrites passed props)
+                        
+                        // 🔥 FIX: Update ALL state variables with fetched data
                         if (data.ticket_id) setActiveTicketId(data.ticket_id);
                         if (data.phone_number) setActivePhoneNumber(data.phone_number);
                         if (data.admin_id) setAdminId(data.admin_id);
-                        if (data.request_address) {
-                            setFetchedAddressLine(data.request_address);
-                            handleGeocoding(data.request_address); // Trigger geocode for fetched address
-                        }
                         if (data.category) setActiveServiceName(data.category);
                         
-                        // Append previous request info
+                        // 🔥 CRITICAL: Set address AND trigger geocoding
+                        if (data.request_address) {
+                            setFetchedAddressLine(data.request_address);
+                            handleGeocoding(data.request_address);
+                        }
+                        
                         const newRequestNote = data.order_request 
                             ? `${data.order_request} (Re-dispatch Reason: ${cancellationReason || 'Admin Action'})`
                             : `Re-dispatch Reason: ${cancellationReason}`;
@@ -314,23 +279,18 @@ export function ServiceManSelectionPage() {
             };
 
             fetchSourceOrderDetails();
-        } 
-        // If no previousOrderId, but we have an admin logged in via Firebase
-        else {
-             const user = auth.currentUser;
-             if (user) {
-                 setAdminId('Loading...');
-                 fetchAgentAdminId(user.uid).then(id => setAdminId(id));
-             } else {
-                 setAdminId('N/A - Agent not logged in.');
-             }
+        } else {
+            const user = auth.currentUser;
+            if (user) {
+                setAdminId('Loading...');
+                fetchAgentAdminId(user.uid).then(id => setAdminId(id));
+            } else {
+                setAdminId('N/A - Agent not logged in.');
+            }
         }
     }, [previousOrderId, cancellationReason]);
 
-// ------------------------------------------------------------------
-    // 🔥 FIX: NEW useEffect to trigger serviceman fetch
-    // This runs whenever the service name or coordinates are ready.
-    // ------------------------------------------------------------------
+    // 🔥 FIX: Separate useEffect to fetch servicemen when service name AND coordinates are ready
     useEffect(() => {
         if (activeServiceName && userCoordinates) {
             setDispatchStatus(`Searching for ${activeServiceName} specialists...`);
@@ -342,8 +302,6 @@ export function ServiceManSelectionPage() {
                     if (data.length === 0) {
                         setDispatchStatus(`⚠️ No active ${activeServiceName} specialists found.`);
                     } else {
-                        // In a real scenario, you'd sort by distance/rating here
-                        setSortedServicemen(data); 
                         setDispatchStatus(`Found ${data.length} available specialists. Select one to dispatch.`);
                     }
                 })
@@ -351,15 +309,27 @@ export function ServiceManSelectionPage() {
                     setDispatchStatus("Error fetching servicemen.");
                 });
         } else if (activeServiceName && !userCoordinates) {
-             setDispatchStatus("Waiting for address geocoding to determine distance...");
+            setDispatchStatus("Waiting for address geocoding to determine distance...");
         }
-    }, [activeServiceName, userCoordinates]); // Dependencies are key to re-triggering the fetch!
+    }, [activeServiceName, userCoordinates]);
     
-    // ------------------------------------------------------------------
-    // ⚡ NORMAL ADDRESS LOGIC (If NOT Re-dispatch)
-    // ------------------------------------------------------------------
+    // Helper to process geocoding
+    const handleGeocoding = async (rawAddress) => {
+        const simplifiedAddress = rawAddress
+            .replace(/Flat \d+,\s*/i, '') 
+            .replace(/Rosewood Apartments,\s*/i, '')
+            .trim();
+
+        if (simplifiedAddress) {
+            const coords = await geocodeAddress(simplifiedAddress);
+            setUserCoordinates(coords);
+        } else {
+            setUserCoordinates({ lat: 'N/A', lon: 'N/A' });
+        }
+    };
+
+    // Normal address logic (only if NOT re-dispatch)
     useEffect(() => {
-        // Only run this if we DIDN'T just fetch the address from previousOrderId logic
         if (!previousOrderId && selectedAddressId) {
             const fetchAndGeocodeAddress = async () => {
                 const fullUrl = `${API_BASE_URL}/call/address/lookup/${selectedAddressId}`;
@@ -379,32 +349,13 @@ export function ServiceManSelectionPage() {
                 }
             };
             fetchAndGeocodeAddress();
-        } 
-        else if (!previousOrderId && request_address) {
-            // Fallback for passed address string without ID
+        } else if (!previousOrderId && request_address) {
             setFetchedAddressLine(request_address);
             handleGeocoding(request_address);
         }
     }, [selectedAddressId, request_address, previousOrderId]); 
 
-    // Helper to process geocoding
-    const handleGeocoding = async (rawAddress) => {
-        const simplifiedAddress = rawAddress
-            .replace(/Flat \d+,\s*/i, '') 
-            .replace(/Rosewood Apartments,\s*/i, '')
-            .trim();
-
-        if (simplifiedAddress) {
-            const coords = await geocodeAddress(simplifiedAddress);
-            setUserCoordinates(coords);
-        } else {
-            setUserCoordinates({ lat: 'N/A', lon: 'N/A' });
-        }
-    };
-
-    // ------------------------------------------------------------------
-    // ⚡ FETCH MEMBER ID
-    // ------------------------------------------------------------------
+    // Fetch member ID
     useEffect(() => {
         if (activePhoneNumber) {
             const loadMemberId = async () => {
@@ -417,30 +368,7 @@ export function ServiceManSelectionPage() {
         }
     }, [activePhoneNumber]);
 
-
-    // ------------------------------------------------------------------
-    // ⚡ FETCH SERVICEMEN
-    // ------------------------------------------------------------------
-    useEffect(() => {
-        if (!activeServiceName) {
-            setDispatchStatus('Error: Service type not specified.');
-            return;
-        }
-
-        const loadServicemen = async () => {
-            setDispatchStatus(`Searching for active ${activeServiceName} specialists...`);
-            const servicemen = await fetchServicemenFromBackend(activeServiceName);
-            setRawServicemen(servicemen);
-            
-            if (servicemen.length === 0) {
-                setDispatchStatus(`⚠️ No active ${activeServiceName} specialists found.`);
-            }
-        };
-
-        loadServicemen();
-    }, [activeServiceName]); 
-
-    // Sort Servicemen by Distance
+    // Sort servicemen by distance
     useEffect(() => {
         if (rawServicemen.length > 0 && userCoordinates && userCoordinates.lat !== 'N/A') {
             
@@ -462,25 +390,22 @@ export function ServiceManSelectionPage() {
 
             setSortedServicemen(sortedList);
             if (!dispatchStatus || dispatchStatus.includes('Searching') || dispatchStatus.includes('No active') || dispatchStatus.includes('Fetching')) {
-                     setDispatchStatus(`${sortedList.length} specialists found near you.`);
+                setDispatchStatus(`${sortedList.length} specialists found near you.`);
             }
         } else if (rawServicemen.length > 0) {
             setSortedServicemen(rawServicemen);
         }
     }, [rawServicemen, userCoordinates, dispatchStatus]);
 
-
-    // ------------------------------------------------------------------
-    // ⚡ DISPATCH LOGIC
-    // ------------------------------------------------------------------
+    // Dispatch handler
     const handleDispatch = async () => {
         if (!selectedServiceman) {
             setDispatchStatus('❗️ Please select a serviceman to dispatch.');
             return;
         }
         if (!orderId) {
-             setDispatchStatus('❌ Error: Order ID was not generated. Cannot dispatch.');
-             return;
+            setDispatchStatus('❌ Error: Order ID was not generated. Cannot dispatch.');
+            return;
         }
         if (!adminId || adminId.startsWith('Error') || adminId.startsWith('N/A') || adminId.startsWith('Loading')) {
             setDispatchStatus(`❌ Error: Admin ID is missing or loading (${adminId}). Cannot dispatch.`);
@@ -488,18 +413,15 @@ export function ServiceManSelectionPage() {
         }
 
         const dispatchData = {
-            user_id: selectedServiceman.user_id, // Serviceman's ID
+            user_id: selectedServiceman.user_id,
             category: activeServiceName,            
             request_address: fetchedAddressLine, 
             order_status: 'Assigned',            
             order_request: activeRequest,       
-
-            order_id: orderId,                   // The NEW Order ID
-            ticket_id: activeTicketId,           // Keep the original ticket ID
+            order_id: orderId,
+            ticket_id: activeTicketId,
             phone_number: activePhoneNumber,          
             admin_id: adminId,
-            
-            // Optional: Track if this was a re-dispatch
             previous_order_id: previousOrderId || null 
         };
 
@@ -521,7 +443,6 @@ export function ServiceManSelectionPage() {
 
             setDispatchStatus(`✅ DISPATCH SUCCESSFUL: Assigned to ${selectedServiceman.full_name || selectedServiceman.name}. Order ID: ${orderId}`);
             
-            // Navigate away after a delay
             setTimeout(() => {
                 navigate('/');
             }, 3000);
@@ -532,9 +453,6 @@ export function ServiceManSelectionPage() {
         }
     };
 
-    // ------------------------------------------------------------------
-    // ⚡ ERROR / MISSING DATA STATE
-    // ------------------------------------------------------------------
     if ((!activeServiceName || !fetchedAddressLine) && !location.state && !previousOrderId) {
         return (
             <div style={{ ...styles.container, justifyContent: 'center', alignItems: 'center' }}>
@@ -574,7 +492,6 @@ export function ServiceManSelectionPage() {
                     </div>
                 )}
 
-                {/* Request Summary Card */}
                 <div style={styles.card}>
                     <h2 style={{ fontSize: '1.1rem', fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>
                         User Location & Service Request
@@ -610,7 +527,6 @@ export function ServiceManSelectionPage() {
                     )}
                 </div>
 
-                {/* Serviceman List */}
                 <div style={{ ...styles.card, padding: '32px' }}>
                     <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1f2937', marginBottom: '16px', borderBottom: '1px solid #e5e7eb', paddingBottom: '8px' }}>
                         Available Technicians (Sorted by Distance)
@@ -637,7 +553,6 @@ export function ServiceManSelectionPage() {
                         )}
                     </div>
                     
-                    {/* Dispatch Button */}
                     <div style={{ marginTop: '24px', textAlign: 'right' }}>
                         <button
                             onClick={handleDispatch}
