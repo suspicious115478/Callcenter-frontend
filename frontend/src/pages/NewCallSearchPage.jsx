@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 // Configuration: Adjust your API base URL here
-const API_BASE_URL = 'https://callcenter-baclend.onrender.com'; // Or whatever your backend port is
+const API_BASE_URL = 'https://callcenter-baclend.onrender.com/call'; // Or whatever your backend port is
 
 // Static list of services (since no API was provided for this specific list)
 const MEDICAL_SERVICES = [
@@ -235,4 +235,5 @@ export default function NewCallSearchPage() {
         </div>
     );
 }
+
 
