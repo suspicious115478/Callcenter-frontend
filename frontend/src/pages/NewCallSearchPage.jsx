@@ -44,7 +44,7 @@ export default function NewCallSearchPage() {
             setAddressFetchMessage('Looking up User ID...');
             try {
                 // We assume an endpoint exists to get ID from Phone
-                const response = await fetch(`${BACKEND_URL}/user/lookup?phoneNumber=${callerPhoneNumber}`);
+                const response = await fetch(`${BACKEND_URL}/call/user/lookup?phoneNumber=${callerPhoneNumber}`);
                 
                 if (response.ok) {
                     const data = await response.json();
@@ -286,3 +286,4 @@ export default function NewCallSearchPage() {
         </div>
     );
 }
+
