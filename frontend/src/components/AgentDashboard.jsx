@@ -26,6 +26,52 @@ export default function AgentDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
   const [agentDbId, setAgentDbId] = useState(null); 
 
+  // --- HELPER: Parse scheduled time string ---
+  const parseScheduledTime = (timeString) => {
+    try {
+      // Format: "2025-12-17 10:00 AM"
+      const [datePart, timePart, meridiem] = timeString.split(' ');
+      const [year, month, day] = datePart.split('-');
+      let [hours, minutes] = timePart.split(':');
+      
+      hours = parseInt(hours);
+      minutes = parseInt(minutes);
+      
+      // Convert to 24-hour format
+      if (meridiem === 'PM' && hours !== 12) {
+        hours += 12;
+      } else if (meridiem === 'AM' && hours === 12) {
+        hours = 0;
+      }
+      
+      return new Date(year, month - 1, day, hours, minutes);
+    } catch (error) {
+      console.error("Error parsing scheduled time:", timeString, error);
+      return null;
+    }
+  };
+
+  // --- HELPER: Check if order should be displayed (within 1 hour of scheduled time) ---
+  const shouldDisplayOrder = (scheduledTimeString) => {
+    const scheduledTime = parseScheduledTime(scheduledTimeString);
+    if (!scheduledTime) return false;
+    
+    const now = new Date();
+    const oneHourBefore = new Date(scheduledTime.getTime() - (60 * 60 * 1000)); // 1 hour before
+    
+    // Display if current time is between 1 hour before and the scheduled time (or after)
+    const shouldDisplay = now >= oneHourBefore;
+    
+    console.log(`⏰ Time check for order:`, {
+      scheduledTime: scheduledTime.toLocaleString(),
+      oneHourBefore: oneHourBefore.toLocaleString(),
+      currentTime: now.toLocaleString(),
+      shouldDisplay: shouldDisplay
+    });
+    
+    return shouldDisplay;
+  };
+
   // --- HELPER: Centralized Status Updater ---
   const updateAgentStatus = async (newStatus) => {
     try {
@@ -83,17 +129,28 @@ export default function AgentDashboard() {
         return;
       }
 
-      console.log("✅ Fetched scheduled orders:", data);
+      console.log("✅ Fetched scheduled orders (before time filter):", data);
+      
+      // Filter orders based on scheduled time (1 hour prior or less)
+      const filteredOrders = data.filter(order => {
+        if (!order.scheduled_time) {
+          console.log("⚠️ Order missing scheduled_time:", order);
+          return false;
+        }
+        return shouldDisplayOrder(order.scheduled_time);
+      });
+
+      console.log("✅ Filtered scheduled orders (within 1 hour):", filteredOrders);
       
       // Transform data to match our card format
-      const transformedOrders = data.map(order => ({
+      const transformedOrders = filteredOrders.map(order => ({
         id: order.id,
         type: 'scheduled',
         orderId: order.order_id || order.id,
         customerName: order.customer_name || 'Unknown Customer',
         customerPhone: order.customer_phone || 'N/A',
         address: order.requested_address || 'No address provided',
-        scheduledTime: order.scheduled_time || order.created_at,
+        scheduledTime: order.scheduled_time,
         orderDetails: order,
         dispatchDetails: order
       }));
@@ -110,6 +167,12 @@ export default function AgentDashboard() {
 
     // Initial fetch
     fetchScheduledOrders(agentDbId);
+
+    // Refresh every minute to update time-based filtering
+    const timeCheckInterval = setInterval(() => {
+      console.log("🔄 Re-checking scheduled orders (time-based refresh)...");
+      fetchScheduledOrders(agentDbId);
+    }, 60000); // Check every minute
 
     // Setup real-time subscription
     console.log("🎧 Setting up Supabase real-time listener...");
@@ -135,6 +198,7 @@ export default function AgentDashboard() {
 
     return () => {
       console.log("🔌 Unsubscribing from Supabase channel");
+      clearInterval(timeCheckInterval);
       supabase.removeChannel(channel);
     };
   }, [agentDbId]);
