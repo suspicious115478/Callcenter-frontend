@@ -3,11 +3,14 @@ import io from "socket.io-client";
 import { BACKEND_URL } from "../config";
 import CallCard from "./CallCard";
 import { useNavigate } from "react-router-dom"; 
-import { getAuth, signOut } from "firebase/auth";
+// 1. ADDED: Import Database functions
+import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
+import { getDatabase, ref, get } from "firebase/database"; 
 import { app } from "../config"; 
 
-// Initialize Firebase Auth
+// Initialize Firebase Auth & DB
 const auth = getAuth(app); 
+const db = getDatabase(app); // Initialize Database
 
 export default function AgentDashboard() {
   const navigate = useNavigate(); 
@@ -15,16 +18,14 @@ export default function AgentDashboard() {
   const [status, setStatus] = useState("offline");
   const [incomingCalls, setIncomingCalls] = useState([]);
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+  
+  // 2. ADDED: State variable to store the fetched ID
+  const [agentDbId, setAgentDbId] = useState(null); 
 
   // --- HELPER: Centralized Status Updater ---
-  // The setter function (setStatus) doesn't need to be in the dependency array 
-  // if you use its functional form (e.g., setStatus(prev => ...)), but since 
-  // it's an async helper, we keep it separate and use it as a dependency.
   const updateAgentStatus = async (newStatus) => {
     try {
-        // Optimistic update for UI speed
         setStatus(newStatus);
-
         console.log(`[STATUS UPDATE] Setting agent status to: ${newStatus}`);
         await fetch(`${BACKEND_URL}/agent/status`, {
             method: "POST",
@@ -36,15 +37,42 @@ export default function AgentDashboard() {
     }
   };
 
+  // 3. NEW: Effect to fetch the Agent ID from Firebase
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        try {
+          // Reference: agents > uid > agent_id
+          const agentIdRef = ref(db, `agents/${user.uid}/agent_id`);
+          const snapshot = await get(agentIdRef);
+
+          if (snapshot.exists()) {
+            const fetchedId = snapshot.val();
+            console.log("🔥 Firebase: Fetched Agent ID:", fetchedId);
+            setAgentDbId(fetchedId); // Store it in the variable
+          } else {
+            console.log("⚠️ No agent_id found for this user node.");
+          }
+        } catch (error) {
+          console.error("Error fetching agent ID:", error);
+        }
+      } else {
+        // User is not logged in
+        console.log("No user logged in.");
+      }
+    });
+
+    return () => unsubscribe(); // Cleanup listener on unmount
+  }, []);
+
   useEffect(() => {
     // 1. Clock timer
     const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
 
-    // 2. 🟢 CRITICAL LOGIC: FORCE STATUS TO 'ONLINE' ON MOUNT
-    // The dependency array now includes `updateAgentStatus` to satisfy ESLint.
+    // 2. Force Status
     updateAgentStatus("online");
 
-    // 3. Socket.IO Listener for Incoming Calls
+    // 3. Socket.IO Listener
     const socket = io(BACKEND_URL);
 
     socket.on("incoming-call", (callData) => {
@@ -55,17 +83,15 @@ export default function AgentDashboard() {
       ]);
     });
 
-    // Cleanup
     return () => {
       socket.off("incoming-call");
       clearInterval(timer);
     };
-  }, [updateAgentStatus]); // 👈 FIX: Added updateAgentStatus to dependency array
+  }, [updateAgentStatus]); 
 
   // Handle clicking "Accept" on a card
   const handleCallAccept = async (acceptedCall) => {
     
-    // 🔴 CRITICAL LOGIC: SET STATUS TO 'BUSY'
     await updateAgentStatus("busy");
 
     const dashboardLink = acceptedCall.dashboardLink;
@@ -80,7 +106,8 @@ export default function AgentDashboard() {
         state: {
           callerNumber: callerNumber,
           dispatchData: dispatchData,
-          customerName: customerName
+          customerName: customerName,
+          agentId: agentDbId // OPTIONAL: Passing the fetched ID to the next page if needed
         }
       });
     } else {
@@ -92,23 +119,19 @@ export default function AgentDashboard() {
     );
   };
 
-  // Toggle Agent Status (Manual Button)
+  // Toggle Agent Status
   const toggleStatus = () => {
     const newStatus = status === "offline" ? "online" : "offline";
     updateAgentStatus(newStatus);
   };
    
-  // Handles logging out the agent
+  // Logout
   const handleLogout = async () => {
     try {
-      // 1. Set offline before leaving
       await updateAgentStatus("offline");
-      
-      // 2. Sign the user out of Firebase
       await signOut(auth);
-      
+      setAgentDbId(null); // Clear the variable
       console.log("Agent logged out successfully.");
-      
     } catch (error) {
       console.error("Logout Error:", error);
       alert("Failed to log out. Please try again.");
@@ -219,7 +242,6 @@ export default function AgentDashboard() {
       borderRadius: '9999px',
       fontSize: '0.875rem',
       fontWeight: '600',
-      // Dynamic Colors: Green (Online), Orange (Busy), Gray (Offline)
       backgroundColor: isOnline ? '#ecfdf5' : isBusy ? '#fff7ed' : '#f3f4f6',
       color: isOnline ? '#047857' : isBusy ? '#c2410c' : '#374151',
       border: `1px solid ${isOnline ? '#a7f3d0' : isBusy ? '#fdba74' : '#d1d5db'}`,
@@ -242,7 +264,6 @@ export default function AgentDashboard() {
       transition: 'all 0.2s',
       backgroundColor: isOnline ? '#ef4444' : '#10b981',
       color: 'white',
-      // Disable toggle if busy
       opacity: isBusy ? 0.5 : 1,
       pointerEvents: isBusy ? 'none' : 'auto',
       boxShadow: isOnline 
@@ -334,8 +355,11 @@ export default function AgentDashboard() {
         </div>
         <div style={styles.headerRight}>
           <span style={styles.clock}>{currentTime}</span>
+          
+          {/* DISPLAY FETCHED ID (For Testing - You can remove this) */}
+          {agentDbId && <span style={{fontSize: '0.8rem', color: '#ccc'}}>ID: {agentDbId}</span>}
+          
           <div style={styles.avatar}>JD</div>
-          {/* LOGOUT BUTTON */}
           <button style={styles.logoutButton} onClick={handleLogout}>
             Logout
           </button>
@@ -352,7 +376,6 @@ export default function AgentDashboard() {
               {status.toUpperCase()}
             </div>
             
-            {/* Toggle Button */}
             <button style={styles.toggleBtn} onClick={toggleStatus}>
               {isOnline ? 'Go Offline' : isBusy ? 'Agent Busy' : 'Go Online'}
             </button>
