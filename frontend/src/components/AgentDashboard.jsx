@@ -49,7 +49,7 @@ export default function AgentDashboard() {
   // We need to make sure the database row looks like a "Call" object so the UI doesn't break
   const mapOrderToCall = (order) => {
     return {
-        id: order.id, // Supabase ID
+        id: order.order_id, // Supabase ID
         caller: order.phone_number || "Scheduled Order", // Adjust column name based on your DB
         userName: order.customer_name || "Unknown Customer", // Adjust column name based on your DB
         dashboardLink: `/dashboard/${order.id}`, // Example link generation
@@ -487,3 +487,4 @@ export default function AgentDashboard() {
     </div>
   );
 }
+
