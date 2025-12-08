@@ -3,38 +3,30 @@ import io from "socket.io-client";
 import { BACKEND_URL } from "../config";
 import CallCard from "./CallCard";
 import { useNavigate } from "react-router-dom"; 
+// 1. ADDED: Import Database functions
 import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
 import { getDatabase, ref, get } from "firebase/database"; 
 import { app } from "../config"; 
 
-// 1. ADDED: Import Supabase
-import { createClient } from "@supabase/supabase-js";
-
-// --- CONFIGURATION ---
-// In a real app, keep these in a .env file
-const EMP_SUPABASE_URL = "https://wbtslpyulsskgdtkknaf.supabase.co";
-const EMP_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndidHNscHl1bHNza2dkdGtrbmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NDc0MDgsImV4cCI6MjA3OTIyMzQwOH0.BcvA4VFPybxQvQRNpt1e0NvDNATrhddx5RgvWAYgQM0";
-
-// Initialize Firebase
+// Initialize Firebase Auth & DB
 const auth = getAuth(app); 
-const db = getDatabase(app);
-
-// Initialize Supabase
-const supabase = createClient(EMP_SUPABASE_URL, EMP_SUPABASE_ANON_KEY);
+const db = getDatabase(app); // Initialize Database
 
 export default function AgentDashboard() {
   const navigate = useNavigate(); 
 
   const [status, setStatus] = useState("offline");
-  const [incomingCalls, setIncomingCalls] = useState([]); // This will now hold Calls AND Scheduled Orders
+  const [incomingCalls, setIncomingCalls] = useState([]);
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
+  
+  // 2. ADDED: State variable to store the fetched ID
   const [agentDbId, setAgentDbId] = useState(null); 
 
   // --- HELPER: Centralized Status Updater ---
   const updateAgentStatus = async (newStatus) => {
     try {
         setStatus(newStatus);
-        // console.log(`[STATUS UPDATE] Setting agent status to: ${newStatus}`);
+        console.log(`[STATUS UPDATE] Setting agent status to: ${newStatus}`);
         await fetch(`${BACKEND_URL}/agent/status`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -45,113 +37,42 @@ export default function AgentDashboard() {
     }
   };
 
-  // --- HELPER: Map Supabase Data to CallCard Format ---
-  // We need to make sure the database row looks like a "Call" object so the UI doesn't break
-  const mapOrderToCall = (order) => {
-    return {
-        id: order.order_id, // Supabase ID
-        caller: order.phone_number || "Scheduled Order", // Adjust column name based on your DB
-        userName: order.customer_name || "Unknown Customer", // Adjust column name based on your DB
-        dashboardLink: `/dashboard/${order.id}`, // Example link generation
-        dispatchDetails: order, // Pass the whole object for dispatch data
-        type: 'scheduled', // Tag it so we can style it differently if needed
-        is_scheduled: true // Flag for UI logic
-    };
-  };
-
-  // 1. EFFECT: Fetch Agent ID from Firebase
+  // 3. NEW: Effect to fetch the Agent ID from Firebase
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
+          // Reference: agents > uid > agent_id
           const agentIdRef = ref(db, `agents/${user.uid}/agent_id`);
           const snapshot = await get(agentIdRef);
 
           if (snapshot.exists()) {
             const fetchedId = snapshot.val();
             console.log("🔥 Firebase: Fetched Agent ID:", fetchedId);
-            setAgentDbId(fetchedId); 
+            setAgentDbId(fetchedId); // Store it in the variable
+          } else {
+            console.log("⚠️ No agent_id found for this user node.");
           }
         } catch (error) {
           console.error("Error fetching agent ID:", error);
         }
+      } else {
+        // User is not logged in
+        console.log("No user logged in.");
       }
     });
-    return () => unsubscribe(); 
+
+    return () => unsubscribe(); // Cleanup listener on unmount
   }, []);
 
-  // 2. NEW EFFECT: Supabase Listener (Depends on agentDbId)
   useEffect(() => {
-    // We cannot listen until we know WHICH admin_id to listen for
-    if (!agentDbId) return;
-
-    console.log(`⚡ Supabase: Initializing listener for Admin ID: ${agentDbId}`);
-
-    // A. Fetch Initial Existing Scheduled Orders
-    const fetchExistingOrders = async () => {
-        const { data, error } = await supabase
-            .from('dispatch')
-            .select('*')
-            .eq('admin_id', agentDbId)
-            .eq('order_status', 'Scheduled');
-
-        if (error) console.error("Supabase Fetch Error:", error);
-        if (data && data.length > 0) {
-            console.log(`⚡ Supabase: Found ${data.length} existing scheduled orders.`);
-            const formattedOrders = data.map(mapOrderToCall);
-            setIncomingCalls(prev => [...prev, ...formattedOrders]);
-        }
-    };
-
-    fetchExistingOrders();
-
-    // B. Realtime Subscription
-    const channel = supabase
-        .channel('dispatch_updates')
-        .on(
-            'postgres_changes',
-            {
-                event: '*', // Listen for INSERT and UPDATE
-                schema: 'public',
-                table: 'dispatch',
-                filter: `admin_id=eq.${agentDbId}` // Server-side filter for this agent
-            },
-            (payload) => {
-                console.log("⚡ Supabase Realtime Event:", payload);
-                
-                const newRecord = payload.new;
-
-                // Logic: If the new state is "Scheduled", add/update it in the list
-                if (newRecord && newRecord.order_status === 'Scheduled') {
-                    const formattedOrder = mapOrderToCall(newRecord);
-                    
-                    setIncomingCalls(prev => {
-                        // Avoid duplicates: Remove old version if exists, add new one to top
-                        const filtered = prev.filter(c => c.id !== newRecord.id);
-                        return [formattedOrder, ...filtered];
-                    });
-                }
-                
-                // Optional Logic: If status changed FROM Scheduled TO something else, remove it
-                if (newRecord && newRecord.order_status !== 'Scheduled') {
-                     setIncomingCalls(prev => prev.filter(c => c.id !== newRecord.id));
-                }
-            }
-        )
-        .subscribe();
-
-    // Cleanup subscription
-    return () => {
-        supabase.removeChannel(channel);
-    };
-
-  }, [agentDbId]); // Only runs when agentDbId is set
-
-  // 3. EFFECT: Socket.IO & Clock
-  useEffect(() => {
+    // 1. Clock timer
     const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
+
+    // 2. Force Status
     updateAgentStatus("online");
 
+    // 3. Socket.IO Listener
     const socket = io(BACKEND_URL);
 
     socket.on("incoming-call", (callData) => {
@@ -168,8 +89,9 @@ export default function AgentDashboard() {
     };
   }, [updateAgentStatus]); 
 
-  // Handle clicking "Accept"
+  // Handle clicking "Accept" on a card
   const handleCallAccept = async (acceptedCall) => {
+    
     await updateAgentStatus("busy");
 
     const dashboardLink = acceptedCall.dashboardLink;
@@ -178,14 +100,14 @@ export default function AgentDashboard() {
     const customerName = acceptedCall.userName || null;
 
     if (dashboardLink) {
-      console.log(`AgentDashboard: Accepting. Redirecting to: ${dashboardLink}`); 
+      console.log(`AgentDashboard: Accepting call. Redirecting to: ${dashboardLink}`); 
       
       navigate(dashboardLink, {
         state: {
           callerNumber: callerNumber,
           dispatchData: dispatchData,
           customerName: customerName,
-          agentId: agentDbId 
+          agentId: agentDbId // OPTIONAL: Passing the fetched ID to the next page if needed
         }
       });
     } else {
@@ -197,16 +119,18 @@ export default function AgentDashboard() {
     );
   };
 
+  // Toggle Agent Status
   const toggleStatus = () => {
     const newStatus = status === "offline" ? "online" : "offline";
     updateAgentStatus(newStatus);
   };
    
+  // Logout
   const handleLogout = async () => {
     try {
       await updateAgentStatus("offline");
       await signOut(auth);
-      setAgentDbId(null); 
+      setAgentDbId(null); // Clear the variable
       console.log("Agent logged out successfully.");
     } catch (error) {
       console.error("Logout Error:", error);
@@ -421,6 +345,7 @@ export default function AgentDashboard() {
 
   return (
     <div style={styles.container}>
+      {/* HEADER */}
       <header style={styles.header}>
         <div style={styles.brand}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -430,13 +355,19 @@ export default function AgentDashboard() {
         </div>
         <div style={styles.headerRight}>
           <span style={styles.clock}>{currentTime}</span>
+          
+          {/* DISPLAY FETCHED ID (For Testing - You can remove this) */}
           {agentDbId && <span style={{fontSize: '0.8rem', color: '#ccc'}}>ID: {agentDbId}</span>}
+          
           <div style={styles.avatar}>JD</div>
-          <button style={styles.logoutButton} onClick={handleLogout}>Logout</button>
+          <button style={styles.logoutButton} onClick={handleLogout}>
+            Logout
+          </button>
         </div>
       </header>
 
       <div style={styles.main}>
+        {/* SIDEBAR */}
         <aside style={styles.sidebar}>
           <div style={styles.statusCard}>
             <div style={styles.statusLabel}>Current Status</div>
@@ -444,18 +375,29 @@ export default function AgentDashboard() {
               <span style={styles.statusDot}></span>
               {status.toUpperCase()}
             </div>
+            
             <button style={styles.toggleBtn} onClick={toggleStatus}>
               {isOnline ? 'Go Offline' : isBusy ? 'Agent Busy' : 'Go Online'}
             </button>
           </div>
+
           <div style={styles.stats}>
             <div style={styles.statRow}>
               <span style={styles.statKey}>Calls Today</span>
               <span style={styles.statVal}>12</span>
             </div>
+            <div style={styles.statRow}>
+              <span style={styles.statKey}>Avg Handle Time</span>
+              <span style={styles.statVal}>4m 22s</span>
+            </div>
+            <div style={styles.statRow}>
+              <span style={styles.statKey}>Utilization</span>
+              <span style={styles.statVal}>85%</span>
+            </div>
           </div>
         </aside>
 
+        {/* CONTENT AREA */}
         <main style={styles.contentArea}>
           <div style={styles.queueHeader}>
             <h2 style={styles.queueTitle}>Incoming Call Queue</h2>
@@ -470,6 +412,13 @@ export default function AgentDashboard() {
               <h3 style={{margin: 0, color: '#374151'}}>
                 {isOnline ? 'Waiting for calls...' : isBusy ? 'Agent is Busy' : 'You are currently offline'}
               </h3>
+              <p style={{marginTop: '8px', fontSize: '0.875rem'}}>
+                {isOnline 
+                  ? 'System is active and listening.' 
+                  : isBusy
+                  ? 'Complete your current call to receive new ones.'
+                  : 'Go online to start receiving calls.'}
+              </p>
             </div>
           ) : (
             <div style={styles.grid}>
@@ -487,4 +436,3 @@ export default function AgentDashboard() {
     </div>
   );
 }
-
