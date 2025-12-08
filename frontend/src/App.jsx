@@ -16,7 +16,7 @@ import UserServicesPage from "./pages/UserServicesPage";
 import { ServiceManSelectionPage } from "./pages/ServiceManSelectionPage"; // Named Import
 // 🚨 NEW IMPORT: Import the Employee Help Desk Page
 import EmployeeHelpDeskPage from "./pages/EmployeeHelpDeskPage"; 
-
+import SchedulingPage from "./pages/SchedulingPage";
 // Components
 import AgentDashboard from "./components/AgentDashboard";
 
@@ -116,3 +116,4 @@ function App() {
 }
 
 export default App;
+
