@@ -104,7 +104,7 @@ function App() {
                     {/* Service Flows */}
                     <Route path="/user/services" element={<ProtectedRoute isAuthenticated={isAuthenticated}><UserServicesPage /></ProtectedRoute>} />
                     <Route path="/user/servicemen" element={<ProtectedRoute isAuthenticated={isAuthenticated}><ServiceManSelectionPage /></ProtectedRoute>} />
-                    
+                    <Route path="/user/scheduling" element={<SchedulingPage />} />
                     {/* Optional: Catch all other routes */}
                     <Route path="*" element={
                         isAuthenticated ? <Navigate to="/" replace /> : <Navigate to="/login" replace />
@@ -116,4 +116,5 @@ function App() {
 }
 
 export default App;
+
 
