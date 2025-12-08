@@ -181,7 +181,7 @@ export default function SchedulingPage() {
         }
 
         setStatusMessage('Scheduling appointment...');
-        const dateTimeString = `${selectedDate}T${convertTimeTo24Hour(selectedTime)}`;
+        
         const scheduledDateTime = new Date(`${selectedDate} ${selectedTime}`).toISOString();
         // Payload Construction
         // Note: user_id is NULL because we are not assigning a serviceman yet.
