@@ -1,25 +1,29 @@
 import React, { useState, useEffect } from "react";
 import io from "socket.io-client";
+import { createClient } from '@supabase/supabase-js';
 import { BACKEND_URL } from "../config";
 import CallCard from "./CallCard";
 import { useNavigate } from "react-router-dom"; 
-// 1. ADDED: Import Database functions
 import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
 import { getDatabase, ref, get } from "firebase/database"; 
 import { app } from "../config"; 
 
 // Initialize Firebase Auth & DB
 const auth = getAuth(app); 
-const db = getDatabase(app); // Initialize Database
+const db = getDatabase(app);
+
+// Initialize Supabase Client
+const supabaseUrl = 'https://wbtslpyulsskgdtkknaf.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndidHNscHl1bHNza2dkdGtrbmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NDc0MDgsImV4cCI6MjA3OTIyMzQwOH0.BcvA4VFPybxQvQRNpt1e0NvDNATrhddx5RgvWAYgQM0';
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function AgentDashboard() {
   const navigate = useNavigate(); 
 
   const [status, setStatus] = useState("offline");
   const [incomingCalls, setIncomingCalls] = useState([]);
+  const [scheduledOrders, setScheduledOrders] = useState([]);
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
-  
-  // 2. ADDED: State variable to store the fetched ID
   const [agentDbId, setAgentDbId] = useState(null); 
 
   // --- HELPER: Centralized Status Updater ---
@@ -37,19 +41,18 @@ export default function AgentDashboard() {
     }
   };
 
-  // 3. NEW: Effect to fetch the Agent ID from Firebase
+  // Fetch Agent ID from Firebase
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
-          // Reference: agents > uid > agent_id
           const agentIdRef = ref(db, `agents/${user.uid}/agent_id`);
           const snapshot = await get(agentIdRef);
 
           if (snapshot.exists()) {
             const fetchedId = snapshot.val();
             console.log("🔥 Firebase: Fetched Agent ID:", fetchedId);
-            setAgentDbId(fetchedId); // Store it in the variable
+            setAgentDbId(fetchedId);
           } else {
             console.log("⚠️ No agent_id found for this user node.");
           }
@@ -57,28 +60,96 @@ export default function AgentDashboard() {
           console.error("Error fetching agent ID:", error);
         }
       } else {
-        // User is not logged in
         console.log("No user logged in.");
       }
     });
 
-    return () => unsubscribe(); // Cleanup listener on unmount
+    return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    // 1. Clock timer
-    const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
+  // Fetch Scheduled Orders from Supabase
+  const fetchScheduledOrders = async (adminId) => {
+    try {
+      console.log("📦 Fetching scheduled orders for admin_id:", adminId);
+      
+      const { data, error } = await supabase
+        .from('dispatch')
+        .select('*')
+        .eq('order_status', 'Scheduled')
+        .eq('admin_id', adminId);
 
-    // 2. Force Status
+      if (error) {
+        console.error("❌ Supabase fetch error:", error);
+        return;
+      }
+
+      console.log("✅ Fetched scheduled orders:", data);
+      
+      // Transform data to match our card format
+      const transformedOrders = data.map(order => ({
+        id: order.id,
+        type: 'scheduled',
+        orderId: order.order_id || order.id,
+        customerName: order.customer_name || 'Unknown Customer',
+        customerPhone: order.customer_phone || 'N/A',
+        address: order.requested_address || 'No address provided',
+        scheduledTime: order.scheduled_time || order.created_at,
+        orderDetails: order,
+        dispatchDetails: order
+      }));
+
+      setScheduledOrders(transformedOrders);
+    } catch (err) {
+      console.error("Error fetching scheduled orders:", err);
+    }
+  };
+
+  // Setup Supabase Real-time Listener
+  useEffect(() => {
+    if (!agentDbId) return;
+
+    // Initial fetch
+    fetchScheduledOrders(agentDbId);
+
+    // Setup real-time subscription
+    console.log("🎧 Setting up Supabase real-time listener...");
+    
+    const channel = supabase
+      .channel('dispatch-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'dispatch',
+          filter: `admin_id=eq.${agentDbId}`
+        },
+        (payload) => {
+          console.log("🔄 Supabase real-time update:", payload);
+          
+          // Refetch data on any change
+          fetchScheduledOrders(agentDbId);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      console.log("🔌 Unsubscribing from Supabase channel");
+      supabase.removeChannel(channel);
+    };
+  }, [agentDbId]);
+
+  // Socket.IO and Clock Setup
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
     updateAgentStatus("online");
 
-    // 3. Socket.IO Listener
     const socket = io(BACKEND_URL);
 
     socket.on("incoming-call", (callData) => {
-      console.log("New call received:", callData);
+      console.log("📞 New call received:", callData);
       setIncomingCalls(prevCalls => [
-        { ...callData, id: Date.now() },
+        { ...callData, id: Date.now(), type: 'call' },
         ...prevCalls 
       ]);
     });
@@ -87,11 +158,10 @@ export default function AgentDashboard() {
       socket.off("incoming-call");
       clearInterval(timer);
     };
-  }, [updateAgentStatus]); 
+  }, []);
 
-  // Handle clicking "Accept" on a card
+  // Handle Accept Call
   const handleCallAccept = async (acceptedCall) => {
-    
     await updateAgentStatus("busy");
 
     const dashboardLink = acceptedCall.dashboardLink;
@@ -107,7 +177,7 @@ export default function AgentDashboard() {
           callerNumber: callerNumber,
           dispatchData: dispatchData,
           customerName: customerName,
-          agentId: agentDbId // OPTIONAL: Passing the fetched ID to the next page if needed
+          agentId: agentDbId
         }
       });
     } else {
@@ -117,6 +187,35 @@ export default function AgentDashboard() {
     setIncomingCalls(prevCalls =>
       prevCalls.filter(call => call.id !== acceptedCall.id)
     );
+  };
+
+  // Handle Assign Scheduled Order
+  const handleOrderAssign = async (order) => {
+    await updateAgentStatus("busy");
+    
+    console.log("📋 Assigning order:", order);
+    
+    // Navigate to appropriate dashboard with order details
+    // Adjust the route based on your routing setup
+    navigate('/order-details', {
+      state: {
+        orderId: order.orderId,
+        orderDetails: order.orderDetails,
+        customerName: order.customerName,
+        customerPhone: order.customerPhone,
+        agentId: agentDbId
+      }
+    });
+    
+    // Optionally update order status in Supabase
+    try {
+      await supabase
+        .from('dispatch')
+        .update({ order_status: 'In Progress', assigned_agent: agentDbId })
+        .eq('id', order.id);
+    } catch (err) {
+      console.error("Error updating order status:", err);
+    }
   };
 
   // Toggle Agent Status
@@ -130,7 +229,7 @@ export default function AgentDashboard() {
     try {
       await updateAgentStatus("offline");
       await signOut(auth);
-      setAgentDbId(null); // Clear the variable
+      setAgentDbId(null);
       console.log("Agent logged out successfully.");
     } catch (error) {
       console.error("Logout Error:", error);
@@ -140,6 +239,9 @@ export default function AgentDashboard() {
 
   const isOnline = status === "online";
   const isBusy = status === "busy";
+
+  // Combine calls and scheduled orders for display
+  const totalItems = incomingCalls.length + scheduledOrders.length;
 
   // --- INLINE STYLES ---
   const styles = {
@@ -319,10 +421,21 @@ export default function AgentDashboard() {
       padding: '4px 12px',
       borderRadius: '9999px',
     },
+    sectionTitle: {
+      fontSize: '1.125rem',
+      fontWeight: '600',
+      color: '#374151',
+      marginTop: '32px',
+      marginBottom: '16px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+    },
     grid: {
       display: 'grid',
       gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
       gap: '24px',
+      marginBottom: '32px',
     },
     empty: {
       height: '400px',
@@ -342,7 +455,6 @@ export default function AgentDashboard() {
     }
   };
 
-
   return (
     <div style={styles.container}>
       {/* HEADER */}
@@ -355,10 +467,7 @@ export default function AgentDashboard() {
         </div>
         <div style={styles.headerRight}>
           <span style={styles.clock}>{currentTime}</span>
-          
-          {/* DISPLAY FETCHED ID (For Testing - You can remove this) */}
           {agentDbId && <span style={{fontSize: '0.8rem', color: '#ccc'}}>ID: {agentDbId}</span>}
-          
           <div style={styles.avatar}>JD</div>
           <button style={styles.logoutButton} onClick={handleLogout}>
             Logout
@@ -387,6 +496,10 @@ export default function AgentDashboard() {
               <span style={styles.statVal}>12</span>
             </div>
             <div style={styles.statRow}>
+              <span style={styles.statKey}>Scheduled Orders</span>
+              <span style={styles.statVal}>{scheduledOrders.length}</span>
+            </div>
+            <div style={styles.statRow}>
               <span style={styles.statKey}>Avg Handle Time</span>
               <span style={styles.statVal}>4m 22s</span>
             </div>
@@ -400,36 +513,65 @@ export default function AgentDashboard() {
         {/* CONTENT AREA */}
         <main style={styles.contentArea}>
           <div style={styles.queueHeader}>
-            <h2 style={styles.queueTitle}>Incoming Call Queue</h2>
-            <span style={styles.countBadge}>{incomingCalls.length} Waiting</span>
+            <h2 style={styles.queueTitle}>Queue Overview</h2>
+            <span style={styles.countBadge}>{totalItems} Total Items</span>
           </div>
 
-          {incomingCalls.length === 0 ? (
+          {totalItems === 0 ? (
             <div style={styles.empty}>
               <div style={styles.emptyIcon}>
                 {isOnline ? '📡' : isBusy ? '⏳' : '🌙'}
               </div>
               <h3 style={{margin: 0, color: '#374151'}}>
-                {isOnline ? 'Waiting for calls...' : isBusy ? 'Agent is Busy' : 'You are currently offline'}
+                {isOnline ? 'Waiting for calls and orders...' : isBusy ? 'Agent is Busy' : 'You are currently offline'}
               </h3>
               <p style={{marginTop: '8px', fontSize: '0.875rem'}}>
                 {isOnline 
                   ? 'System is active and listening.' 
                   : isBusy
-                  ? 'Complete your current call to receive new ones.'
-                  : 'Go online to start receiving calls.'}
+                  ? 'Complete your current task to receive new ones.'
+                  : 'Go online to start receiving calls and orders.'}
               </p>
             </div>
           ) : (
-            <div style={styles.grid}>
-              {incomingCalls.map(call => (
-                <CallCard 
-                  key={call.id} 
-                  callData={call} 
-                  onAccept={handleCallAccept} 
-                />
-              ))}
-            </div>
+            <>
+              {/* Incoming Calls Section */}
+              {incomingCalls.length > 0 && (
+                <>
+                  <h3 style={styles.sectionTitle}>
+                    📞 Incoming Calls ({incomingCalls.length})
+                  </h3>
+                  <div style={styles.grid}>
+                    {incomingCalls.map(call => (
+                      <CallCard 
+                        key={call.id} 
+                        callData={call} 
+                        onAccept={handleCallAccept} 
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* Scheduled Orders Section */}
+              {scheduledOrders.length > 0 && (
+                <>
+                  <h3 style={styles.sectionTitle}>
+                    📋 Scheduled Orders ({scheduledOrders.length})
+                  </h3>
+                  <div style={styles.grid}>
+                    {scheduledOrders.map(order => (
+                      <CallCard 
+                        key={order.id} 
+                        callData={order} 
+                        onAccept={handleOrderAssign}
+                        isScheduledOrder={true}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
           )}
         </main>
       </div>
