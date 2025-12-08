@@ -182,7 +182,7 @@ export default function SchedulingPage() {
 
         setStatusMessage('Scheduling appointment...');
         
-        const scheduledDateTime = new Date(`${selectedDate} ${selectedTime}`).toISOString();
+        const scheduledDateTime = `${selectedDate} ${selectedTime}`;
         // Payload Construction
         // Note: user_id is NULL because we are not assigning a serviceman yet.
         // order_status is 'Scheduled'.
