@@ -17,7 +17,9 @@ export default function AgentDashboard() {
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
   // --- HELPER: Centralized Status Updater ---
-  // This function updates both the local state and the backend database
+  // The setter function (setStatus) doesn't need to be in the dependency array 
+  // if you use its functional form (e.g., setStatus(prev => ...)), but since 
+  // it's an async helper, we keep it separate and use it as a dependency.
   const updateAgentStatus = async (newStatus) => {
     try {
         // Optimistic update for UI speed
@@ -30,7 +32,7 @@ export default function AgentDashboard() {
             body: JSON.stringify({ status: newStatus })
         });
     } catch (err) {
-        console.error("Failed to update status:", err);
+        console.error("Status update failed:", err);
     }
   };
 
@@ -39,8 +41,7 @@ export default function AgentDashboard() {
     const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
 
     // 2. 🟢 CRITICAL LOGIC: FORCE STATUS TO 'ONLINE' ON MOUNT
-    // Whether the user just logged in, OR came back from a finished flow,
-    // this ensures they are marked as Available (Non-Busy) immediately.
+    // The dependency array now includes `updateAgentStatus` to satisfy ESLint.
     updateAgentStatus("online");
 
     // 3. Socket.IO Listener for Incoming Calls
@@ -59,14 +60,12 @@ export default function AgentDashboard() {
       socket.off("incoming-call");
       clearInterval(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array = runs once when component mounts
+  }, [updateAgentStatus]); // 👈 FIX: Added updateAgentStatus to dependency array
 
   // Handle clicking "Accept" on a card
   const handleCallAccept = async (acceptedCall) => {
     
     // 🔴 CRITICAL LOGIC: SET STATUS TO 'BUSY'
-    // Before navigating away, mark the agent as Busy so they don't get new calls.
     await updateAgentStatus("busy");
 
     const dashboardLink = acceptedCall.dashboardLink;
