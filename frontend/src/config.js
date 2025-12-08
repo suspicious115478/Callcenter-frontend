@@ -25,7 +25,7 @@ const firebaseConfig = {
     appId: "1:521384541472:web:248d25b4ff8af47e672b45",
     
     // Auto-filled for Realtime Database access
-    databaseURL: `https://${PROJECT_ID}-default-rtdb.firebaseio.com` 
+    databaseURL: `https://project-8812136035477954307-default-rtdb.firebaseio.com` 
 };
 
 // Initialize Firebase App
@@ -36,3 +36,4 @@ export const auth = getAuth(app);
 
 // Initialize and export Firebase Realtime Database
 export const database = getDatabase(app);
+
