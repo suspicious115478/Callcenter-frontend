@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import io from "socket.io-client";
 import { BACKEND_URL } from "../config";
 import CallCard from "./CallCard";
-// 🚨 NEW IMPORT: Import useNavigate for clean, stateful redirection
 import { useNavigate } from "react-router-dom"; 
 import { getAuth, signOut } from "firebase/auth";
 import { app } from "../config"; 
@@ -11,23 +10,40 @@ import { app } from "../config";
 const auth = getAuth(app); 
 
 export default function AgentDashboard() {
-  const navigate = useNavigate(); // 👈 Initialize useNavigate hook
+  const navigate = useNavigate(); 
 
   const [status, setStatus] = useState("offline");
   const [incomingCalls, setIncomingCalls] = useState([]);
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
+  // --- HELPER: Centralized Status Updater ---
+  // This function updates both the local state and the backend database
+  const updateAgentStatus = async (newStatus) => {
+    try {
+        // Optimistic update for UI speed
+        setStatus(newStatus);
+
+        console.log(`[STATUS UPDATE] Setting agent status to: ${newStatus}`);
+        await fetch(`${BACKEND_URL}/agent/status`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: newStatus })
+        });
+    } catch (err) {
+        console.error("Failed to update status:", err);
+    }
+  };
+
   useEffect(() => {
-    // Clock timer for the header
+    // 1. Clock timer
     const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
 
-    // 1. Initial status fetch
-    fetch(`${BACKEND_URL}/agent/status`)
-      .then(res => res.json())
-      .then(data => setStatus(data.status))
-      .catch(err => console.error("Failed to fetch status:", err));
+    // 2. 🟢 CRITICAL LOGIC: FORCE STATUS TO 'ONLINE' ON MOUNT
+    // Whether the user just logged in, OR came back from a finished flow,
+    // this ensures they are marked as Available (Non-Busy) immediately.
+    updateAgentStatus("online");
 
-    // 2. Socket.IO Listener for Incoming Calls
+    // 3. Socket.IO Listener for Incoming Calls
     const socket = io(BACKEND_URL);
 
     socket.on("incoming-call", (callData) => {
@@ -38,70 +54,56 @@ export default function AgentDashboard() {
       ]);
     });
 
-    // Cleanup socket listener on component unmount
+    // Cleanup
     return () => {
       socket.off("incoming-call");
       clearInterval(timer);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array = runs once when component mounts
 
- // Handle clicking "Accept" on a card
-  const handleCallAccept = (acceptedCall) => {
-    // 1. Check for the mandatory redirection link
-    const dashboardLink = acceptedCall.dashboardLink;
+  // Handle clicking "Accept" on a card
+  const handleCallAccept = async (acceptedCall) => {
+    
+    // 🔴 CRITICAL LOGIC: SET STATUS TO 'BUSY'
+    // Before navigating away, mark the agent as Busy so they don't get new calls.
+    await updateAgentStatus("busy");
 
-    // 2. Collect all state data, even if undefined in the source payload
-    const callerNumber = acceptedCall.caller || null;
-    const dispatchData = acceptedCall.dispatchDetails || null; 
-    const customerName = acceptedCall.userName || null;
+    const dashboardLink = acceptedCall.dashboardLink;
+    const callerNumber = acceptedCall.caller || null;
+    const dispatchData = acceptedCall.dispatchDetails || null; 
+    const customerName = acceptedCall.userName || null;
 
-    if (dashboardLink) {
-      console.log(`AgentDashboard: Accepting call. Redirecting to: ${dashboardLink}`); // 🚀 LOG
-      
-      // Use 'navigate' to push state, passing explicit (or null) values
-      navigate(dashboardLink, {
-        state: {
-          // Pass the values. If they were null/undefined above, they are passed as such.
-          callerNumber: callerNumber,
-          dispatchData: dispatchData,
-          customerName: customerName
-        }
-      });
-    } else {
-      // If dashboardLink is missing, this is the current blocker from the backend
-      console.error("AgentDashboard: Cannot redirect. Missing dashboardLink.", acceptedCall); 
-    }
-    
-    // Remove from list
-    setIncomingCalls(prevCalls =>
-      prevCalls.filter(call => call.id !== acceptedCall.id)
-    );
-  };
+    if (dashboardLink) {
+      console.log(`AgentDashboard: Accepting call. Redirecting to: ${dashboardLink}`); 
+      
+      navigate(dashboardLink, {
+        state: {
+          callerNumber: callerNumber,
+          dispatchData: dispatchData,
+          customerName: customerName
+        }
+      });
+    } else {
+      console.error("AgentDashboard: Cannot redirect. Missing dashboardLink.", acceptedCall); 
+    }
+    
+    setIncomingCalls(prevCalls =>
+      prevCalls.filter(call => call.id !== acceptedCall.id)
+    );
+  };
 
-  // Toggle Agent Status
+  // Toggle Agent Status (Manual Button)
   const toggleStatus = () => {
     const newStatus = status === "offline" ? "online" : "offline";
-    fetch(`${BACKEND_URL}/agent/status`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: newStatus })
-    })
-    .catch(err => console.error("Status update failed:", err));
-    
-    setStatus(newStatus);
+    updateAgentStatus(newStatus);
   };
-  
+   
   // Handles logging out the agent
   const handleLogout = async () => {
     try {
-      // 1. Tell the backend the agent is offline (optional, but good practice)
-      if (status === 'online') {
-          await fetch(`${BACKEND_URL}/agent/status`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ status: "offline" })
-          });
-      }
+      // 1. Set offline before leaving
+      await updateAgentStatus("offline");
       
       // 2. Sign the user out of Firebase
       await signOut(auth);
@@ -115,9 +117,9 @@ export default function AgentDashboard() {
   };
 
   const isOnline = status === "online";
+  const isBusy = status === "busy";
 
   // --- INLINE STYLES ---
-  // ... (styles object remains unchanged) ...
   const styles = {
     container: {
       display: 'flex',
@@ -218,16 +220,17 @@ export default function AgentDashboard() {
       borderRadius: '9999px',
       fontSize: '0.875rem',
       fontWeight: '600',
-      backgroundColor: isOnline ? '#ecfdf5' : '#f3f4f6',
-      color: isOnline ? '#047857' : '#374151',
-      border: `1px solid ${isOnline ? '#a7f3d0' : '#d1d5db'}`,
+      // Dynamic Colors: Green (Online), Orange (Busy), Gray (Offline)
+      backgroundColor: isOnline ? '#ecfdf5' : isBusy ? '#fff7ed' : '#f3f4f6',
+      color: isOnline ? '#047857' : isBusy ? '#c2410c' : '#374151',
+      border: `1px solid ${isOnline ? '#a7f3d0' : isBusy ? '#fdba74' : '#d1d5db'}`,
       marginBottom: '20px',
     },
     statusDot: {
       width: '8px',
       height: '8px',
       borderRadius: '50%',
-      backgroundColor: isOnline ? '#10b981' : '#9ca3af',
+      backgroundColor: isOnline ? '#10b981' : isBusy ? '#f97316' : '#9ca3af',
     },
     toggleBtn: {
       width: '100%',
@@ -240,6 +243,9 @@ export default function AgentDashboard() {
       transition: 'all 0.2s',
       backgroundColor: isOnline ? '#ef4444' : '#10b981',
       color: 'white',
+      // Disable toggle if busy
+      opacity: isBusy ? 0.5 : 1,
+      pointerEvents: isBusy ? 'none' : 'auto',
       boxShadow: isOnline 
         ? '0 4px 6px -1px rgba(239, 68, 68, 0.2)' 
         : '0 4px 6px -1px rgba(16, 185, 129, 0.2)',
@@ -346,8 +352,10 @@ export default function AgentDashboard() {
               <span style={styles.statusDot}></span>
               {status.toUpperCase()}
             </div>
+            
+            {/* Toggle Button */}
             <button style={styles.toggleBtn} onClick={toggleStatus}>
-              {isOnline ? 'Go Offline' : 'Go Online'}
+              {isOnline ? 'Go Offline' : isBusy ? 'Agent Busy' : 'Go Online'}
             </button>
           </div>
 
@@ -377,13 +385,17 @@ export default function AgentDashboard() {
           {incomingCalls.length === 0 ? (
             <div style={styles.empty}>
               <div style={styles.emptyIcon}>
-                {isOnline ? '📡' : '🌙'}
+                {isOnline ? '📡' : isBusy ? '⏳' : '🌙'}
               </div>
               <h3 style={{margin: 0, color: '#374151'}}>
-                {isOnline ? 'Waiting for calls...' : 'You are currently offline'}
+                {isOnline ? 'Waiting for calls...' : isBusy ? 'Agent is Busy' : 'You are currently offline'}
               </h3>
               <p style={{marginTop: '8px', fontSize: '0.875rem'}}>
-                {isOnline ? 'System is active and listening.' : 'Go online to start receiving calls.'}
+                {isOnline 
+                  ? 'System is active and listening.' 
+                  : isBusy
+                  ? 'Complete your current call to receive new ones.'
+                  : 'Go online to start receiving calls.'}
               </p>
             </div>
           ) : (
@@ -402,4 +414,3 @@ export default function AgentDashboard() {
     </div>
   );
 }
-
