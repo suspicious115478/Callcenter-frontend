@@ -34,8 +34,12 @@ const fetchAgentAdminId = async (firebaseUid) => {
     }
 };
 
-const fetchMemberId = async (phoneNumber) => {
-    if (!phoneNumber) return null;
+/**
+ * UPDATED: Now fetches and returns both member_id and customer_name.
+ * IMPORTANT: This assumes your backend API returns a 'customer_name' field on success.
+ */
+const fetchMemberIdAndName = async (phoneNumber) => {
+    if (!phoneNumber) return { memberId: null, customerName: null };
     const url = `${API_BASE_URL}/call/memberid/lookup`;
     try {
         const response = await fetch(url, {
@@ -44,19 +48,22 @@ const fetchMemberId = async (phoneNumber) => {
             body: JSON.stringify({ phoneNumber })
         });
         if (!response.ok) {
-             if (response.status === 404) return 'Not Found';
-             throw new Error(`HTTP Error! Status: ${response.status}`);
+            if (response.status === 404) return { memberId: 'Not Found', customerName: 'New Customer' };
+            throw new Error(`HTTP Error! Status: ${response.status}`);
         }
         const data = await response.json();
-        return data.member_id;
+        // Assuming your backend response looks like: { member_id: '...', customer_name: '...' }
+        const customerName = data.customer_name || 'Customer Found'; // Default to 'Customer Found' if name is missing
+        return { memberId: data.member_id, customerName: customerName }; 
     } catch (error) {
-        console.error("[MEMBER ID ERROR]", error);
-        return 'Error';
+        console.error("[MEMBER ID/NAME ERROR]", error);
+        return { memberId: 'Error', customerName: 'Error Fetching Name' };
     }
 };
 
-// --- STYLES ---
+// --- STYLES (Omitted for brevity) ---
 const styles = {
+    // ... all your existing styles
     container: {
         display: 'flex', flexDirection: 'column', minHeight: '100vh', 
         fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
@@ -104,6 +111,8 @@ export default function SchedulingPage() {
     const [orderId, setOrderId] = useState(null);
     const [adminId, setAdminId] = useState('Fetching...');
     const [memberId, setMemberId] = useState('Searching...');
+    // NEW STATE VARIABLE FOR CUSTOMER NAME
+    const [customerName, setCustomerName] = useState('Searching...'); 
     const [fetchedAddressLine, setFetchedAddressLine] = useState(request_address || 'Loading address...');
     
     // Scheduling State
@@ -137,12 +146,18 @@ export default function SchedulingPage() {
         }
     }, []);
 
-    // Fetch Member ID
+    // Fetch Member ID AND NAME
     useEffect(() => {
         if (phoneNumber) {
-            fetchMemberId(phoneNumber).then(id => setMemberId(id));
+            setMemberId('Searching...');
+            setCustomerName('Searching...'); // Reset name
+            fetchMemberIdAndName(phoneNumber).then(({ memberId, customerName }) => {
+                setMemberId(memberId);
+                setCustomerName(customerName); // Set the fetched customer name
+            });
         } else {
             setMemberId('N/A');
+            setCustomerName('N/A');
         }
     }, [phoneNumber]);
 
@@ -179,25 +194,31 @@ export default function SchedulingPage() {
             setStatusMessage('❌ Error: Missing Order ID or Admin ID.');
             return;
         }
+        // Add check for customer name validity
+        if (customerName.includes('Error') || customerName.includes('Searching')) {
+            setStatusMessage('❌ Error: Customer name is still being fetched or an error occurred.');
+            return;
+        }
+
 
         setStatusMessage('Scheduling appointment...');
         
         const scheduledDateTime = `${selectedDate} ${selectedTime}`;
         // Payload Construction
-        // Note: user_id is NULL because we are not assigning a serviceman yet.
-        // order_status is 'Scheduled'.
         const scheduleData = {
             user_id: null, // No serviceman assigned yet
             category: serviceName,
             request_address: fetchedAddressLine,
-            order_status: 'Scheduled', // <--- Key Change
+            order_status: 'Scheduled',
             order_request: requestDetails,
             order_id: orderId,
             ticket_id: ticketId,
             phone_number: phoneNumber,
             admin_id: adminId,
-            scheduled_time: scheduledDateTime, // <--- Key Addition
-            previous_order_id: null
+            scheduled_time: scheduledDateTime,
+            previous_order_id: null,
+            // ⭐️ FIX: Include the customer_name in the dispatch payload
+            customer_name: customerName, 
         };
 
         try {
@@ -276,15 +297,19 @@ export default function SchedulingPage() {
                             <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
                                 **Customer:** <span style={{ fontWeight: '600' }}>{phoneNumber}</span>
                             </p>
+                            {/* ⭐️ SHOW CUSTOMER NAME HERE */}
+                            <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
+                                **Name:** <span style={{ fontWeight: '600', color: customerName.includes('Found') ? '#10b981' : '#4f46e5' }}>{customerName}</span>
+                            </p>
                             <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
                                 **Member ID:** <span style={{ fontWeight: '600', color: memberId === 'Not Found' ? '#ef4444' : '#4f46e5' }}>{memberId}</span>
                             </p>
-                             <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
+                            <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
                                 **Admin ID:** <span style={{ fontWeight: '600' }}>{adminId}</span>
                             </p>
                         </div>
 
-                         <div style={{ marginBottom: '16px', backgroundColor: '#f9fafb', padding: '10px', borderRadius: '8px' }}>
+                          <div style={{ marginBottom: '16px', backgroundColor: '#f9fafb', padding: '10px', borderRadius: '8px' }}>
                             <label style={{ display: 'block', fontSize: '0.85rem', color: '#6b7280' }}>Address</label>
                             <div style={{ fontSize: '0.9rem', fontWeight: '500' }}>{fetchedAddressLine}</div>
                         </div>
