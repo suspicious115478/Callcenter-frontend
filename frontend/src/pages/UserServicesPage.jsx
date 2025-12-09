@@ -1,12 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-// Using Emojis instead of custom SVG components
 const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>;
 
-// ⭐️ NEW: Plumber Subcategories (Combined Repair & Installation)
+// Subcategory data
 const PLUMBER_SUBCATEGORIES = [
-    // Repair & Servicing
     { name: 'Shower Head Repair', icon: '🚿' },
     { name: 'Diverter Repair', icon: '🔧' },
     { name: 'Waste Pipe Repair', icon: '💧' },
@@ -18,13 +16,11 @@ const PLUMBER_SUBCATEGORIES = [
     { name: 'Toilet Repair', icon: '🚾' },
     { name: 'Toilet Pot Blockage', icon: '🚫' },
     { name: 'Flush Valve Repair', icon: '🚰' },
-    { name: 'Tap Repair', icon: ' faucet' },
+    { name: 'Tap Repair', icon: '🚰' },
     { name: 'Water Mixer Tap Repair', icon: '🌡️' },
-    { name: 'Water Tank Repair', icon: '储' },
+    { name: 'Water Tank Repair', icon: '💧' },
     { name: 'Motor Repair', icon: '⚡' },
     { name: 'Pipeline Repair', icon: '🔗' },
-    
-    // Installation & Replacement
     { name: 'Bathroom Accessories', icon: '🧼' },
     { name: 'Shower Installation', icon: '🚿' },
     { name: 'Shower Diverter Install', icon: '🔧' },
@@ -51,13 +47,11 @@ const PLUMBER_SUBCATEGORIES = [
     { name: 'Motor Installation', icon: '🔋' },
 ];
 
-// ⭐️ NEW: Carpenter Subcategories (Combined Repair & Installation)
 const CARPENTER_SUBCATEGORIES = [
-    // Installation
     { name: 'Shelf Installation', icon: '🖼️' },
     { name: 'Drawer Installation', icon: '🗄️' },
     { name: 'Curtain Rod Installation', icon: '🪟' },
-    { name: 'Blinds Installation', icon: ' blinds' },
+    { name: 'Blinds Installation', icon: '🪟' },
     { name: 'Door Lock Installation', icon: '🔒' },
     { name: 'Door Stopper Installation', icon: '🚪' },
     { name: 'Door Peephole Installation', icon: '👁️' },
@@ -68,8 +62,6 @@ const CARPENTER_SUBCATEGORIES = [
     { name: 'Door Installation', icon: '🚪' },
     { name: 'Door Closer Installation', icon: '⚙️' },
     { name: 'Foot Caps / Glide Installation', icon: '👣' },
-
-    // Repair
     { name: 'Bed Repair', icon: '🛏️' },
     { name: 'Table Repair', icon: '🪑' },
     { name: 'Chair Repair', icon: '🪑' },
@@ -86,8 +78,6 @@ const CARPENTER_SUBCATEGORIES = [
     { name: 'Sliding Track / Rollers Repair', icon: '🚄' },
 ];
 
-
-// ⭐️ Cleaning Subcategories List (Kept from previous iteration)
 const CLEANING_SUBCATEGORIES = [
     { name: 'Bathroom Cleaning', icon: '🛁' },
     { name: 'Kitchen Cleaning', icon: '🔪' },
@@ -107,9 +97,7 @@ const CLEANING_SUBCATEGORIES = [
     { name: 'Wardrobe Cleaning', icon: '👚' },
 ];
 
-// ⭐️ UPDATED SERVICE CATEGORIES
 const SERVICES = [
-    // Main Service List
     { name: 'Cleaning', icon: '🧼', color: '#a78bfa', darkColor: '#5b21b6', description: 'Deep cleaning, sanitization, and domestic help.' },
     { name: 'Carpenter', icon: '🔨', color: '#f97316', darkColor: '#7c2d12', description: 'Woodworking, furniture repair, and structural framing.' },
     { name: 'Gardener', icon: '🌳', color: '#86efac', darkColor: '#15803d', description: 'Lawn care, planting, and landscape maintenance.' },
@@ -128,231 +116,110 @@ const SERVICES = [
     { name: 'Medical Wing', icon: '🏥', color: '#fb7185', darkColor: '#be123c', description: 'Doctor, nurse, or medical support scheduling.' },
 ];
 
-// --- INLINE STYLES ---
 const styles = {
     container: {
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: '100vh',
+        display: 'flex', flexDirection: 'column', minHeight: '100vh',
         fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-        backgroundColor: '#f3f4f6',
-        color: '#111827',
+        backgroundColor: '#f3f4f6', color: '#111827',
     },
     header: {
-        height: '64px',
-        backgroundColor: '#1f2937',
-        color: 'white',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 24px',
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
-        zIndex: 20,
+        height: '64px', backgroundColor: '#1f2937', color: 'white', display: 'flex', alignItems: 'center',
+        justifyContent: 'space-between', padding: '0 24px', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', zIndex: 20,
     },
     brand: { fontSize: '1.25rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '10px' },
     headerRight: { display: 'flex', alignItems: 'center', gap: '24px' },
     clock: { fontFamily: 'monospace', color: '#9ca3af', fontSize: '0.95rem' },
     avatar: { width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', border: '2px solid #4b5563' },
-    
     mainLayout: {
-        maxWidth: '1280px', 
-        margin: '0 auto',
-        padding: '32px 16px',
-        flex: 1,
-        width: '100%',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '32px',
+        maxWidth: '1280px', margin: '0 auto', padding: '32px 16px', flex: 1, width: '100%',
+        display: 'flex', flexDirection: 'column', gap: '32px',
     },
-
     card: {
-        backgroundColor: 'white',
-        padding: '30px', 
-        borderRadius: '12px',
-        border: '1px solid #e5e7eb',
-        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
-        transition: 'all 0.3s',
+        backgroundColor: 'white', padding: '30px', borderRadius: '12px', border: '1px solid #e5e7eb',
+        boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)', transition: 'all 0.3s',
     },
-
     contextBox: {
-        width: '100%',
-        maxWidth: '600px', 
-        alignSelf: 'center', 
-        zIndex: 10,
-        padding: '16px',
-        borderRadius: '12px',
-        backgroundColor: 'white',
-        border: '1px solid #dbeafe', 
+        width: '100%', maxWidth: '600px', alignSelf: 'center', zIndex: 10, padding: '16px',
+        borderRadius: '12px', backgroundColor: 'white', border: '1px solid #dbeafe',
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
     },
-
     serviceGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-        gap: '20px',
-        marginBottom: '100px', 
-        width: '100%',
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '20px', marginBottom: '100px', width: '100%',
     },
-    
     contextHighlight: {
-        fontFamily: 'monospace',
-        backgroundColor: '#eef2ff',
-        padding: '2px 8px',
-        borderRadius: '4px',
-        color: '#4f46e5',
-        fontWeight: '600'
+        fontFamily: 'monospace', backgroundColor: '#eef2ff', padding: '2px 8px',
+        borderRadius: '4px', color: '#4f46e5', fontWeight: '600'
     },
-
-    // Styles for the bottom action bar
     actionBar: {
-        position: 'fixed',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: 'white',
-        borderTop: '1px solid #e5e7eb',
-        padding: '16px 24px',
-        display: 'flex',
-        justifyContent: 'flex-end',
-        gap: '16px',
-        boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.1)',
-        zIndex: 50,
+        position: 'fixed', bottom: 0, left: 0, right: 0, backgroundColor: 'white',
+        borderTop: '1px solid #e5e7eb', padding: '16px 24px', display: 'flex',
+        justifyContent: 'flex-end', gap: '16px', boxShadow: '0 -4px 6px -1px rgba(0, 0, 0, 0.1)', zIndex: 50,
     },
     buttonPrimary: {
-        backgroundColor: '#4f46e5',
-        color: 'white',
-        padding: '12px 24px',
-        borderRadius: '8px',
-        fontWeight: '600',
-        border: 'none',
-        cursor: 'pointer',
-        fontSize: '1rem',
-        boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.2)',
-        opacity: 1,
-        transition: 'opacity 0.2s',
+        backgroundColor: '#4f46e5', color: 'white', padding: '12px 24px', borderRadius: '8px',
+        fontWeight: '600', border: 'none', cursor: 'pointer', fontSize: '1rem',
+        boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.2)', transition: 'opacity 0.2s',
     },
     buttonSecondary: {
-        backgroundColor: 'white',
-        color: '#4b5563',
-        padding: '12px 24px',
-        borderRadius: '8px',
-        fontWeight: '600',
-        border: '1px solid #d1d5db',
-        cursor: 'pointer',
-        fontSize: '1rem',
+        backgroundColor: 'white', color: '#4b5563', padding: '12px 24px', borderRadius: '8px',
+        fontWeight: '600', border: '1px solid #d1d5db', cursor: 'pointer', fontSize: '1rem',
     },
     buttonDisabled: {
-        opacity: 0.5,
-        cursor: 'not-allowed',
-        backgroundColor: '#9ca3af',
-        boxShadow: 'none',
+        opacity: 0.5, cursor: 'not-allowed', backgroundColor: '#9ca3af', boxShadow: 'none',
     },
-    
-    // MODAL STYLES
     modalOverlay: {
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 100,
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 100,
     },
     modalContent: {
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        width: '90%',
-        maxWidth: '800px',
-        maxHeight: '80vh',
-        overflowY: 'auto',
-        padding: '24px',
+        backgroundColor: 'white', borderRadius: '12px', width: '90%', maxWidth: '800px',
+        maxHeight: '80vh', overflowY: 'auto', padding: '24px',
         boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
     },
     subcategoryGrid: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
-        gap: '12px',
-        marginTop: '16px',
-        paddingBottom: '20px',
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))',
+        gap: '12px', marginTop: '16px', paddingBottom: '20px',
     },
     subcategoryCard: {
-        padding: '12px',
-        borderRadius: '8px',
-        border: '1px solid #e5e7eb',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        textAlign: 'center',
-        cursor: 'pointer',
+        padding: '12px', borderRadius: '8px', border: '1px solid #e5e7eb', display: 'flex',
+        flexDirection: 'column', alignItems: 'center', textAlign: 'center', cursor: 'pointer',
         transition: 'all 0.15s',
     },
 };
 
-/**
- * Component for a single service category card. (Unchanged)
- */
 const ServiceCard = ({ service, onClick, isSelected, hasSubcategories }) => {
     const [isHovered, setIsHovered] = useState(false);
 
     const iconContainerStyle = {
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '18px', 
-        borderRadius: '50%',
-        backgroundColor: service.color,
-        marginBottom: '16px',
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '18px',
+        borderRadius: '50%', backgroundColor: service.color, marginBottom: '16px',
         boxShadow: `0 4px 6px -1px ${service.darkColor}40`,
     };
 
     const cardStyle = {
-        ...styles.card,
-        cursor: 'pointer',
-        height: '100%',
-        display: 'flex',
-        flexDirection: 'column',
+        ...styles.card, cursor: 'pointer', height: '100%', display: 'flex', flexDirection: 'column',
         transform: isHovered || isSelected ? 'translateY(-4px)' : 'translateY(0)',
-        
-        // Card Outline Logic
-        border: isSelected 
-            ? '2px solid #4f46e5' 
-            : isHovered
-                ? '1px solid #d1d5db' 
-                : '1px solid #e5e7eb', 
-        
+        border: isSelected ? '2px solid #4f46e5' : isHovered ? '1px solid #d1d5db' : '1px solid #e5e7eb',
         backgroundColor: isSelected ? '#eef2ff' : 'white',
-        boxShadow: (isHovered || isSelected)
-            ? '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-            : styles.card.boxShadow,
+        boxShadow: (isHovered || isSelected) ? '0 10px 15px -3px rgba(0, 0, 0, 0.1)' : styles.card.boxShadow,
     };
 
     return (
-        <div
-            style={cardStyle}
-            onClick={() => onClick(service)}
-            onMouseEnter={() => setIsHovered(true)}
-            onMouseLeave={() => setIsHovered(false)}
-        >
+        <div style={cardStyle} onClick={() => onClick(service)}
+            onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start'}}>
                 <div style={iconContainerStyle}>
-                    <span style={{ fontSize: '2.25rem', lineHeight: 1 }}>{service.icon}</span> 
+                    <span style={{ fontSize: '2.25rem', lineHeight: 1 }}>{service.icon}</span>
                 </div>
                 {isSelected && <span style={{fontSize: '1.5rem'}}>{hasSubcategories ? '🔗' : '✅'}</span>}
             </div>
-            
-            <h3 style={{ fontSize: '1.2rem', fontWeight: '700', color: '#1f2937', marginBottom: '4px' }}>{service.name}</h3> 
+            <h3 style={{ fontSize: '1.2rem', fontWeight: '700', color: '#1f2937', marginBottom: '4px' }}>{service.name}</h3>
             <p style={{ fontSize: '0.85rem', color: '#6b7280', flex: 1 }}>{service.description}</p>
         </div>
     );
 };
 
-
-/**
- * Subcategory Card Component (Unchanged)
- */
 const SubcategoryCard = ({ subcategory, isSelected, onClick }) => {
     const cardStyle = {
         ...styles.subcategoryCard,
@@ -364,33 +231,24 @@ const SubcategoryCard = ({ subcategory, isSelected, onClick }) => {
     };
 
     const iconStyle = {
-        fontSize: '1.5rem',
-        marginBottom: '4px',
+        fontSize: '1.5rem', marginBottom: '4px',
         filter: isSelected ? 'grayscale(100%) brightness(10)' : 'none',
     };
 
     return (
-        <div 
-            style={cardStyle} 
-            onClick={() => onClick(subcategory.name)}
-        >
+        <div style={cardStyle} onClick={() => onClick(subcategory.name)}>
             <span style={iconStyle}>{subcategory.icon}</span>
             <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{subcategory.name}</span>
         </div>
     );
 };
 
-/**
- * Subcategory Modal Component (Unchanged)
- */
 const SubcategoryModal = ({ service, subcategories, initialSelection, onSave, onClose }) => {
     const [tempSelection, setTempSelection] = useState(initialSelection || []);
 
     const toggleSelection = (name) => {
-        setTempSelection(prev => 
-            prev.includes(name) 
-                ? prev.filter(n => n !== name) 
-                : [...prev, name]
+        setTempSelection(prev =>
+            prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
         );
     };
 
@@ -398,9 +256,9 @@ const SubcategoryModal = ({ service, subcategories, initialSelection, onSave, on
         onSave(tempSelection);
         onClose();
     };
-    
+
     return (
-        <div style={styles.modalOverlay} /* onClick={handleOverlayClick} */>
+        <div style={styles.modalOverlay}>
             <div style={styles.modalContent}>
                 <h2 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1f2937', borderBottom: '1px solid #e5e7eb', paddingBottom: '12px', marginBottom: '16px' }}>
                     Select Sub-Services for {service.name}
@@ -408,30 +266,17 @@ const SubcategoryModal = ({ service, subcategories, initialSelection, onSave, on
                 <p style={{ color: '#6b7280', marginBottom: '20px' }}>
                     Please select one or more specific items the customer is requesting service for.
                 </p>
-
                 <div style={styles.subcategoryGrid}>
                     {subcategories.map(sub => (
-                        <SubcategoryCard
-                            key={sub.name}
-                            subcategory={sub}
-                            isSelected={tempSelection.includes(sub.name)}
-                            onClick={toggleSelection}
-                        />
+                        <SubcategoryCard key={sub.name} subcategory={sub}
+                            isSelected={tempSelection.includes(sub.name)} onClick={toggleSelection} />
                     ))}
                 </div>
-
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', paddingTop: '16px', borderTop: '1px solid #f3f4f6' }}>
-                    <button 
-                        style={{ ...styles.buttonSecondary, padding: '8px 16px' }} 
-                        onClick={onClose}
-                    >
-                        Cancel
-                    </button>
-                    <button 
+                    <button style={{ ...styles.buttonSecondary, padding: '8px 16px' }} onClick={onClose}>Cancel</button>
+                    <button
                         style={tempSelection.length === 0 ? { ...styles.buttonPrimary, ...styles.buttonDisabled, padding: '8px 16px' } : { ...styles.buttonPrimary, padding: '8px 16px' }}
-                        disabled={tempSelection.length === 0}
-                        onClick={handleSave}
-                    >
+                        disabled={tempSelection.length === 0} onClick={handleSave}>
                         Save ({tempSelection.length} Selected)
                     </button>
                 </div>
@@ -440,9 +285,7 @@ const SubcategoryModal = ({ service, subcategories, initialSelection, onSave, on
     );
 };
 
-// Context Component (Unchanged)
 const CallContext = ({ ticketId, phoneNumber, requestDetails }) => {
-    // ... (Your CallContext component implementation)
     return (
         <div style={styles.contextBox}>
             <h2 style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937', marginBottom: '8px', paddingBottom: '4px', borderBottom: '1px solid #e5e7eb' }}>
@@ -464,90 +307,83 @@ const CallContext = ({ ticketId, phoneNumber, requestDetails }) => {
     );
 };
 
-
 export default function UserServicesPage() {
     const location = useLocation();
     const navigate = useNavigate();
-    
+
     const ticketId = location.state?.ticketId;
     const requestDetails = location.state?.requestDetails;
     const selectedAddressId = location.state?.selectedAddressId;
-    const phoneNumber = location.state?.phoneNumber; 
+    const phoneNumber = location.state?.phoneNumber;
 
-    // State
-    const [selectedService, setSelectedService] = useState(null);
-    const [selectedSubcategories, setSelectedSubcategories] = useState([]);
+    // 🚀 NEW: Store multiple selected services with their subcategories
+    const [selectedServices, setSelectedServices] = useState({}); // { serviceName: [subcategories] }
     const [showSubcategoryModal, setShowSubcategoryModal] = useState(false);
-    const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
-    
-    // ⭐️ NEW State: Storing the specific subcategory list to display in the modal
+    const [activeModalService, setActiveModalService] = useState(null);
     const [activeSubcategoryList, setActiveSubcategoryList] = useState([]);
-
+    const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
-        
-        const handleResize = () => { /* ... */ };
-        window.addEventListener('resize', handleResize);
-
-        return () => {
-            clearInterval(timer);
-            window.removeEventListener('resize', handleResize);
-        };
+        return () => clearInterval(timer);
     }, []);
 
-    // ⭐️ UPDATED: Logic to handle service selection and open the modal for relevant services
+    const getSubcategoryList = (serviceName) => {
+        if (serviceName === 'Cleaning') return CLEANING_SUBCATEGORIES;
+        if (serviceName === 'Plumber') return PLUMBER_SUBCATEGORIES;
+        if (serviceName === 'Carpenter') return CARPENTER_SUBCATEGORIES;
+        return null;
+    };
+
     const handleSelectService = (service) => {
         const serviceName = service.name;
-        let subcategoryList = null;
-
-        if (serviceName === 'Cleaning') {
-            subcategoryList = CLEANING_SUBCATEGORIES;
-        } else if (serviceName === 'Plumber') {
-            subcategoryList = PLUMBER_SUBCATEGORIES;
-        } else if (serviceName === 'Carpenter') {
-            subcategoryList = CARPENTER_SUBCATEGORIES;
-        }
-
-        // If the same service is clicked, and it has subcategories, reopen modal for review
-        if (selectedService?.name === serviceName && subcategoryList) {
-             setActiveSubcategoryList(subcategoryList);
-             setShowSubcategoryModal(true);
-             return;
-        }
-
-        setSelectedService(service);
-        setSelectedSubcategories([]); // Clear previous subcategories upon new main category selection
+        const subcategoryList = getSubcategoryList(serviceName);
 
         if (subcategoryList) {
+            // Service with subcategories - open modal
+            setActiveModalService(service);
             setActiveSubcategoryList(subcategoryList);
             setShowSubcategoryModal(true);
         } else {
-            setActiveSubcategoryList([]);
+            // Service without subcategories - toggle selection
+            setSelectedServices(prev => {
+                const newSelection = { ...prev };
+                if (newSelection[serviceName]) {
+                    delete newSelection[serviceName];
+                } else {
+                    newSelection[serviceName] = [];
+                }
+                return newSelection;
+            });
         }
     };
 
     const handleSubcategorySave = (subcategories) => {
-        setSelectedSubcategories(subcategories);
-    }
-
+        if (activeModalService && subcategories.length > 0) {
+            setSelectedServices(prev => ({
+                ...prev,
+                [activeModalService.name]: subcategories
+            }));
+        }
+    };
 
     const handleConfirmAndContinue = () => {
-        if (!selectedService) return;
-        
-        // Validation check for services with subcategories
-        const requiresSubcategories = selectedService.name === 'Cleaning' || selectedService.name === 'Plumber' || selectedService.name === 'Carpenter';
-
-        if (requiresSubcategories && selectedSubcategories.length === 0) {
-            alert(`Please select at least one sub-service for ${selectedService.name} before continuing.`);
-            // Re-open the modal with the correct list
-            setActiveSubcategoryList(
-                selectedService.name === 'Cleaning' ? CLEANING_SUBCATEGORIES :
-                selectedService.name === 'Plumber' ? PLUMBER_SUBCATEGORIES :
-                CARPENTER_SUBCATEGORIES
-            );
-            setShowSubcategoryModal(true);
+        if (Object.keys(selectedServices).length === 0) {
+            alert('Please select at least one service before continuing.');
             return;
+        }
+
+        // Validate subcategories for services that require them
+        for (const [serviceName, subcategories] of Object.entries(selectedServices)) {
+            const requiresSubcategories = ['Cleaning', 'Plumber', 'Carpenter'].includes(serviceName);
+            if (requiresSubcategories && (!subcategories || subcategories.length === 0)) {
+                alert(`Please select at least one sub-service for ${serviceName} before continuing.`);
+                const service = SERVICES.find(s => s.name === serviceName);
+                setActiveModalService(service);
+                setActiveSubcategoryList(getSubcategoryList(serviceName));
+                setShowSubcategoryModal(true);
+                return;
+            }
         }
 
         navigate('/user/servicemen', {
@@ -556,28 +392,28 @@ export default function UserServicesPage() {
                 requestDetails,
                 selectedAddressId,
                 phoneNumber,
-                serviceName: selectedService.name,
-                selectedSubcategories, // Pass subcategories forward
+                selectedServices, // Pass entire object: { serviceName: [subcategories] }
             }
         });
     };
 
     const handleScheduleRedirect = () => {
-        if (!selectedService) return;
-
-        // Validation check for services with subcategories
-        const requiresSubcategories = selectedService.name === 'Cleaning' || selectedService.name === 'Plumber' || selectedService.name === 'Carpenter';
-
-        if (requiresSubcategories && selectedSubcategories.length === 0) {
-            alert(`Please select at least one sub-service for ${selectedService.name} before scheduling.`);
-            // Re-open the modal with the correct list
-             setActiveSubcategoryList(
-                selectedService.name === 'Cleaning' ? CLEANING_SUBCATEGORIES :
-                selectedService.name === 'Plumber' ? PLUMBER_SUBCATEGORIES :
-                CARPENTER_SUBCATEGORIES
-            );
-            setShowSubcategoryModal(true);
+        if (Object.keys(selectedServices).length === 0) {
+            alert('Please select at least one service before scheduling.');
             return;
+        }
+
+        // Same validation as above
+        for (const [serviceName, subcategories] of Object.entries(selectedServices)) {
+            const requiresSubcategories = ['Cleaning', 'Plumber', 'Carpenter'].includes(serviceName);
+            if (requiresSubcategories && (!subcategories || subcategories.length === 0)) {
+                alert(`Please select at least one sub-service for ${serviceName} before scheduling.`);
+                const service = SERVICES.find(s => s.name === serviceName);
+                setActiveModalService(service);
+                setActiveSubcategoryList(getSubcategoryList(serviceName));
+                setShowSubcategoryModal(true);
+                return;
+            }
         }
 
         navigate('/user/scheduling', {
@@ -586,17 +422,10 @@ export default function UserServicesPage() {
                 requestDetails,
                 selectedAddressId,
                 phoneNumber,
-                serviceName: selectedService.name,
-                selectedSubcategories, // Pass subcategories forward
+                selectedServices,
             }
         });
     };
-
-    // Determine the button state logic
-    const isServiceSelected = selectedService !== null;
-    const requiresSubcategories = selectedService?.name === 'Cleaning' || selectedService?.name === 'Plumber' || selectedService?.name === 'Carpenter';
-    const isMissingSubcategories = requiresSubcategories && selectedSubcategories.length === 0;
-
 
     if (!ticketId || !requestDetails || !selectedAddressId || !phoneNumber) {
         return (
@@ -606,9 +435,10 @@ export default function UserServicesPage() {
         );
     }
 
+    const selectedCount = Object.keys(selectedServices).length;
+
     return (
         <div style={styles.container}>
-            {/* HEADER (Unchanged) */}
             <header style={styles.header}>
                 <div style={styles.brand}>
                     <PhoneIcon />
@@ -620,74 +450,69 @@ export default function UserServicesPage() {
                 </div>
             </header>
 
-            {/* MAIN CONTENT */}
             <div style={styles.mainLayout}>
-                
-                <CallContext
-                    ticketId={ticketId}
-                    phoneNumber={phoneNumber}
-                    requestDetails={requestDetails}
-                />
+                <CallContext ticketId={ticketId} phoneNumber={phoneNumber} requestDetails={requestDetails} />
 
                 <h1 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#1f2937', marginBottom: '8px', paddingBottom: '8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Select Service Category
+                    Select Service Categories (Multiple Allowed)
                 </h1>
-                
-                {/* Service Selection Grid */}
+
                 <div style={styles.serviceGrid}>
-                    {SERVICES.map((service) => (
-                        <ServiceCard
-                            key={service.name}
-                            service={service}
-                            isSelected={selectedService?.name === service.name}
-                            hasSubcategories={service.name === 'Cleaning' || service.name === 'Plumber' || service.name === 'Carpenter'} // Display link icon if it has subcategories
-                            onClick={handleSelectService}
-                        />
-                    ))}
+                    {SERVICES.map((service) => {
+                        const hasSubcategories = ['Cleaning', 'Plumber', 'Carpenter'].includes(service.name);
+                        const isSelected = selectedServices.hasOwnProperty(service.name);
+                        return (
+                            <ServiceCard
+                                key={service.name}
+                                service={service}
+                                isSelected={isSelected}
+                                hasSubcategories={hasSubcategories}
+                                onClick={handleSelectService}
+                            />
+                        );
+                    })}
                 </div>
             </div>
 
-            {/* ⭐️ SUB-CATEGORY MODAL (Now uses activeSubcategoryList) */}
-            {showSubcategoryModal && selectedService && activeSubcategoryList.length > 0 && (
+            {showSubcategoryModal && activeModalService && activeSubcategoryList.length > 0 && (
                 <SubcategoryModal
-                    service={selectedService}
+                    service={activeModalService}
                     subcategories={activeSubcategoryList}
-                    initialSelection={selectedSubcategories}
+                    initialSelection={selectedServices[activeModalService.name] || []}
                     onSave={handleSubcategorySave}
                     onClose={() => setShowSubcategoryModal(false)}
                 />
             )}
 
-            {/* BOTTOM ACTION BAR */}
             <div style={styles.actionBar}>
                 <div style={{ marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {isServiceSelected ? (
+                    {selectedCount > 0 ? (
                         <>
-                            <span style={{color: '#4b5563', fontWeight: '500'}}>Selected Service: <strong style={{color: '#4f46e5'}}>{selectedService.name}</strong></span>
-                            {requiresSubcategories && (
-                                <span style={{ color: selectedSubcategories.length > 0 ? '#10b981' : '#f59e0b', fontWeight: '500' }}>
-                                    (Sub-services: <strong>{selectedSubcategories.length > 0 ? selectedSubcategories.length : '0'}</strong> selected)
-                                </span>
-                            )}
+                            <span style={{color: '#4b5563', fontWeight: '500'}}>
+                                Selected Services: <strong style={{color: '#4f46e5'}}>{selectedCount}</strong>
+                            </span>
+                            <span style={{ color: '#10b981', fontWeight: '500', fontSize: '0.9rem' }}>
+                                ({Object.entries(selectedServices).map(([name, subs]) => 
+                                    `${name}${subs.length > 0 ? ` (${subs.length})` : ''}`
+                                ).join(', ')})
+                            </span>
                         </>
                     ) : (
-                        <span style={{color: '#9ca3af', fontStyle: 'italic'}}>Please select a service...</span>
+                        <span style={{color: '#9ca3af', fontStyle: 'italic'}}>Please select at least one service...</span>
                     )}
                 </div>
 
-                <button 
-                    style={!isServiceSelected || isMissingSubcategories ? { ...styles.buttonSecondary, ...styles.buttonDisabled } : styles.buttonSecondary}
-                    disabled={!isServiceSelected || isMissingSubcategories}
-                    onClick={handleScheduleRedirect}
-                >
+                <button
+                    style={selectedCount === 0 ? { ...styles.buttonSecondary, ...styles.buttonDisabled } : styles.buttonSecondary}
+                    disabled={selectedCount === 0}
+                    onClick={handleScheduleRedirect}>
                     📅 Schedule Time for Service
                 </button>
 
-                <button 
-                    style={!isServiceSelected || isMissingSubcategories ? { ...styles.buttonPrimary, ...styles.buttonDisabled } : styles.buttonPrimary}
-                    disabled={!isServiceSelected || isMissingSubcategories}
-                    onClick={handleConfirmAndContinue}
-                >
+                <button
+                    style={selectedCount === 0 ? { ...styles.buttonPrimary, ...styles.buttonDisabled } : styles.buttonPrimary}
+                    disabled={selectedCount === 0}
+                    onClick={handleConfirmAndContinue}>
                     Confirm and Continue →
                 </button>
             </div>
