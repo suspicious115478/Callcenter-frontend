@@ -51,9 +51,9 @@ const styles = {
     clock: { fontFamily: 'monospace', color: '#9ca3af', fontSize: '0.95rem' },
     avatar: { width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', border: '2px solid #4b5563' },
     
-    // ⭐️ NEW: Single-column centered main layout
+    // ⭐️ UPDATED: Increased max width to 1280px to accommodate 4 cards
     mainLayout: {
-        maxWidth: '900px', // Reduced max width for better centering feel
+        maxWidth: '1280px', 
         margin: '0 auto',
         padding: '32px 16px',
         flex: 1,
@@ -65,17 +65,17 @@ const styles = {
 
     card: {
         backgroundColor: 'white',
-        padding: '24px',
+        padding: '30px', // Slightly increased card padding for larger size
         borderRadius: '12px',
         border: '1px solid #e5e7eb',
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
         transition: 'all 0.3s',
     },
-    // ⭐️ NEW: Context box is now a simple centered component
+    // Context box (Unchanged)
     contextBox: {
         width: '100%',
-        maxWidth: '600px', // Max width for context box to look balanced
-        alignSelf: 'center', // Center it within the mainLayout
+        maxWidth: '600px', 
+        alignSelf: 'center', 
         zIndex: 10,
         padding: '16px',
         borderRadius: '12px',
@@ -83,12 +83,14 @@ const styles = {
         border: '1px solid #dbeafe', 
         boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
     },
-    // ⭐️ NEW: Service grid is full width of the 900px main layout
+    // ⭐️ UPDATED: Grid layout to prefer 4 columns (1fr each)
     serviceGrid: {
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', // Slightly larger min size
+        // Prioritize 4 columns. On smaller screens, it will fall back to 
+        // auto-fit with a 200px minimum width before wrapping.
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
         gap: '20px',
-        marginBottom: '100px', // Space for the fixed footer
+        marginBottom: '100px', 
         width: '100%',
     },
     contextHighlight: {
@@ -147,7 +149,6 @@ const styles = {
 
 /**
  * Component for a single service card.
- * ⭐️ Updated to use larger icon size and better outline effect.
  */
 const ServiceCard = ({ service, onClick, isSelected }) => {
     const [isHovered, setIsHovered] = useState(false);
@@ -156,7 +157,7 @@ const ServiceCard = ({ service, onClick, isSelected }) => {
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '16px', // Increased padding
+        padding: '18px', // Slightly increased icon container padding for larger look
         borderRadius: '50%',
         backgroundColor: service.color,
         marginBottom: '16px',
@@ -171,12 +172,12 @@ const ServiceCard = ({ service, onClick, isSelected }) => {
         flexDirection: 'column',
         transform: isHovered || isSelected ? 'translateY(-4px)' : 'translateY(0)',
         
-        // ⭐️ Card Outline Logic
+        // Card Outline Logic
         border: isSelected 
-            ? '2px solid #4f46e5' // Primary blue border if selected
+            ? '2px solid #4f46e5' 
             : isHovered
-                ? '1px solid #d1d5db' // Subtle outline on hover
-                : '1px solid #e5e7eb', // Default border
+                ? '1px solid #d1d5db' 
+                : '1px solid #e5e7eb', 
         
         backgroundColor: isSelected ? '#eef2ff' : 'white',
         boxShadow: (isHovered || isSelected)
@@ -193,18 +194,18 @@ const ServiceCard = ({ service, onClick, isSelected }) => {
         >
             <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'start'}}>
                 <div style={iconContainerStyle}>
-                    <span style={{ fontSize: '2rem', lineHeight: 1 }}>{service.icon}</span> {/* Increased icon size */}
+                    <span style={{ fontSize: '2.25rem', lineHeight: 1 }}>{service.icon}</span> {/* Further increased icon size */}
                 </div>
                 {isSelected && <span style={{fontSize: '1.5rem'}}>✅</span>}
             </div>
             
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '700', color: '#1f2937', marginBottom: '4px' }}>{service.name}</h3>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: '700', color: '#1f2937', marginBottom: '4px' }}>{service.name}</h3> {/* Increased name size */}
             <p style={{ fontSize: '0.85rem', color: '#6b7280', flex: 1 }}>{service.description}</p>
         </div>
     );
 };
 
-// ⭐️ Context Component (Used globally as it's now centralized)
+// Context Component (Unchanged)
 const CallContext = ({ ticketId, phoneNumber, requestDetails }) => {
     return (
         <div style={styles.contextBox}>
@@ -305,10 +306,10 @@ export default function UserServicesPage() {
                 </div>
             </header>
 
-            {/* ⭐️ MAIN CONTENT (New Centralized Layout) */}
+            {/* ⭐️ MAIN CONTENT (New Centralized Layout with increased width) */}
             <div style={styles.mainLayout}>
                 
-                {/* ⭐️ Context Box (Centralized and Stacked) */}
+                {/* Context Box (Centralized and Stacked) */}
                 <CallContext
                     ticketId={ticketId}
                     phoneNumber={phoneNumber}
@@ -319,7 +320,7 @@ export default function UserServicesPage() {
                     Select Service Category
                 </h1>
                 
-                {/* ⭐️ Service Selection Grid */}
+                {/* ⭐️ Service Selection Grid (Now prefers 4 columns) */}
                 <div style={styles.serviceGrid}>
                     {SERVICES.map((service) => (
                         <ServiceCard
