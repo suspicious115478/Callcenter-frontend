@@ -29,7 +29,6 @@ export default function AgentDashboard() {
   // --- HELPER: Parse scheduled time string ---
   const parseScheduledTime = (timeString) => {
     try {
-      // Format: "2025-12-17 10:00 AM"
       const [datePart, timePart, meridiem] = timeString.split(' ');
       const [year, month, day] = datePart.split('-');
       let [hours, minutes] = timePart.split(':');
@@ -37,7 +36,6 @@ export default function AgentDashboard() {
       hours = parseInt(hours);
       minutes = parseInt(minutes);
       
-      // Convert to 24-hour format
       if (meridiem === 'PM' && hours !== 12) {
         hours += 12;
       } else if (meridiem === 'AM' && hours === 12) {
@@ -57,9 +55,8 @@ export default function AgentDashboard() {
     if (!scheduledTime) return false;
     
     const now = new Date();
-    const oneHourBefore = new Date(scheduledTime.getTime() - (60 * 60 * 1000)); // 1 hour before
+    const oneHourBefore = new Date(scheduledTime.getTime() - (60 * 60 * 1000));
     
-    // Display if current time is between 1 hour before and the scheduled time (or after)
     const shouldDisplay = now >= oneHourBefore;
     
     console.log(`⏰ Time check for order:`, {
@@ -131,7 +128,6 @@ export default function AgentDashboard() {
 
       console.log("✅ Fetched scheduled orders (before time filter):", data);
       
-      // Filter orders based on scheduled time (1 hour prior or less)
       const filteredOrders = data.filter(order => {
         if (!order.scheduled_time) {
           console.log("⚠️ Order missing scheduled_time:", order);
@@ -142,7 +138,6 @@ export default function AgentDashboard() {
 
       console.log("✅ Filtered scheduled orders (within 1 hour):", filteredOrders);
       
-      // Transform data to match our card format
       const transformedOrders = filteredOrders.map(order => ({
         id: order.id,
         type: 'scheduled',
@@ -165,16 +160,13 @@ export default function AgentDashboard() {
   useEffect(() => {
     if (!agentDbId) return;
 
-    // Initial fetch
     fetchScheduledOrders(agentDbId);
 
-    // Refresh every minute to update time-based filtering
     const timeCheckInterval = setInterval(() => {
       console.log("🔄 Re-checking scheduled orders (time-based refresh)...");
       fetchScheduledOrders(agentDbId);
-    }, 60000); // Check every minute
+    }, 60000);
 
-    // Setup real-time subscription
     console.log("🎧 Setting up Supabase real-time listener...");
     
     const channel = supabase
@@ -189,8 +181,6 @@ export default function AgentDashboard() {
         },
         (payload) => {
           console.log("🔄 Supabase real-time update:", payload);
-          
-          // Refetch data on any change
           fetchScheduledOrders(agentDbId);
         }
       )
@@ -253,33 +243,57 @@ export default function AgentDashboard() {
     );
   };
 
-  // Handle Assign Scheduled Order
+  // 🚀 NEW: Handle Assign Scheduled Order
   const handleOrderAssign = async (order) => {
     await updateAgentStatus("busy");
     
-    console.log("📋 Assigning order:", order);
+    console.log("📋 Assigning scheduled order:", order);
     
-    // Navigate to appropriate dashboard with order details
-    // Adjust the route based on your routing setup
-    navigate('/order-details', {
-      state: {
-        orderId: order.orderId,
-        orderDetails: order.orderDetails,
-        customerName: order.customerName,
-        customerPhone: order.customerPhone,
-        agentId: agentDbId
-      }
-    });
-    
-    // Optionally update order status in Supabase
+    // 🔥 STEP 1: Update status from 'Scheduled' to 'Scheduling' in Supabase
     try {
-      await supabase
+      const { error: updateError } = await supabase
         .from('dispatch')
-        .update({ order_status: 'In Progress', assigned_agent: agentDbId })
-        .eq('id', order.id);
+        .update({ order_status: 'Scheduling' })
+        .eq('order_id', order.orderId);
+
+      if (updateError) {
+        console.error("❌ Failed to update order status to Scheduling:", updateError);
+        alert("Failed to update order status. Please try again.");
+        await updateAgentStatus("online");
+        return;
+      }
+
+      console.log("✅ Order status updated to 'Scheduling'");
+
     } catch (err) {
       console.error("Error updating order status:", err);
+      alert("Failed to update order status. Please try again.");
+      await updateAgentStatus("online");
+      return;
     }
+
+    // 🔥 STEP 2: Navigate to ServiceManSelectionPage with scheduled order details
+    navigate('/user/servicemen', {
+      state: {
+        // Pass order ID (existing, not new)
+        orderId: order.orderId,
+        isScheduledDispatch: true, // Flag to indicate this is a scheduled order
+        
+        // Pass ticket and contact info
+        ticketId: order.orderDetails.ticket_id,
+        phoneNumber: order.customerPhone,
+        
+        // Pass service details
+        serviceName: order.orderDetails.category,
+        requestDetails: order.orderDetails.order_request || 'Scheduled Service',
+        
+        // Pass address
+        request_address: order.address,
+        
+        // Pass admin ID for dispatch
+        adminId: agentDbId
+      }
+    });
   };
 
   // Toggle Agent Status
@@ -304,7 +318,6 @@ export default function AgentDashboard() {
   const isOnline = status === "online";
   const isBusy = status === "busy";
 
-  // Combine calls and scheduled orders for display
   const totalItems = incomingCalls.length + scheduledOrders.length;
 
   // --- INLINE STYLES ---
@@ -521,7 +534,6 @@ export default function AgentDashboard() {
 
   return (
     <div style={styles.container}>
-      {/* HEADER */}
       <header style={styles.header}>
         <div style={styles.brand}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -540,7 +552,6 @@ export default function AgentDashboard() {
       </header>
 
       <div style={styles.main}>
-        {/* SIDEBAR */}
         <aside style={styles.sidebar}>
           <div style={styles.statusCard}>
             <div style={styles.statusLabel}>Current Status</div>
@@ -574,7 +585,6 @@ export default function AgentDashboard() {
           </div>
         </aside>
 
-        {/* CONTENT AREA */}
         <main style={styles.contentArea}>
           <div style={styles.queueHeader}>
             <h2 style={styles.queueTitle}>Queue Overview</h2>
@@ -599,7 +609,6 @@ export default function AgentDashboard() {
             </div>
           ) : (
             <>
-              {/* Incoming Calls Section */}
               {incomingCalls.length > 0 && (
                 <>
                   <h3 style={styles.sectionTitle}>
@@ -617,7 +626,6 @@ export default function AgentDashboard() {
                 </>
               )}
 
-              {/* Scheduled Orders Section */}
               {scheduledOrders.length > 0 && (
                 <>
                   <h3 style={styles.sectionTitle}>
