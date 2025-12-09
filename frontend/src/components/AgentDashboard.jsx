@@ -143,8 +143,8 @@ export default function AgentDashboard() {
         type: 'scheduled',
         orderId: order.order_id || order.id,
         customerName: order.customer_name || 'Unknown Customer',
-        customerPhone: order.customer_phone || 'N/A',
-        address: order.requested_address || 'No address provided',
+        customerPhone: order.phone_number || 'N/A', // 🔥 FIX: Use phone_number (not customer_phone)
+        address: order.request_address || 'No address provided', // 🔥 FIX: Use request_address (not requested_address)
         scheduledTime: order.scheduled_time,
         orderDetails: order,
         dispatchDetails: order
