@@ -205,7 +205,11 @@ export function ServiceManSelectionPage() {
         cancellationReason,
         callerNumber, 
         category, 
-        request_address 
+        request_address,
+        // 🚀 NEW: Scheduled order specific props
+        isScheduledDispatch,
+        orderId: existingOrderId,
+        adminId: passedAdminId
     } = location.state || {};
     
     const [activeTicketId, setActiveTicketId] = useState(paramTicketId || 'UNKNOWN_TKT');
@@ -216,10 +220,12 @@ export function ServiceManSelectionPage() {
     );
     const [fetchedAddressLine, setFetchedAddressLine] = useState(request_address || 'Loading address...');
     
-    const [adminId, setAdminId] = useState('Fetching...'); 
+    const [adminId, setAdminId] = useState(passedAdminId || 'Fetching...'); 
     const [memberId, setMemberId] = useState('Searching...');
     
-    const [orderId, setOrderId] = useState(null);
+    // 🚀 CRITICAL: Use existing order ID for scheduled orders, generate new for regular orders
+    const [orderId, setOrderId] = useState(isScheduledDispatch ? existingOrderId : null);
+    
     const [userCoordinates, setUserCoordinates] = useState(null); 
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
     
@@ -233,13 +239,21 @@ export function ServiceManSelectionPage() {
         return () => clearInterval(timer);
     }, []);
 
+    // 🚀 NEW: Handle order ID generation/usage based on dispatch type
     useEffect(() => {
-        const newOrderId = generateUniqueOrderId();
-        setOrderId(newOrderId);
-        console.log(`[ORDER CREATION] Generated unique Order ID: ${newOrderId}`);
-    }, []); 
+        if (isScheduledDispatch) {
+            // Use existing order ID for scheduled orders
+            console.log(`[SCHEDULED DISPATCH] Using existing Order ID: ${existingOrderId}`);
+            setOrderId(existingOrderId);
+        } else {
+            // Generate new order ID for regular orders
+            const newOrderId = generateUniqueOrderId();
+            setOrderId(newOrderId);
+            console.log(`[ORDER CREATION] Generated unique Order ID: ${newOrderId}`);
+        }
+    }, [isScheduledDispatch, existingOrderId]); 
     
-    // 🔥 CRITICAL FIX: Fetch details if previousOrderId exists
+    // Fetch details if previousOrderId exists (re-dispatch scenario)
     useEffect(() => {
         if (previousOrderId) {
             console.log(`[RE-DISPATCH DETECTED] Fetching details for Source Order ID: ${previousOrderId}`);
@@ -255,13 +269,11 @@ export function ServiceManSelectionPage() {
                     if (data) {
                         console.log("[SOURCE DATA FETCHED]", data);
                         
-                        // 🔥 FIX: Update ALL state variables with fetched data
                         if (data.ticket_id) setActiveTicketId(data.ticket_id);
                         if (data.phone_number) setActivePhoneNumber(data.phone_number);
                         if (data.admin_id) setAdminId(data.admin_id);
                         if (data.category) setActiveServiceName(data.category);
                         
-                        // 🔥 CRITICAL: Set address AND trigger geocoding
                         if (data.request_address) {
                             setFetchedAddressLine(data.request_address);
                             handleGeocoding(data.request_address);
@@ -279,18 +291,17 @@ export function ServiceManSelectionPage() {
             };
 
             fetchSourceOrderDetails();
-        } else {
+        } else if (!isScheduledDispatch) {
+            // Only fetch agent admin ID if NOT a scheduled dispatch (admin ID is passed for scheduled)
             const user = auth.currentUser;
-            if (user) {
+            if (user && !passedAdminId) {
                 setAdminId('Loading...');
                 fetchAgentAdminId(user.uid).then(id => setAdminId(id));
-            } else {
-                setAdminId('N/A - Agent not logged in.');
             }
         }
-    }, [previousOrderId, cancellationReason]);
+    }, [previousOrderId, cancellationReason, isScheduledDispatch, passedAdminId]);
 
-    // 🔥 FIX: Separate useEffect to fetch servicemen when service name AND coordinates are ready
+    // Fetch servicemen when service name AND coordinates are ready
     useEffect(() => {
         if (activeServiceName && userCoordinates) {
             setDispatchStatus(`Searching for ${activeServiceName} specialists...`);
@@ -328,9 +339,9 @@ export function ServiceManSelectionPage() {
         }
     };
 
-    // Normal address logic (only if NOT re-dispatch)
+    // Normal address logic (only if NOT re-dispatch and NOT scheduled dispatch with address)
     useEffect(() => {
-        if (!previousOrderId && selectedAddressId) {
+        if (!previousOrderId && !isScheduledDispatch && selectedAddressId) {
             const fetchAndGeocodeAddress = async () => {
                 const fullUrl = `${API_BASE_URL}/call/address/lookup/${selectedAddressId}`;
                 setFetchedAddressLine('Fetching address details...');
@@ -350,10 +361,11 @@ export function ServiceManSelectionPage() {
             };
             fetchAndGeocodeAddress();
         } else if (!previousOrderId && request_address) {
+            // Use passed address for scheduled orders or re-dispatch
             setFetchedAddressLine(request_address);
             handleGeocoding(request_address);
         }
-    }, [selectedAddressId, request_address, previousOrderId]); 
+    }, [selectedAddressId, request_address, previousOrderId, isScheduledDispatch]); 
 
     // Fetch member ID
     useEffect(() => {
@@ -397,7 +409,7 @@ export function ServiceManSelectionPage() {
         }
     }, [rawServicemen, userCoordinates, dispatchStatus]);
 
-    // Dispatch handler
+    // 🚀 UPDATED: Dispatch handler with scheduled order support
     const handleDispatch = async () => {
         if (!selectedServiceman) {
             setDispatchStatus('❗️ Please select a serviceman to dispatch.');
@@ -416,13 +428,14 @@ export function ServiceManSelectionPage() {
             user_id: selectedServiceman.user_id,
             category: activeServiceName,            
             request_address: fetchedAddressLine, 
-            order_status: 'Assigned',            
+            order_status: 'Assigned', // Always set to 'Assigned' when dispatching           
             order_request: activeRequest,       
-            order_id: orderId,
+            order_id: orderId, // Use existing ID for scheduled orders
             ticket_id: activeTicketId,
             phone_number: activePhoneNumber,          
             admin_id: adminId,
-            previous_order_id: previousOrderId || null 
+            previous_order_id: previousOrderId || null,
+            isScheduledUpdate: isScheduledDispatch // Flag to backend to update instead of insert
         };
 
         setDispatchStatus(`Dispatching ${selectedServiceman.full_name || selectedServiceman.name}...`);
@@ -486,6 +499,12 @@ export function ServiceManSelectionPage() {
                     <span style={{ color: '#10b981' }}>{activeServiceName || 'Unknown Service'}</span> Servicemen Near User
                 </h1>
                 
+                {isScheduledDispatch && (
+                    <div style={{ backgroundColor: '#dbeafe', border: '1px solid #3b82f6', color: '#1e40af', padding: '12px', borderRadius: '8px', marginBottom: '20px', fontWeight: '600' }}>
+                        📅 This is a SCHEDULED order being assigned. Using existing Order ID: {orderId}
+                    </div>
+                )}
+                
                 {previousOrderId && (
                     <div style={{ backgroundColor: '#fff7ed', border: '1px solid #fdba74', color: '#9a3412', padding: '12px', borderRadius: '8px', marginBottom: '20px', fontWeight: '600' }}>
                         ⚠️ This is a re-dispatch for Cancelled Order #{previousOrderId}. A new Order ID will be generated.
@@ -500,7 +519,7 @@ export function ServiceManSelectionPage() {
                     <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
                         **Ticket ID:** <span style={{ fontWeight: '600', backgroundColor: '#e5e7eb', padding: '2px 8px', borderRadius: '4px' }}>{activeTicketId}</span>
                         {' | '}
-                        **New Order ID:** <span style={{ fontWeight: '600', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5' }}>{orderId || 'Generating...'}</span>
+                        **Order ID:** <span style={{ fontWeight: '600', backgroundColor: isScheduledDispatch ? '#dbeafe' : '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: isScheduledDispatch ? '#1e40af' : '#4f46e5' }}>{orderId || 'Generating...'}</span>
                     </p>
                     <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '8px' }}>
                         **Customer Phone:** <span style={{ fontWeight: '600', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5' }}>{activePhoneNumber || 'N/A'}</span>
