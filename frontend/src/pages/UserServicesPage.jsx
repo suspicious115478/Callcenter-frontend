@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 // Using Emojis instead of custom SVG components
 const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>;
 
-// ⭐️ UPDATED SERVICE CATEGORIES
+// ⭐️ UPDATED SERVICE CATEGORIES (Kept as is from your last request)
 const SERVICES = [
     // List based on user's request
     { name: 'Cleaning', icon: '🧼', color: '#a78bfa', darkColor: '#5b21b6', description: 'Deep cleaning, sanitization, and domestic help.' },
@@ -50,14 +50,23 @@ const styles = {
     headerRight: { display: 'flex', alignItems: 'center', gap: '24px' },
     clock: { fontFamily: 'monospace', color: '#9ca3af', fontSize: '0.95rem' },
     avatar: { width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', border: '2px solid #4b5563' },
-    mainContent: {
+    
+    // ⭐️ REDESIGN: Main content uses CSS Grid on desktop
+    mainLayout: {
         maxWidth: '1280px',
         margin: '0 auto',
-        position: 'relative', // ⭐️ For positioning the context box
         padding: '32px 16px',
         flex: 1,
         width: '100%',
+        display: 'grid',
+        gridTemplateColumns: '1fr', // Default to single column for mobile
+        gap: '32px',
     },
+    mainLayoutDesktop: {
+        gridTemplateColumns: '1fr 300px', // Two columns: 1fr for Services, 300px for Context
+        alignItems: 'start', // Align items to the top
+    },
+
     card: {
         backgroundColor: 'white',
         padding: '24px',
@@ -66,36 +75,24 @@ const styles = {
         boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)',
         transition: 'all 0.3s',
     },
-    // ⭐️ NEW STYLES for the Corner Context Box
-    contextCorner: {
-        position: 'absolute',
-        top: '32px', // Same as mainContent padding top
-        right: '16px', // Same as mainContent padding right
-        width: '300px', // Fixed smaller width
+    // ⭐️ Context box now fits the 300px column
+    contextBox: {
+        width: '100%', 
         zIndex: 10,
         padding: '16px',
         borderRadius: '12px',
         backgroundColor: 'white',
-        border: '1px solid #dbeafe', // Light blue border for distinction
-        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)'
+        border: '1px solid #dbeafe',
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1)',
+        position: 'sticky', // Makes it stay visible when scrolling on desktop
+        top: '80px', // Below the fixed header
     },
     serviceGrid: {
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
         gap: '20px',
         marginBottom: '100px', // Space for the fixed footer
-        // ⭐️ Offset the grid content to the left to make room for the corner context
-        marginRight: '332px', /* 300px width + 32px gap */
-        width: 'calc(100% - 332px)',
-    },
-    // Adjusted grid for smaller screens where the context box goes full width
-    serviceGridMobile: {
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-        gap: '20px',
-        marginBottom: '100px',
         width: '100%',
-        marginRight: 0,
     },
     contextHighlight: {
         fontFamily: 'monospace',
@@ -153,7 +150,7 @@ const styles = {
 
 /**
  * Component for a single service card.
- * Updated to handle "Selected" state visually.
+ * No changes to logic, just cleaned up styles usage.
  */
 const ServiceCard = ({ service, onClick, isSelected }) => {
     const [isHovered, setIsHovered] = useState(false);
@@ -176,13 +173,11 @@ const ServiceCard = ({ service, onClick, isSelected }) => {
         display: 'flex',
         flexDirection: 'column',
         transform: isHovered || isSelected ? 'translateY(-4px)' : 'translateY(0)',
-        // Change border and background if selected
         border: isSelected ? '2px solid #4f46e5' : '1px solid #e5e7eb',
         backgroundColor: isSelected ? '#eef2ff' : 'white',
         boxShadow: (isHovered || isSelected)
             ? '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
             : styles.card.boxShadow,
-        minWidth: '150px' // Ensure cards have a minimum size
     };
 
     return (
@@ -205,10 +200,10 @@ const ServiceCard = ({ service, onClick, isSelected }) => {
     );
 };
 
-// ⭐️ NEW COMPONENT for the Corner Context Box
-const CornerCallContext = ({ ticketId, phoneNumber, requestDetails }) => {
+// ⭐️ NEW COMPONENT for the Context Box
+const CallContext = ({ ticketId, phoneNumber, requestDetails }) => {
     return (
-        <div style={styles.contextCorner}>
+        <div style={styles.contextBox}>
             <h2 style={{ fontSize: '1rem', fontWeight: '700', color: '#1f2937', marginBottom: '8px', paddingBottom: '4px', borderBottom: '1px solid #e5e7eb' }}>
                 🚨 Active Call Context
             </h2>
@@ -240,16 +235,14 @@ export default function UserServicesPage() {
 
     const [selectedService, setSelectedService] = useState(null);
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
-    
-    // State for determining screen size
-    const [isDesktop, setIsDesktop] = useState(window.innerWidth > 1024);
+    
+    const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
         
-        // ⭐️ Handle resize for responsive layout
         const handleResize = () => {
-            setIsDesktop(window.innerWidth > 1024);
+            setIsDesktop(window.innerWidth >= 1024);
         };
         window.addEventListener('resize', handleResize);
 
@@ -295,7 +288,7 @@ export default function UserServicesPage() {
 
     return (
         <div style={styles.container}>
-            {/* HEADER */}
+            {/* HEADER (Unchanged) */}
             <header style={styles.header}>
                 <div style={styles.brand}>
                     <PhoneIcon />
@@ -307,47 +300,49 @@ export default function UserServicesPage() {
                 </div>
             </header>
 
-            {/* MAIN CONTENT */}
-            <div style={styles.mainContent}>
+            {/* ⭐️ MAIN CONTENT (New Grid Layout) */}
+            <div style={isDesktop ? {...styles.mainLayout, ...styles.mainLayoutDesktop} : styles.mainLayout}>
                 
-                {/* ⭐️ 1. CORNER CONTEXT BOX (Only shown on Desktop) */}
+                {/* ⭐️ LEFT COLUMN: Service Selection (Takes 1fr) */}
+                <div style={{ minWidth: 0 }}> {/* minWidth: 0 ensures flex/grid children can shrink properly */}
+                    <h1 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#1f2937', marginBottom: '24px', paddingBottom: '8px', borderBottom: '1px solid #e5e7eb' }}>
+                        Select Service Category
+                    </h1>
+                    
+                    {/* ⭐️ Context box on Mobile (takes full width, stacked above grid) */}
+                    {!isDesktop && (
+                        <div style={{ marginBottom: '20px' }}>
+                            <CallContext
+                                ticketId={ticketId}
+                                phoneNumber={phoneNumber}
+                                requestDetails={requestDetails}
+                            />
+                        </div>
+                    )}
+                    
+                    <div style={styles.serviceGrid}>
+                        {SERVICES.map((service) => (
+                            <ServiceCard
+                                key={service.name}
+                                service={service}
+                                isSelected={selectedService?.name === service.name}
+                                onClick={setSelectedService}
+                            />
+                        ))}
+                    </div>
+                </div>
+
+                {/* ⭐️ RIGHT COLUMN: Context Box (Takes 300px on desktop) */}
                 {isDesktop && (
-                    <CornerCallContext
+                    <CallContext
                         ticketId={ticketId}
                         phoneNumber={phoneNumber}
                         requestDetails={requestDetails}
                     />
                 )}
-
-                {/* ⭐️ 2. SELECTION GRID */}
-                <h1 style={{ fontSize: '1.75rem', fontWeight: '700', color: '#1f2937', marginBottom: '24px', paddingBottom: '8px', borderBottom: '1px solid #e5e7eb' }}>
-                    Select Service Category
-                </h1>
-
-                {/* ⭐️ Context box on Mobile (takes full width) */}
-                {!isDesktop && (
-                    <div style={{ marginBottom: '20px' }}>
-                        <CornerCallContext
-                            ticketId={ticketId}
-                            phoneNumber={phoneNumber}
-                            requestDetails={requestDetails}
-                        />
-                    </div>
-                )}
-                
-                <div style={isDesktop ? styles.serviceGrid : styles.serviceGridMobile}>
-                    {SERVICES.map((service) => (
-                        <ServiceCard
-                            key={service.name}
-                            service={service}
-                            isSelected={selectedService?.name === service.name}
-                            onClick={setSelectedService}
-                        />
-                    ))}
-                </div>
             </div>
 
-            {/* BOTTOM ACTION BAR */}
+            {/* BOTTOM ACTION BAR (Unchanged) */}
             <div style={styles.actionBar}>
                 <div style={{ marginRight: 'auto', display: 'flex', alignItems: 'center' }}>
                     {selectedService ? (
