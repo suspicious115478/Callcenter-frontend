@@ -4,7 +4,90 @@ import { useLocation, useNavigate } from 'react-router-dom';
 // Using Emojis instead of custom SVG components
 const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>;
 
-// ⭐️ NEW: Cleaning Subcategories List
+// ⭐️ NEW: Plumber Subcategories (Combined Repair & Installation)
+const PLUMBER_SUBCATEGORIES = [
+    // Repair & Servicing
+    { name: 'Shower Head Repair', icon: '🚿' },
+    { name: 'Diverter Repair', icon: '🔧' },
+    { name: 'Waste Pipe Repair', icon: '💧' },
+    { name: 'Sink Drainage Repair', icon: '🍽️' },
+    { name: 'Angle Valve Repair', icon: '⚙️' },
+    { name: 'Sink Blockage', icon: '⏳' },
+    { name: 'Floor Trap Cleaning', icon: '🏠' },
+    { name: 'Flush Tank Repair', icon: '🚽' },
+    { name: 'Toilet Repair', icon: '🚾' },
+    { name: 'Toilet Pot Blockage', icon: '🚫' },
+    { name: 'Flush Valve Repair', icon: '🚰' },
+    { name: 'Tap Repair', icon: ' faucet' },
+    { name: 'Water Mixer Tap Repair', icon: '🌡️' },
+    { name: 'Water Tank Repair', icon: '储' },
+    { name: 'Motor Repair', icon: '⚡' },
+    { name: 'Pipeline Repair', icon: '🔗' },
+    
+    // Installation & Replacement
+    { name: 'Bathroom Accessories', icon: '🧼' },
+    { name: 'Shower Installation', icon: '🚿' },
+    { name: 'Shower Diverter Install', icon: '🔧' },
+    { name: 'Wash Basin Install', icon: '🧴' },
+    { name: 'Basin Waste Pipe', icon: '🗑️' },
+    { name: 'Waste Pipe & Bottle Trap', icon: '📦' },
+    { name: 'Shower Filter Install', icon: '🧽' },
+    { name: 'Washing Machine Filter', icon: '🧺' },
+    { name: 'Drainage Cover/Floor Trap', icon: '🪜' },
+    { name: 'Jet Spray Installation', icon: '💦' },
+    { name: 'Toilet Installation', icon: '🚻' },
+    { name: 'Flush Tank Installation', icon: '🚽' },
+    { name: 'Tap Installation', icon: '🚰' },
+    { name: 'Water Mixer Installation', icon: '🌡️' },
+    { name: 'Water Nozzle Install', icon: '🔫' },
+    { name: 'Overhead Water Tank', icon: '🌊' },
+    { name: 'Water Meter Install', icon: '📊' },
+    { name: 'Water Level Controller', icon: '📡' },
+    { name: 'Washing Machine Inlet', icon: '🔌' },
+    { name: 'Connection Hose', icon: '➰' },
+    { name: 'PVC / CPVC Pipe Install', icon: '🏗️' },
+    { name: 'Toilet Seat Cover', icon: '🪑' },
+    { name: 'Flush Button Install', icon: '🔘' },
+    { name: 'Motor Installation', icon: '🔋' },
+];
+
+// ⭐️ NEW: Carpenter Subcategories (Combined Repair & Installation)
+const CARPENTER_SUBCATEGORIES = [
+    // Installation
+    { name: 'Shelf Installation', icon: '🖼️' },
+    { name: 'Drawer Installation', icon: '🗄️' },
+    { name: 'Curtain Rod Installation', icon: '🪟' },
+    { name: 'Blinds Installation', icon: ' blinds' },
+    { name: 'Door Lock Installation', icon: '🔒' },
+    { name: 'Door Stopper Installation', icon: '🚪' },
+    { name: 'Door Peephole Installation', icon: '👁️' },
+    { name: 'Photo Frame / Wall Art Installation', icon: '🖼️' },
+    { name: 'Mirror Installation', icon: '🪞' },
+    { name: 'Kitchen Rack Installation', icon: '🔪' },
+    { name: 'Mesh Installation', icon: '🕸️' },
+    { name: 'Door Installation', icon: '🚪' },
+    { name: 'Door Closer Installation', icon: '⚙️' },
+    { name: 'Foot Caps / Glide Installation', icon: '👣' },
+
+    // Repair
+    { name: 'Bed Repair', icon: '🛏️' },
+    { name: 'Table Repair', icon: '🪑' },
+    { name: 'Chair Repair', icon: '🪑' },
+    { name: 'Drawer Channel Repair', icon: '🔧' },
+    { name: 'Drawer Handle Repair', icon: '🤚' },
+    { name: 'Door Repair', icon: '🚪' },
+    { name: 'Window Repair', icon: '🪟' },
+    { name: 'Lock Repair', icon: '🔑' },
+    { name: 'Latch / Magnet Catch Repair', icon: '🧲' },
+    { name: 'Hinges Repair', icon: '🔩' },
+    { name: 'Door Closer Repair', icon: '🛠️' },
+    { name: 'Door Stopper Repair', icon: '🛑' },
+    { name: 'Door Peephole Repair', icon: '🧐' },
+    { name: 'Sliding Track / Rollers Repair', icon: '🚄' },
+];
+
+
+// ⭐️ Cleaning Subcategories List (Kept from previous iteration)
 const CLEANING_SUBCATEGORIES = [
     { name: 'Bathroom Cleaning', icon: '🛁' },
     { name: 'Kitchen Cleaning', icon: '🔪' },
@@ -26,7 +109,7 @@ const CLEANING_SUBCATEGORIES = [
 
 // ⭐️ UPDATED SERVICE CATEGORIES
 const SERVICES = [
-    // List based on user's request
+    // Main Service List
     { name: 'Cleaning', icon: '🧼', color: '#a78bfa', darkColor: '#5b21b6', description: 'Deep cleaning, sanitization, and domestic help.' },
     { name: 'Carpenter', icon: '🔨', color: '#f97316', darkColor: '#7c2d12', description: 'Woodworking, furniture repair, and structural framing.' },
     { name: 'Gardener', icon: '🌳', color: '#86efac', darkColor: '#15803d', description: 'Lawn care, planting, and landscape maintenance.' },
@@ -165,7 +248,7 @@ const styles = {
         boxShadow: 'none',
     },
     
-    // ⭐️ NEW MODAL STYLES
+    // MODAL STYLES
     modalOverlay: {
         position: 'fixed',
         top: 0,
@@ -209,7 +292,7 @@ const styles = {
 };
 
 /**
- * Component for a single service category card.
+ * Component for a single service category card. (Unchanged)
  */
 const ServiceCard = ({ service, onClick, isSelected, hasSubcategories }) => {
     const [isHovered, setIsHovered] = useState(false);
@@ -268,7 +351,7 @@ const ServiceCard = ({ service, onClick, isSelected, hasSubcategories }) => {
 
 
 /**
- * ⭐️ NEW: Subcategory Card Component
+ * Subcategory Card Component (Unchanged)
  */
 const SubcategoryCard = ({ subcategory, isSelected, onClick }) => {
     const cardStyle = {
@@ -298,7 +381,7 @@ const SubcategoryCard = ({ subcategory, isSelected, onClick }) => {
 };
 
 /**
- * ⭐️ NEW: Subcategory Modal Component
+ * Subcategory Modal Component (Unchanged)
  */
 const SubcategoryModal = ({ service, subcategories, initialSelection, onSave, onClose }) => {
     const [tempSelection, setTempSelection] = useState(initialSelection || []);
@@ -316,13 +399,6 @@ const SubcategoryModal = ({ service, subcategories, initialSelection, onSave, on
         onClose();
     };
     
-    // Prevent modal close on overlay click if a subcategory is required (optional logic)
-    // const handleOverlayClick = (e) => {
-    //     if (e.target === e.currentTarget) {
-    //         // onClose(); // Uncomment if you want closing on outside click
-    //     }
-    // }
-
     return (
         <div style={styles.modalOverlay} /* onClick={handleOverlayClick} */>
             <div style={styles.modalContent}>
@@ -398,21 +474,20 @@ export default function UserServicesPage() {
     const selectedAddressId = location.state?.selectedAddressId;
     const phoneNumber = location.state?.phoneNumber; 
 
-    // ⭐️ UPDATED State: selectedService now stores the main service object
-    // ⭐️ NEW State: subcategories stores selected subcategories (array of strings)
+    // State
     const [selectedService, setSelectedService] = useState(null);
     const [selectedSubcategories, setSelectedSubcategories] = useState([]);
     const [showSubcategoryModal, setShowSubcategoryModal] = useState(false);
-
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
-    const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+    
+    // ⭐️ NEW State: Storing the specific subcategory list to display in the modal
+    const [activeSubcategoryList, setActiveSubcategoryList] = useState([]);
+
 
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
         
-        const handleResize = () => {
-            setIsDesktop(window.innerWidth >= 1024);
-        };
+        const handleResize = () => { /* ... */ };
         window.addEventListener('resize', handleResize);
 
         return () => {
@@ -421,21 +496,34 @@ export default function UserServicesPage() {
         };
     }, []);
 
-    // ⭐️ NEW: Logic to handle service selection and potentially open the modal
+    // ⭐️ UPDATED: Logic to handle service selection and open the modal for relevant services
     const handleSelectService = (service) => {
+        const serviceName = service.name;
+        let subcategoryList = null;
+
+        if (serviceName === 'Cleaning') {
+            subcategoryList = CLEANING_SUBCATEGORIES;
+        } else if (serviceName === 'Plumber') {
+            subcategoryList = PLUMBER_SUBCATEGORIES;
+        } else if (serviceName === 'Carpenter') {
+            subcategoryList = CARPENTER_SUBCATEGORIES;
+        }
+
         // If the same service is clicked, and it has subcategories, reopen modal for review
-        if (selectedService?.name === service.name && service.name === 'Cleaning') {
+        if (selectedService?.name === serviceName && subcategoryList) {
+             setActiveSubcategoryList(subcategoryList);
              setShowSubcategoryModal(true);
              return;
         }
 
         setSelectedService(service);
+        setSelectedSubcategories([]); // Clear previous subcategories upon new main category selection
 
-        if (service.name === 'Cleaning') {
+        if (subcategoryList) {
+            setActiveSubcategoryList(subcategoryList);
             setShowSubcategoryModal(true);
         } else {
-            // Clear subcategories if a non-subcategorized service is selected
-            setSelectedSubcategories([]); 
+            setActiveSubcategoryList([]);
         }
     };
 
@@ -447,9 +535,17 @@ export default function UserServicesPage() {
     const handleConfirmAndContinue = () => {
         if (!selectedService) return;
         
-        // Validation check for Cleaning
-        if (selectedService.name === 'Cleaning' && selectedSubcategories.length === 0) {
-            alert("Please select at least one Cleaning sub-service before continuing.");
+        // Validation check for services with subcategories
+        const requiresSubcategories = selectedService.name === 'Cleaning' || selectedService.name === 'Plumber' || selectedService.name === 'Carpenter';
+
+        if (requiresSubcategories && selectedSubcategories.length === 0) {
+            alert(`Please select at least one sub-service for ${selectedService.name} before continuing.`);
+            // Re-open the modal with the correct list
+            setActiveSubcategoryList(
+                selectedService.name === 'Cleaning' ? CLEANING_SUBCATEGORIES :
+                selectedService.name === 'Plumber' ? PLUMBER_SUBCATEGORIES :
+                CARPENTER_SUBCATEGORIES
+            );
             setShowSubcategoryModal(true);
             return;
         }
@@ -469,9 +565,17 @@ export default function UserServicesPage() {
     const handleScheduleRedirect = () => {
         if (!selectedService) return;
 
-        // Validation check for Cleaning
-        if (selectedService.name === 'Cleaning' && selectedSubcategories.length === 0) {
-            alert("Please select at least one Cleaning sub-service before scheduling.");
+        // Validation check for services with subcategories
+        const requiresSubcategories = selectedService.name === 'Cleaning' || selectedService.name === 'Plumber' || selectedService.name === 'Carpenter';
+
+        if (requiresSubcategories && selectedSubcategories.length === 0) {
+            alert(`Please select at least one sub-service for ${selectedService.name} before scheduling.`);
+            // Re-open the modal with the correct list
+             setActiveSubcategoryList(
+                selectedService.name === 'Cleaning' ? CLEANING_SUBCATEGORIES :
+                selectedService.name === 'Plumber' ? PLUMBER_SUBCATEGORIES :
+                CARPENTER_SUBCATEGORIES
+            );
             setShowSubcategoryModal(true);
             return;
         }
@@ -490,7 +594,9 @@ export default function UserServicesPage() {
 
     // Determine the button state logic
     const isServiceSelected = selectedService !== null;
-    const isCleaningSelectedButNoSubcategories = selectedService?.name === 'Cleaning' && selectedSubcategories.length === 0;
+    const requiresSubcategories = selectedService?.name === 'Cleaning' || selectedService?.name === 'Plumber' || selectedService?.name === 'Carpenter';
+    const isMissingSubcategories = requiresSubcategories && selectedSubcategories.length === 0;
+
 
     if (!ticketId || !requestDetails || !selectedAddressId || !phoneNumber) {
         return (
@@ -534,18 +640,18 @@ export default function UserServicesPage() {
                             key={service.name}
                             service={service}
                             isSelected={selectedService?.name === service.name}
-                            hasSubcategories={service.name === 'Cleaning'} // Display link icon if it has subcategories
+                            hasSubcategories={service.name === 'Cleaning' || service.name === 'Plumber' || service.name === 'Carpenter'} // Display link icon if it has subcategories
                             onClick={handleSelectService}
                         />
                     ))}
                 </div>
             </div>
 
-            {/* ⭐️ SUB-CATEGORY MODAL */}
-            {showSubcategoryModal && selectedService?.name === 'Cleaning' && (
+            {/* ⭐️ SUB-CATEGORY MODAL (Now uses activeSubcategoryList) */}
+            {showSubcategoryModal && selectedService && activeSubcategoryList.length > 0 && (
                 <SubcategoryModal
                     service={selectedService}
-                    subcategories={CLEANING_SUBCATEGORIES}
+                    subcategories={activeSubcategoryList}
                     initialSelection={selectedSubcategories}
                     onSave={handleSubcategorySave}
                     onClose={() => setShowSubcategoryModal(false)}
@@ -558,7 +664,7 @@ export default function UserServicesPage() {
                     {isServiceSelected ? (
                         <>
                             <span style={{color: '#4b5563', fontWeight: '500'}}>Selected Service: <strong style={{color: '#4f46e5'}}>{selectedService.name}</strong></span>
-                            {selectedService.name === 'Cleaning' && (
+                            {requiresSubcategories && (
                                 <span style={{ color: selectedSubcategories.length > 0 ? '#10b981' : '#f59e0b', fontWeight: '500' }}>
                                     (Sub-services: <strong>{selectedSubcategories.length > 0 ? selectedSubcategories.length : '0'}</strong> selected)
                                 </span>
@@ -570,16 +676,16 @@ export default function UserServicesPage() {
                 </div>
 
                 <button 
-                    style={!isServiceSelected || isCleaningSelectedButNoSubcategories ? { ...styles.buttonSecondary, ...styles.buttonDisabled } : styles.buttonSecondary}
-                    disabled={!isServiceSelected || isCleaningSelectedButNoSubcategories}
+                    style={!isServiceSelected || isMissingSubcategories ? { ...styles.buttonSecondary, ...styles.buttonDisabled } : styles.buttonSecondary}
+                    disabled={!isServiceSelected || isMissingSubcategories}
                     onClick={handleScheduleRedirect}
                 >
                     📅 Schedule Time for Service
                 </button>
 
                 <button 
-                    style={!isServiceSelected || isCleaningSelectedButNoSubcategories ? { ...styles.buttonPrimary, ...styles.buttonDisabled } : styles.buttonPrimary}
-                    disabled={!isServiceSelected || isCleaningSelectedButNoSubcategories}
+                    style={!isServiceSelected || isMissingSubcategories ? { ...styles.buttonPrimary, ...styles.buttonDisabled } : styles.buttonPrimary}
+                    disabled={!isServiceSelected || isMissingSubcategories}
                     onClick={handleConfirmAndContinue}
                 >
                     Confirm and Continue →
