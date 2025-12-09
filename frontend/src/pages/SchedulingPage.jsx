@@ -10,7 +10,7 @@ const auth = getAuth(app);
 const CalendarIcon = () => <span style={{ fontSize: '1.25rem' }}>📅</span>;
 const ClockIcon = () => <span>⏰</span>;
 
-// --- HELPERS (Mimicking ServiceManSelectionPage) ---
+// --- HELPERS ---
 
 const generateUniqueOrderId = () => {
     const now = new Date();
@@ -35,35 +35,46 @@ const fetchAgentAdminId = async (firebaseUid) => {
 };
 
 /**
- * UPDATED: Now fetches and returns both member_id and customer_name.
- * IMPORTANT: This assumes your backend API returns a 'customer_name' field on success.
+ * 🔥 UPDATED: Fetches member_id AND customer_name using the new backend endpoint
  */
 const fetchMemberIdAndName = async (phoneNumber) => {
     if (!phoneNumber) return { memberId: null, customerName: null };
     const url = `${API_BASE_URL}/call/memberid/lookup`;
+    
+    console.log(`[MEMBER ID & NAME FETCH] Requesting for phone: ${phoneNumber}`);
+    
     try {
         const response = await fetch(url, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ phoneNumber })
         });
+        
         if (!response.ok) {
-            if (response.status === 404) return { memberId: 'Not Found', customerName: 'New Customer' };
+            if (response.status === 404) {
+                console.warn("[MEMBER ID & NAME] Not found - New customer");
+                return { memberId: 'Not Found', customerName: 'New Customer' };
+            }
             throw new Error(`HTTP Error! Status: ${response.status}`);
         }
+        
         const data = await response.json();
-        // Assuming your backend response looks like: { member_id: '...', customer_name: '...' }
-        const customerName = data.customer_name || 'Customer Found'; // Default to 'Customer Found' if name is missing
-        return { memberId: data.member_id, customerName: customerName }; 
+        console.log("[MEMBER ID & NAME SUCCESS]", data);
+        
+        // Extract both member_id and customer_name from response
+        return { 
+            memberId: data.member_id || 'Not Found', 
+            customerName: data.customer_name || 'Unknown Customer' 
+        };
+        
     } catch (error) {
-        console.error("[MEMBER ID/NAME ERROR]", error);
+        console.error("[MEMBER ID & NAME ERROR]", error);
         return { memberId: 'Error', customerName: 'Error Fetching Name' };
     }
 };
 
-// --- STYLES (Omitted for brevity) ---
+// --- STYLES ---
 const styles = {
-    // ... all your existing styles
     container: {
         display: 'flex', flexDirection: 'column', minHeight: '100vh', 
         fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
@@ -79,7 +90,6 @@ const styles = {
     avatar: { width: '36px', height: '36px', borderRadius: '50%', backgroundColor: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem', fontWeight: '600', border: '2px solid #4b5563' },
     mainContent: { maxWidth: '1280px', margin: '0 auto', padding: '32px 16px', flex: 1, width: '100%', display: 'flex', gap: '32px', flexDirection: window.innerWidth > 1024 ? 'row' : 'column' },
     card: { backgroundColor: 'white', padding: '24px', borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1)', height: 'fit-content' },
-    // Time Slot Styles
     timeSlotGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(100px, 1fr))', gap: '12px', marginTop: '16px' },
     timeSlot: { padding: '10px', border: '1px solid #d1d5db', borderRadius: '8px', textAlign: 'center', cursor: 'pointer', backgroundColor: 'white', transition: 'all 0.2s' },
     timeSlotSelected: { backgroundColor: '#4f46e5', color: 'white', borderColor: '#4f46e5', boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.3)' },
@@ -103,7 +113,7 @@ export default function SchedulingPage() {
         selectedAddressId, 
         serviceName, 
         phoneNumber,
-        request_address // In case it's passed directly
+        request_address
     } = location.state || {};
 
     // 2. Local State
@@ -111,7 +121,6 @@ export default function SchedulingPage() {
     const [orderId, setOrderId] = useState(null);
     const [adminId, setAdminId] = useState('Fetching...');
     const [memberId, setMemberId] = useState('Searching...');
-    // NEW STATE VARIABLE FOR CUSTOMER NAME
     const [customerName, setCustomerName] = useState('Searching...'); 
     const [fetchedAddressLine, setFetchedAddressLine] = useState(request_address || 'Loading address...');
     
@@ -146,14 +155,16 @@ export default function SchedulingPage() {
         }
     }, []);
 
-    // Fetch Member ID AND NAME
+    // 🔥 FIXED: Fetch Member ID AND Customer Name together
     useEffect(() => {
         if (phoneNumber) {
             setMemberId('Searching...');
-            setCustomerName('Searching...'); // Reset name
+            setCustomerName('Searching...');
+            
             fetchMemberIdAndName(phoneNumber).then(({ memberId, customerName }) => {
+                console.log(`[SCHEDULING PAGE] Fetched - Member ID: ${memberId}, Name: ${customerName}`);
                 setMemberId(memberId);
-                setCustomerName(customerName); // Set the fetched customer name
+                setCustomerName(customerName);
             });
         } else {
             setMemberId('N/A');
@@ -161,7 +172,7 @@ export default function SchedulingPage() {
         }
     }, [phoneNumber]);
 
-    // Fetch Address Details (Exactly like ServicemanPage)
+    // Fetch Address Details
     useEffect(() => {
         if (selectedAddressId && !request_address) {
             const fetchAddress = async () => {
@@ -183,7 +194,6 @@ export default function SchedulingPage() {
         }
     }, [selectedAddressId, request_address]);
 
-
     // 4. Handle Confirm Schedule
     const handleConfirmSchedule = async () => {
         if (!selectedDate || !selectedTime) {
@@ -194,17 +204,16 @@ export default function SchedulingPage() {
             setStatusMessage('❌ Error: Missing Order ID or Admin ID.');
             return;
         }
-        // Add check for customer name validity
         if (customerName.includes('Error') || customerName.includes('Searching')) {
             setStatusMessage('❌ Error: Customer name is still being fetched or an error occurred.');
             return;
         }
 
-
         setStatusMessage('Scheduling appointment...');
         
         const scheduledDateTime = `${selectedDate} ${selectedTime}`;
-        // Payload Construction
+        
+        // 🔥 FIXED: Include customer_name in the payload
         const scheduleData = {
             user_id: null, // No serviceman assigned yet
             category: serviceName,
@@ -217,12 +226,12 @@ export default function SchedulingPage() {
             admin_id: adminId,
             scheduled_time: scheduledDateTime,
             previous_order_id: null,
-            // ⭐️ FIX: Include the customer_name in the dispatch payload
-            customer_name: customerName, 
+            customer_name: customerName, // ⭐ Customer name is now correctly fetched
         };
 
+        console.log("[SCHEDULING] Payload being sent:", scheduleData);
+
         try {
-            // Using the same dispatch endpoint, assuming backend handles 'Scheduled' status correctly
             const response = await fetch(`${API_BASE_URL}/call/dispatch`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -236,7 +245,6 @@ export default function SchedulingPage() {
 
             setStatusMessage(`✅ SCHEDULED SUCCESSFUL: Order ID ${orderId}`);
             
-            // Redirect to Dashboard
             setTimeout(() => {
                 navigate('/');
             }, 2000);
@@ -272,7 +280,7 @@ export default function SchedulingPage() {
 
             <div style={styles.mainContent}>
                 
-                {/* Left Column: Context (Matches ServicemanPage) */}
+                {/* Left Column: Context */}
                 <div style={{ width: window.innerWidth > 1024 ? '35%' : '100%' }}>
                     <div style={styles.card}>
                         <h2 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '16px', borderBottom: '1px solid #eee', paddingBottom: '8px' }}>
@@ -295,11 +303,17 @@ export default function SchedulingPage() {
 
                         <div style={{ marginBottom: '12px', borderTop: '1px solid #eee', paddingTop: '12px' }}>
                             <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
-                                **Customer:** <span style={{ fontWeight: '600' }}>{phoneNumber}</span>
+                                **Customer Phone:** <span style={{ fontWeight: '600' }}>{phoneNumber}</span>
                             </p>
-                            {/* ⭐️ SHOW CUSTOMER NAME HERE */}
                             <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
-                                **Name:** <span style={{ fontWeight: '600', color: customerName.includes('Found') ? '#10b981' : '#4f46e5' }}>{customerName}</span>
+                                **Name:** <span style={{ 
+                                    fontWeight: '600', 
+                                    color: customerName === 'Searching...' ? '#9ca3af' : 
+                                           customerName.includes('Error') ? '#ef4444' : 
+                                           customerName === 'New Customer' ? '#f59e0b' : '#10b981' 
+                                }}>
+                                    {customerName}
+                                </span>
                             </p>
                             <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
                                 **Member ID:** <span style={{ fontWeight: '600', color: memberId === 'Not Found' ? '#ef4444' : '#4f46e5' }}>{memberId}</span>
@@ -309,7 +323,7 @@ export default function SchedulingPage() {
                             </p>
                         </div>
 
-                          <div style={{ marginBottom: '16px', backgroundColor: '#f9fafb', padding: '10px', borderRadius: '8px' }}>
+                        <div style={{ marginBottom: '16px', backgroundColor: '#f9fafb', padding: '10px', borderRadius: '8px' }}>
                             <label style={{ display: 'block', fontSize: '0.85rem', color: '#6b7280' }}>Address</label>
                             <div style={{ fontSize: '0.9rem', fontWeight: '500' }}>{fetchedAddressLine}</div>
                         </div>
@@ -321,7 +335,7 @@ export default function SchedulingPage() {
                     </div>
                 </div>
 
-                {/* Right Column: Scheduling Inputs (Replaces Serviceman List) */}
+                {/* Right Column: Scheduling Inputs */}
                 <div style={{ width: window.innerWidth > 1024 ? '65%' : '100%' }}>
                     <div style={styles.card}>
                         <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1f2937', marginBottom: '24px', borderBottom: '1px solid #e5e7eb', paddingBottom: '16px' }}>
@@ -395,7 +409,6 @@ export default function SchedulingPage() {
                         >
                             {statusMessage?.includes('Scheduling') ? 'Creating Appointment...' : 'Confirm Schedule (No Dispatch)'}
                         </button>
-
                     </div>
                 </div>
             </div>
