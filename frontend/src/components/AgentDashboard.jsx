@@ -18,8 +18,8 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Initialize Employee Supabase Client
-const empSupabaseUrl = process.env.REACT_APP_EMP_SUPABASE_URL || 'YOUR_EMP_SUPABASE_URL';
-const empSupabaseAnonKey = process.env.REACT_APP_EMP_SUPABASE_ANON_KEY || 'YOUR_EMP_SUPABASE_ANON_KEY';
+const empSupabaseUrl = 'https://wbtslpyulsskgdtkknaf.supabase.co';
+const empSupabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndidHNscHl1bHNza2dkdGtrbmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NDc0MDgsImV4cCI6MjA3OTIyMzQwOH0.BcvA4VFPybxQvQRNpt1e0NvDNATrhddx5RgvWAYgQM0';
 const empSupabase = createClient(empSupabaseUrl, empSupabaseAnonKey);
 
 export default function AgentDashboard() {
@@ -850,3 +850,4 @@ export default function AgentDashboard() {
     </div>
   );
 }
+
