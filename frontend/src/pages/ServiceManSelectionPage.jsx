@@ -7,7 +7,7 @@ const API_BASE_URL = 'https://callcenter-baclend.onrender.com';
 const auth = getAuth(app);
 
 const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>;
-
+const [isPlacedOrder, setIsPlacedOrder] = useState(false);
 const generateUniqueOrderId = () => {
     const now = new Date();
     const datePart = now.toISOString().slice(2, 10).replace(/-/g, '');
@@ -220,11 +220,15 @@ export function ServiceManSelectionPage() {
     useEffect(() => {
         if (isScheduledDispatch) {
             setOrderId(existingOrderId);
-        } else {
-            const newOrderId = generateUniqueOrderId();
-            setOrderId(newOrderId);
-        }
-    }, [isScheduledDispatch, existingOrderId]);
+        } else if (location.state?.isPlacedOrder) {
+        // For placed orders from app, use the existing order_id
+        setIsPlacedOrder(true);
+        setOrderId(existingOrderId);
+    } else {
+        const newOrderId = generateUniqueOrderId();
+        setOrderId(newOrderId);
+    }
+}, [isScheduledDispatch, existingOrderId, location.state]);
 
     useEffect(() => {
         if (previousOrderId) {
@@ -353,70 +357,91 @@ export function ServiceManSelectionPage() {
     };
 
     // 🚀 UPDATED: Dispatch all selected servicemen
-    const handleDispatchAll = async () => {
-        const selectedCount = Object.values(selectedServicemen).filter(Boolean).length;
+   const handleDispatchAll = async () => {
+    const selectedCount = Object.values(selectedServicemen).filter(Boolean).length;
 
-        if (selectedCount === 0) {
-            setDispatchStatus('❗️ Please select at least one serviceman from each category.');
-            return;
-        }
+    if (selectedCount === 0) {
+        setDispatchStatus('❗️ Please select at least one serviceman from each category.');
+        return;
+    }
 
-        if (!orderId) {
-            setDispatchStatus('❌ Error: Order ID was not generated. Cannot dispatch.');
-            return;
-        }
+    if (!orderId) {
+        setDispatchStatus('❌ Error: Order ID was not generated. Cannot dispatch.');
+        return;
+    }
 
-        if (!adminId || adminId.startsWith('Error') || adminId.startsWith('N/A') || adminId.startsWith('Loading')) {
-            setDispatchStatus(`❌ Error: Admin ID is missing (${adminId}). Cannot dispatch.`);
-            return;
-        }
+    if (!adminId || adminId.startsWith('Error') || adminId.startsWith('N/A') || adminId.startsWith('Loading')) {
+        setDispatchStatus(`❌ Error: Admin ID is missing (${adminId}). Cannot dispatch.`);
+        return;
+    }
 
-        setDispatchStatus(`Dispatching ${selectedCount} servicemen...`);
+    setDispatchStatus(`Dispatching ${selectedCount} servicemen...`);
 
-        try {
-            const dispatchPromises = Object.entries(selectedServicemen)
-                .filter(([_, serviceman]) => serviceman !== null)
-                .map(([categoryName, serviceman]) => {
-                    const subcategories = selectedServices[categoryName] || [];
+    try {
+        const dispatchPromises = Object.entries(selectedServicemen)
+            .filter(([_, serviceman]) => serviceman !== null)
+            .map(([categoryName, serviceman]) => {
+                const subcategories = selectedServices[categoryName] || [];
 
-                    const dispatchData = {
-                        user_id: serviceman.user_id,
-                        category: categoryName,
-                        request_address: fetchedAddressLine,
-                        order_status: 'Assigned',
-                        order_request: `${activeRequest} | Subcategories: ${subcategories.join(', ')}`,
-                        order_id: `${orderId}_${categoryName}`, // Unique order ID per category
-                        ticket_id: activeTicketId,
-                        phone_number: activePhoneNumber,
-                        admin_id: adminId,
-                        previous_order_id: previousOrderId || null,
-                        isScheduledUpdate: isScheduledDispatch,
-                        selected_subcategories: subcategories
-                    };
+                const dispatchData = {
+                    user_id: serviceman.user_id,
+                    category: categoryName,
+                    request_address: fetchedAddressLine,
+                    order_status: 'Assigned',
+                    order_request: `${activeRequest} | Subcategories: ${subcategories.join(', ')}`,
+                    order_id: `${orderId}_${categoryName}`,
+                    ticket_id: activeTicketId,
+                    phone_number: activePhoneNumber,
+                    admin_id: adminId,
+                    previous_order_id: previousOrderId || null,
+                    isScheduledUpdate: isScheduledDispatch,
+                    selected_subcategories: subcategories
+                };
 
-                    return fetch(`${API_BASE_URL}/call/dispatch`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(dispatchData),
-                    });
+                return fetch(`${API_BASE_URL}/call/dispatch`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dispatchData),
                 });
+            });
 
-            const responses = await Promise.all(dispatchPromises);
+        const responses = await Promise.all(dispatchPromises);
+        const allSuccessful = responses.every(r => r.ok);
 
-            const allSuccessful = responses.every(r => r.ok);
+        if (allSuccessful) {
+            // 🚀 NEW: If this was a placed order, update main DB Order status to 'Assigned'
+            if (isPlacedOrder) {
+                try {
+                    const updateResponse = await fetch(`${API_BASE_URL}/call/orders/update-status`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            orderId: orderId,
+                            status: 'Assigned'
+                        }),
+                    });
 
-            if (allSuccessful) {
-                setDispatchStatus(`✅ DISPATCH SUCCESSFUL: All ${selectedCount} servicemen assigned!`);
-                setTimeout(() => navigate('/'), 3000);
-            } else {
-                setDispatchStatus(`⚠️ Some dispatches failed. Please check logs.`);
+                    if (!updateResponse.ok) {
+                        console.warn('⚠️ Failed to update main Order status to Assigned');
+                    } else {
+                        console.log('✅ Main Order status updated to Assigned');
+                    }
+                } catch (updateError) {
+                    console.error('Error updating main Order status:', updateError);
+                }
             }
 
-        } catch (error) {
-            console.error("DISPATCH ERROR:", error);
-            setDispatchStatus(`❌ DISPATCH FAILED: ${error.message}`);
+            setDispatchStatus(`✅ DISPATCH SUCCESSFUL: All ${selectedCount} servicemen assigned!`);
+            setTimeout(() => navigate('/'), 3000);
+        } else {
+            setDispatchStatus(`⚠️ Some dispatches failed. Please check logs.`);
         }
-    };
+
+    } catch (error) {
+        console.error("DISPATCH ERROR:", error);
+        setDispatchStatus(`❌ DISPATCH FAILED: ${error.message}`);
+    }
+};
 
     if (!selectedServices || Object.keys(selectedServices).length === 0) {
         return (
@@ -456,6 +481,19 @@ export function ServiceManSelectionPage() {
                         📅 Scheduled order assignment. Order ID: {orderId}
                     </div>
                 )}
+                {isPlacedOrder && (
+                    <div style={{ 
+                        backgroundColor: '#f3e8ff', 
+                        border: '1px solid #8b5cf6', 
+                        color: '#6b21a8', 
+                        padding: '12px', 
+                        borderRadius: '8px', 
+                        marginBottom: '20px', 
+                        fontWeight: '600' 
+                 }}>
+        📱 App order dispatch. Order ID: {orderId}
+    </div>
+)}
 
                 <div style={styles.card}>
                     <h2 style={{ fontSize: '1.1rem', fontWeight: '600', color: '#1f2937', marginBottom: '8px' }}>
