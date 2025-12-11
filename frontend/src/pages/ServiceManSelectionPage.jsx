@@ -184,7 +184,7 @@ export function ServiceManSelectionPage() {
         ticketId: paramTicketId,
         requestDetails: paramRequestDetails,
         selectedAddressId,
-        selectedServices, // 🚀 NEW: { serviceName: [subcategories] }
+        selectedServices,
         phoneNumber: paramPhoneNumber,
         previousOrderId,
         cancellationReason,
@@ -192,7 +192,11 @@ export function ServiceManSelectionPage() {
         request_address,
         isScheduledDispatch,
         orderId: existingOrderId,
-        adminId: passedAdminId
+        adminId: passedAdminId,
+        isAppOrder, // 🚀 NEW: Flag for app-placed orders
+        userId: passedUserId, // 🚀 NEW: User ID for app orders
+        memberId: passedMemberId, // 🚀 NEW: Member ID for app orders
+        addressId: passedAddressId // 🚀 NEW: Address ID for app orders
     } = location.state || {};
 
     const [activeTicketId, setActiveTicketId] = useState(paramTicketId || 'UNKNOWN_TKT');
@@ -203,13 +207,12 @@ export function ServiceManSelectionPage() {
     const [fetchedAddressLine, setFetchedAddressLine] = useState(request_address || 'Loading address...');
     const [adminId, setAdminId] = useState(passedAdminId || 'Fetching...');
     const [memberId, setMemberId] = useState('Searching...');
-    const [orderId, setOrderId] = useState(isScheduledDispatch ? existingOrderId : null);
+    const [orderId, setOrderId] = useState((isScheduledDispatch || isAppOrder) ? existingOrderId : null);
     const [userCoordinates, setUserCoordinates] = useState(null);
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
 
-    // 🚀 NEW: Store servicemen by category
-    const [servicemanByCategory, setServicemanByCategory] = useState({}); // { categoryName: [servicemen] }
-    const [selectedServicemen, setSelectedServicemen] = useState({}); // { categoryName: serviceman }
+    const [servicemanByCategory, setServicemanByCategory] = useState({});
+    const [selectedServicemen, setSelectedServicemen] = useState({});
     const [dispatchStatus, setDispatchStatus] = useState(null);
 
     useEffect(() => {
@@ -218,28 +221,26 @@ export function ServiceManSelectionPage() {
     }, []);
 
     useEffect(() => {
-        if (isScheduledDispatch) {
+        if (isScheduledDispatch || isAppOrder) {
             setOrderId(existingOrderId);
         } else {
             const newOrderId = generateUniqueOrderId();
             setOrderId(newOrderId);
         }
-    }, [isScheduledDispatch, existingOrderId]);
+    }, [isScheduledDispatch, isAppOrder, existingOrderId]);
 
     useEffect(() => {
         if (previousOrderId) {
             // Re-dispatch scenario handling...
-            // (Keep your existing re-dispatch logic)
-        } else if (!isScheduledDispatch) {
+        } else if (!isScheduledDispatch && !isAppOrder) {
             const user = auth.currentUser;
             if (user && !passedAdminId) {
                 setAdminId('Loading...');
                 fetchAgentAdminId(user.uid).then(id => setAdminId(id));
             }
         }
-    }, [previousOrderId, isScheduledDispatch, passedAdminId]);
+    }, [previousOrderId, isScheduledDispatch, isAppOrder, passedAdminId]);
 
-    // Handle address geocoding
     const handleGeocoding = async (rawAddress) => {
         const simplifiedAddress = rawAddress
             .replace(/Flat \d+,\s*/i, '')
@@ -255,7 +256,7 @@ export function ServiceManSelectionPage() {
     };
 
     useEffect(() => {
-        if (!previousOrderId && !isScheduledDispatch && selectedAddressId) {
+        if (!previousOrderId && !isScheduledDispatch && !isAppOrder && selectedAddressId) {
             const fetchAndGeocodeAddress = async () => {
                 const fullUrl = `${API_BASE_URL}/call/address/lookup/${selectedAddressId}`;
                 setFetchedAddressLine('Fetching address details...');
@@ -277,7 +278,7 @@ export function ServiceManSelectionPage() {
             setFetchedAddressLine(request_address);
             handleGeocoding(request_address);
         }
-    }, [selectedAddressId, request_address, previousOrderId, isScheduledDispatch]);
+    }, [selectedAddressId, request_address, previousOrderId, isScheduledDispatch, isAppOrder]);
 
     useEffect(() => {
         if (activePhoneNumber) {
@@ -287,7 +288,6 @@ export function ServiceManSelectionPage() {
         }
     }, [activePhoneNumber]);
 
-    // 🚀 NEW: Fetch servicemen for ALL selected categories
     useEffect(() => {
         if (!selectedServices || Object.keys(selectedServices).length === 0) {
             setDispatchStatus("⚠️ No services selected.");
@@ -314,7 +314,6 @@ export function ServiceManSelectionPage() {
                     continue;
                 }
 
-                // Calculate distances and sort
                 const processedList = data.map(sm => {
                     const dist = calculateDistance(
                         parseFloat(userCoordinates.lat),
@@ -352,7 +351,6 @@ export function ServiceManSelectionPage() {
         }));
     };
 
-    // 🚀 UPDATED: Dispatch all selected servicemen
     const handleDispatchAll = async () => {
         const selectedCount = Object.values(selectedServicemen).filter(Boolean).length;
 
@@ -385,13 +383,18 @@ export function ServiceManSelectionPage() {
                         request_address: fetchedAddressLine,
                         order_status: 'Assigned',
                         order_request: `${activeRequest} | Subcategories: ${subcategories.join(', ')}`,
-                        order_id: `${orderId}_${categoryName}`, // Unique order ID per category
+                        order_id: `${orderId}_${categoryName}`,
                         ticket_id: activeTicketId,
                         phone_number: activePhoneNumber,
                         admin_id: adminId,
                         previous_order_id: previousOrderId || null,
                         isScheduledUpdate: isScheduledDispatch,
-                        selected_subcategories: subcategories
+                        isAppOrderUpdate: isAppOrder, // 🚀 NEW: Flag for app order
+                        selected_subcategories: subcategories,
+                        // 🚀 NEW: Pass IDs for app orders
+                        customer_user_id: passedUserId,
+                        customer_member_id: passedMemberId,
+                        customer_address_id: passedAddressId
                     };
 
                     return fetch(`${API_BASE_URL}/call/dispatch`, {
@@ -402,7 +405,6 @@ export function ServiceManSelectionPage() {
                 });
 
             const responses = await Promise.all(dispatchPromises);
-
             const allSuccessful = responses.every(r => r.ok);
 
             if (allSuccessful) {
@@ -451,9 +453,17 @@ export function ServiceManSelectionPage() {
                     Available Servicemen by Category
                 </h1>
 
-                {isScheduledDispatch && (
-                    <div style={{ backgroundColor: '#dbeafe', border: '1px solid #3b82f6', color: '#1e40af', padding: '12px', borderRadius: '8px', marginBottom: '20px', fontWeight: '600' }}>
-                        📅 Scheduled order assignment. Order ID: {orderId}
+                {(isScheduledDispatch || isAppOrder) && (
+                    <div style={{ 
+                        backgroundColor: isAppOrder ? '#fef3c7' : '#dbeafe', 
+                        border: `1px solid ${isAppOrder ? '#f59e0b' : '#3b82f6'}`, 
+                        color: isAppOrder ? '#92400e' : '#1e40af', 
+                        padding: '12px', 
+                        borderRadius: '8px', 
+                        marginBottom: '20px', 
+                        fontWeight: '600' 
+                    }}>
+                        {isAppOrder ? '📱 App order assignment' : '📅 Scheduled order assignment'}. Order ID: {orderId}
                     </div>
                 )}
 
@@ -489,7 +499,6 @@ export function ServiceManSelectionPage() {
                     {dispatchStatus}
                 </p>
 
-                {/* 🚀 NEW: Render servicemen in category-based grids */}
                 {Object.entries(servicemanByCategory).map(([categoryName, servicemen]) => {
                     const subcategories = selectedServices[categoryName] || [];
                     const selectedForCategory = selectedServicemen[categoryName];
