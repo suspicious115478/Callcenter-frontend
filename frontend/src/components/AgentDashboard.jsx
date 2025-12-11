@@ -760,11 +760,78 @@ export default function AgentDashboard() {
               <span style={styles.statVal}>{scheduledOrders.length}</span>
             </div>
             <div style={styles.statRow}>
-              <span style={styles.statKey}>App Orders</span>
-              <span style={styles.statVal}>{placedOrders.length}</span>
-            </div>
-            <div style={styles.statRow}>
               <span style={styles.statKey}>Avg Handle Time</span>
               <span style={styles.statVal}>4m 22s</span>
             </div>
+            <div style={styles.statRow}>
+              <span style={styles.statKey}>Utilization</span>
+              <span style={styles.statVal}>85%</span>
+            </div>
           </div>
+        </aside>
+
+        <main style={styles.contentArea}>
+          <div style={styles.queueHeader}>
+            <h2 style={styles.queueTitle}>Queue Overview</h2>
+            <span style={styles.countBadge}>{totalItems} Total Items</span>
+          </div>
+
+          {totalItems === 0 ? (
+            <div style={styles.empty}>
+              <div style={styles.emptyIcon}>
+                {isOnline ? '📡' : isBusy ? '⏳' : '🌙'}
+              </div>
+              <h3 style={{margin: 0, color: '#374151'}}>
+                {isOnline ? 'Waiting for calls and orders...' : isBusy ? 'Agent is Busy' : 'You are currently offline'}
+              </h3>
+              <p style={{marginTop: '8px', fontSize: '0.875rem'}}>
+                {isOnline 
+                  ? 'System is active and listening.' 
+                  : isBusy
+                  ? 'Complete your current task to receive new ones.'
+                  : 'Go online to start receiving calls and orders.'}
+              </p>
+            </div>
+          ) : (
+            <>
+              {incomingCalls.length > 0 && (
+                <>
+                  <h3 style={styles.sectionTitle}>
+                    📞 Incoming Calls ({incomingCalls.length})
+                  </h3>
+                  <div style={styles.grid}>
+                    {incomingCalls.map(call => (
+                      <CallCard 
+                        key={call.id} 
+                        callData={call} 
+                        onAccept={handleCallAccept} 
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {scheduledOrders.length > 0 && (
+                <>
+                  <h3 style={styles.sectionTitle}>
+                    📋 Scheduled Orders ({scheduledOrders.length})
+                  </h3>
+                  <div style={styles.grid}>
+                    {scheduledOrders.map(order => (
+                      <CallCard 
+                        key={order.id} 
+                        callData={order} 
+                        onAccept={handleOrderAssign}
+                        isScheduledOrder={true}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+            </>
+          )}
+        </main>
+      </div>
+    </div>
+  );
+}
