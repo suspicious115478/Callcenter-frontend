@@ -12,10 +12,15 @@ import { app } from "../config";
 const auth = getAuth(app); 
 const db = getDatabase(app);
 
-// Initialize Supabase Client
+// Initialize Supabase Client (MAIN DB)
 const supabaseUrl = 'https://wbtslpyulsskgdtkknaf.supabase.co';
 const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndidHNscHl1bHNza2dkdGtrbmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NDc0MDgsImV4cCI6MjA3OTIyMzQwOH0.BcvA4VFPybxQvQRNpt1e0NvDNATrhddx5RgvWAYgQM0';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Initialize Employee Supabase Client
+const empSupabaseUrl = process.env.REACT_APP_EMP_SUPABASE_URL || 'YOUR_EMP_SUPABASE_URL';
+const empSupabaseAnonKey = process.env.REACT_APP_EMP_SUPABASE_ANON_KEY || 'YOUR_EMP_SUPABASE_ANON_KEY';
+const empSupabase = createClient(empSupabaseUrl, empSupabaseAnonKey);
 
 export default function AgentDashboard() {
   const navigate = useNavigate(); 
@@ -23,6 +28,7 @@ export default function AgentDashboard() {
   const [status, setStatus] = useState("offline");
   const [incomingCalls, setIncomingCalls] = useState([]);
   const [scheduledOrders, setScheduledOrders] = useState([]);
+  const [appOrders, setAppOrders] = useState([]); // 🚀 NEW: App-placed orders
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
   const [agentDbId, setAgentDbId] = useState(null); 
 
@@ -110,12 +116,12 @@ export default function AgentDashboard() {
     return () => unsubscribe();
   }, []);
 
-  // Fetch Scheduled Orders from Supabase
+  // Fetch Scheduled Orders from Employee Supabase (Dispatch Table)
   const fetchScheduledOrders = async (adminId) => {
     try {
       console.log("📦 Fetching scheduled orders for admin_id:", adminId);
       
-      const { data, error } = await supabase
+      const { data, error } = await empSupabase
         .from('dispatch')
         .select('*')
         .eq('order_status', 'Scheduled')
@@ -143,8 +149,8 @@ export default function AgentDashboard() {
         type: 'scheduled',
         orderId: order.order_id || order.id,
         customerName: order.customer_name || 'Unknown Customer',
-        customerPhone: order.phone_number || 'N/A', // 🔥 FIX: Use phone_number (not customer_phone)
-        address: order.request_address || 'No address provided', // 🔥 FIX: Use request_address (not requested_address)
+        customerPhone: order.phone_number || 'N/A',
+        address: order.request_address || 'No address provided',
         scheduledTime: order.scheduled_time,
         orderDetails: order,
         dispatchDetails: order
@@ -156,20 +162,128 @@ export default function AgentDashboard() {
     }
   };
 
-  // Setup Supabase Real-time Listener
+  // 🚀 NEW: Fetch App-Placed Orders from Main Supabase (Order Table)
+  const fetchAppOrders = async (adminId) => {
+    try {
+      console.log("📱 Fetching app-placed orders for admin_id:", adminId);
+      
+      const { data, error } = await supabase
+        .from('Order')
+        .select(`
+          order_id,
+          order_status,
+          service_category,
+          service_subcategory,
+          work_description,
+          scheduled_date,
+          preferred_time,
+          created_at,
+          user_id,
+          member_id,
+          address_id
+        `)
+        .eq('order_status', 'Placed')
+        .eq('admin_id', adminId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error("❌ App orders fetch error:", error);
+        return;
+      }
+
+      console.log("✅ Fetched app-placed orders:", data);
+
+      // Transform and enrich with customer details
+      const enrichedOrders = await Promise.all(data.map(async (order) => {
+        let customerName = 'Unknown Customer';
+        let customerPhone = 'N/A';
+        let addressLine = 'Address not available';
+
+        // Fetch customer phone from AllowedNumber
+        if (order.member_id) {
+          const { data: allowedData } = await supabase
+            .from('AllowedNumber')
+            .select('phone_number')
+            .eq('member_id', order.member_id)
+            .limit(1);
+          
+          if (allowedData && allowedData.length > 0) {
+            customerPhone = allowedData[0].phone_number;
+          }
+        }
+
+        // Fetch customer name from User table
+        if (order.user_id) {
+          const { data: userData } = await supabase
+            .from('User')
+            .select('name')
+            .eq('user_id', order.user_id)
+            .limit(1);
+          
+          if (userData && userData.length > 0) {
+            customerName = userData[0].name || 'Unknown Customer';
+          }
+        }
+
+        // Fetch address from Address table
+        if (order.address_id) {
+          const { data: addressData } = await supabase
+            .from('Address')
+            .select('address_line')
+            .eq('address_id', order.address_id)
+            .limit(1);
+          
+          if (addressData && addressData.length > 0) {
+            addressLine = addressData[0].address_line;
+          }
+        }
+
+        return {
+          id: order.order_id,
+          type: 'app-order',
+          orderId: order.order_id,
+          customerName: customerName,
+          customerPhone: customerPhone,
+          address: addressLine,
+          serviceCategory: order.service_category,
+          serviceSubcategory: order.service_subcategory,
+          workDescription: order.work_description,
+          scheduledDate: order.scheduled_date,
+          preferredTime: order.preferred_time,
+          createdAt: order.created_at,
+          orderDetails: {
+            ...order,
+            customer_name: customerName,
+            phone_number: customerPhone,
+            request_address: addressLine
+          }
+        };
+      }));
+
+      setAppOrders(enrichedOrders);
+    } catch (err) {
+      console.error("Error fetching app orders:", err);
+    }
+  };
+
+  // Setup Supabase Real-time Listeners
   useEffect(() => {
     if (!agentDbId) return;
 
+    // Fetch initial data
     fetchScheduledOrders(agentDbId);
+    fetchAppOrders(agentDbId);
 
+    // Time-based refresh for scheduled orders
     const timeCheckInterval = setInterval(() => {
       console.log("🔄 Re-checking scheduled orders (time-based refresh)...");
       fetchScheduledOrders(agentDbId);
     }, 60000);
 
-    console.log("🎧 Setting up Supabase real-time listener...");
+    console.log("🎧 Setting up Supabase real-time listeners...");
     
-    const channel = supabase
+    // Listener for Dispatch table (Scheduled orders)
+    const dispatchChannel = empSupabase
       .channel('dispatch-changes')
       .on(
         'postgres_changes',
@@ -180,16 +294,35 @@ export default function AgentDashboard() {
           filter: `admin_id=eq.${agentDbId}`
         },
         (payload) => {
-          console.log("🔄 Supabase real-time update:", payload);
+          console.log("🔄 Dispatch table update:", payload);
           fetchScheduledOrders(agentDbId);
         }
       )
       .subscribe();
 
+    // 🚀 NEW: Listener for Order table (App-placed orders)
+    const orderChannel = supabase
+      .channel('order-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'Order',
+          filter: `admin_id=eq.${agentDbId}`
+        },
+        (payload) => {
+          console.log("🔄 Order table update:", payload);
+          fetchAppOrders(agentDbId);
+        }
+      )
+      .subscribe();
+
     return () => {
-      console.log("🔌 Unsubscribing from Supabase channel");
+      console.log("🔌 Unsubscribing from Supabase channels");
       clearInterval(timeCheckInterval);
-      supabase.removeChannel(channel);
+      empSupabase.removeChannel(dispatchChannel);
+      supabase.removeChannel(orderChannel);
     };
   }, [agentDbId]);
 
@@ -243,15 +376,15 @@ export default function AgentDashboard() {
     );
   };
 
-  // 🚀 NEW: Handle Assign Scheduled Order
+  // Handle Assign Scheduled Order
   const handleOrderAssign = async (order) => {
     await updateAgentStatus("busy");
     
     console.log("📋 Assigning scheduled order:", order);
     
-    // 🔥 STEP 1: Update status from 'Scheduled' to 'Scheduling' in Supabase
+    // Update status from 'Scheduled' to 'Scheduling' in Employee DB
     try {
-      const { error: updateError } = await supabase
+      const { error: updateError } = await empSupabase
         .from('dispatch')
         .update({ order_status: 'Scheduling' })
         .eq('order_id', order.orderId);
@@ -272,26 +405,75 @@ export default function AgentDashboard() {
       return;
     }
 
-    // 🔥 STEP 2: Navigate to ServiceManSelectionPage with scheduled order details
+    // Navigate to ServiceManSelectionPage
     navigate('/user/servicemen', {
       state: {
-        // Pass order ID (existing, not new)
         orderId: order.orderId,
-        isScheduledDispatch: true, // Flag to indicate this is a scheduled order
-        
-        // Pass ticket and contact info
+        isScheduledDispatch: true,
         ticketId: order.orderDetails.ticket_id,
         phoneNumber: order.customerPhone,
-        
-        // Pass service details
         serviceName: order.orderDetails.category,
         requestDetails: order.orderDetails.order_request || 'Scheduled Service',
-        
-        // Pass address
         request_address: order.address,
-        
-        // Pass admin ID for dispatch
         adminId: agentDbId
+      }
+    });
+  };
+
+  // 🚀 NEW: Handle App Order Dispatch
+  const handleAppOrderDispatch = async (order) => {
+    await updateAgentStatus("busy");
+    
+    console.log("📱 Dispatching app-placed order:", order);
+    
+    // Update status from 'Placed' to 'Placing' in Main DB
+    try {
+      const { error: updateError } = await supabase
+        .from('Order')
+        .update({ 
+          order_status: 'Placing',
+          updated_at: new Date().toISOString()
+        })
+        .eq('order_id', order.orderId);
+
+      if (updateError) {
+        console.error("❌ Failed to update order status to Placing:", updateError);
+        alert("Failed to update order status. Please try again.");
+        await updateAgentStatus("online");
+        return;
+      }
+
+      console.log("✅ Order status updated to 'Placing'");
+
+    } catch (err) {
+      console.error("Error updating order status:", err);
+      alert("Failed to update order status. Please try again.");
+      await updateAgentStatus("online");
+      return;
+    }
+
+    // Parse selected services from order
+    const selectedServices = {};
+    if (order.serviceCategory) {
+      const subcategories = order.serviceSubcategory 
+        ? order.serviceSubcategory.split(',').map(s => s.trim())
+        : [];
+      selectedServices[order.serviceCategory] = subcategories;
+    }
+
+    // Navigate to ServiceManSelectionPage
+    navigate('/user/servicemen', {
+      state: {
+        orderId: order.orderId,
+        isAppOrder: true,
+        phoneNumber: order.customerPhone,
+        selectedServices: selectedServices,
+        requestDetails: order.workDescription || 'App Order',
+        request_address: order.address,
+        adminId: agentDbId,
+        userId: order.orderDetails.user_id,
+        memberId: order.orderDetails.member_id,
+        addressId: order.orderDetails.address_id
       }
     });
   };
@@ -318,7 +500,7 @@ export default function AgentDashboard() {
   const isOnline = status === "online";
   const isBusy = status === "busy";
 
-  const totalItems = incomingCalls.length + scheduledOrders.length;
+  const totalItems = incomingCalls.length + scheduledOrders.length + appOrders.length;
 
   // --- INLINE STYLES ---
   const styles = {
@@ -575,12 +757,12 @@ export default function AgentDashboard() {
               <span style={styles.statVal}>{scheduledOrders.length}</span>
             </div>
             <div style={styles.statRow}>
-              <span style={styles.statKey}>Avg Handle Time</span>
-              <span style={styles.statVal}>4m 22s</span>
+              <span style={styles.statKey}>App Orders</span>
+              <span style={styles.statVal}>{appOrders.length}</span>
             </div>
             <div style={styles.statRow}>
-              <span style={styles.statKey}>Utilization</span>
-              <span style={styles.statVal}>85%</span>
+              <span style={styles.statKey}>Avg Handle Time</span>
+              <span style={styles.statVal}>4m 22s</span>
             </div>
           </div>
         </aside>
@@ -638,6 +820,24 @@ export default function AgentDashboard() {
                         callData={order} 
                         onAccept={handleOrderAssign}
                         isScheduledOrder={true}
+                      />
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {appOrders.length > 0 && (
+                <>
+                  <h3 style={styles.sectionTitle}>
+                    📱 App Orders ({appOrders.length})
+                  </h3>
+                  <div style={styles.grid}>
+                    {appOrders.map(order => (
+                      <CallCard 
+                        key={order.id} 
+                        callData={order} 
+                        onAccept={handleAppOrderDispatch}
+                        isAppOrder={true}
                       />
                     ))}
                   </div>
