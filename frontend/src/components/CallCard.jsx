@@ -1,216 +1,272 @@
 import React from 'react';
 
-export default function CallCard({ callData, onAccept, isScheduledOrder = false }) {
-    
-    // Determine verification status for calls
-    const isVerified = callData.subscriptionStatus === "Verified";
-    
-    // Colors based on type and status
-    let accentColor, bgBadge, textBadge, badgeText;
-    
-    if (isScheduledOrder) {
-        accentColor = '#8b5cf6'; // Purple for scheduled orders
-        bgBadge = '#f3e8ff';
-        textBadge = '#6b21a8';
-        badgeText = 'Scheduled Order';
+export default function CallCard({ callData, onAccept, isScheduledOrder = false, isPlacedOrder = false }) {
+  const {
+    caller,
+    name,
+    subscriptionStatus,
+    ticket,
+    scheduledTime,
+    customerName,
+    customerPhone,
+    address,
+    orderId,
+    serviceCategory,
+    workDescription,
+    createdAt
+  } = callData;
+
+  // Determine card type and styling
+  const cardType = isPlacedOrder ? 'placed' : isScheduledOrder ? 'scheduled' : 'call';
+  
+  const getCardStyles = () => {
+    const baseStyle = {
+      backgroundColor: 'white',
+      borderRadius: '12px',
+      padding: '20px',
+      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+      border: '2px solid',
+      transition: 'all 0.2s ease',
+      cursor: 'pointer',
+    };
+
+    if (isPlacedOrder) {
+      return {
+        ...baseStyle,
+        borderColor: '#8b5cf6', // Purple for app orders
+        '&:hover': {
+          boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)',
+          transform: 'translateY(-2px)',
+        }
+      };
+    } else if (isScheduledOrder) {
+      return {
+        ...baseStyle,
+        borderColor: '#3b82f6', // Blue for scheduled
+        '&:hover': {
+          boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
+          transform: 'translateY(-2px)',
+        }
+      };
     } else {
-        accentColor = isVerified ? '#10b981' : '#f59e0b'; // Green vs Amber
-        bgBadge = isVerified ? '#ecfdf5' : '#fffbeb';
-        textBadge = isVerified ? '#047857' : '#b45309';
-        badgeText = isVerified ? 'Verified Customer' : 'Unverified Caller';
+      return {
+        ...baseStyle,
+        borderColor: '#10b981', // Green for incoming calls
+        '&:hover': {
+          boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+          transform: 'translateY(-2px)',
+        }
+      };
     }
+  };
 
-    // Format scheduled time
-    const formatTime = (timestamp) => {
-        if (!timestamp) return 'N/A';
-        const date = new Date(timestamp);
-        return date.toLocaleString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    };
+  const getBadgeColor = () => {
+    if (isPlacedOrder) return { bg: '#f3e8ff', text: '#6b21a8', border: '#c084fc' };
+    if (isScheduledOrder) return { bg: '#dbeafe', text: '#1e40af', border: '#93c5fd' };
+    return { bg: '#d1fae5', text: '#065f46', border: '#6ee7b7' };
+  };
 
-    const styles = {
-        card: {
-            backgroundColor: 'white',
-            borderRadius: '12px',
-            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-            border: '1px solid #e5e7eb',
-            borderLeft: `5px solid ${accentColor}`,
-            padding: '20px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            transition: 'transform 0.2s, box-shadow 0.2s',
-            cursor: 'default',
-        },
-        header: {
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-start',
-        },
-        badge: {
-            display: 'inline-flex',
-            alignItems: 'center',
-            padding: '4px 10px',
-            borderRadius: '9999px',
-            backgroundColor: bgBadge,
-            color: textBadge,
-            fontSize: '0.75rem',
-            fontWeight: '700',
-            textTransform: 'uppercase',
-            letterSpacing: '0.025em',
-        },
-        time: {
-            fontSize: '0.75rem',
-            color: '#9ca3af',
-        },
-        info: {
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '4px',
-        },
-        phone: {
-            fontSize: '1.25rem',
-            fontWeight: '700',
-            color: '#111827',
-            letterSpacing: '-0.025em',
-        },
-        name: {
-            fontSize: '0.95rem',
-            color: '#4b5563',
-            fontWeight: '500',
-        },
-        meta: {
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            fontSize: '0.8rem',
-            color: '#6b7280',
-            backgroundColor: '#f3f4f6',
-            padding: '8px 12px',
-            borderRadius: '6px',
-        },
-        metaRow: {
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '8px',
-        },
-        addressBox: {
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '8px',
-            fontSize: '0.8rem',
-            color: '#6b7280',
-            backgroundColor: '#f3f4f6',
-            padding: '8px 12px',
-            borderRadius: '6px',
-        },
-        button: {
-            marginTop: '8px',
-            width: '100%',
-            padding: '12px',
-            backgroundColor: isScheduledOrder ? '#8b5cf6' : '#1f2937',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            fontWeight: '600',
-            fontSize: '0.9rem',
-            cursor: 'pointer',
-            transition: 'background-color 0.2s',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-        }
-    };
+  const getIcon = () => {
+    if (isPlacedOrder) return '📱';
+    if (isScheduledOrder) return '📅';
+    return '📞';
+  };
 
-    const handleButtonHover = (e, isEnter) => {
-        if (isScheduledOrder) {
-            e.currentTarget.style.backgroundColor = isEnter ? '#7c3aed' : '#8b5cf6';
-        } else {
-            e.currentTarget.style.backgroundColor = isEnter ? '#111827' : '#1f2937';
-        }
-    };
+  const badgeColors = getBadgeColor();
+  const icon = getIcon();
 
-    return (
-        <div style={styles.card}>
-            <div style={styles.header}>
-                <span style={styles.badge}>
-                    {badgeText}
-                </span>
-                <span style={styles.time}>
-                    {isScheduledOrder ? formatTime(callData.scheduledTime) : 'Just Now'}
-                </span>
-            </div>
+  const styles = {
+    card: getCardStyles(),
+    header: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: '16px',
+    },
+    icon: {
+      fontSize: '2rem',
+    },
+    badge: {
+      backgroundColor: badgeColors.bg,
+      color: badgeColors.text,
+      border: `1px solid ${badgeColors.border}`,
+      padding: '4px 12px',
+      borderRadius: '9999px',
+      fontSize: '0.75rem',
+      fontWeight: '600',
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em',
+    },
+    content: {
+      marginBottom: '16px',
+    },
+    title: {
+      fontSize: '1.125rem',
+      fontWeight: '700',
+      color: '#111827',
+      marginBottom: '8px',
+    },
+    infoRow: {
+      display: 'flex',
+      alignItems: 'center',
+      fontSize: '0.875rem',
+      color: '#6b7280',
+      marginBottom: '6px',
+      gap: '8px',
+    },
+    label: {
+      fontWeight: '600',
+      color: '#374151',
+      minWidth: '80px',
+    },
+    value: {
+      color: '#111827',
+    },
+    address: {
+      fontSize: '0.875rem',
+      color: '#6b7280',
+      marginTop: '8px',
+      paddingTop: '8px',
+      borderTop: '1px solid #e5e7eb',
+    },
+    footer: {
+      display: 'flex',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingTop: '16px',
+      borderTop: '1px solid #e5e7eb',
+    },
+    button: {
+      backgroundColor: isPlacedOrder ? '#8b5cf6' : isScheduledOrder ? '#3b82f6' : '#10b981',
+      color: 'white',
+      border: 'none',
+      padding: '10px 20px',
+      borderRadius: '8px',
+      fontSize: '0.875rem',
+      fontWeight: '600',
+      cursor: 'pointer',
+      transition: 'all 0.2s',
+      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+    },
+    orderIdBadge: {
+      fontSize: '0.75rem',
+      color: '#6b7280',
+      fontFamily: 'monospace',
+      backgroundColor: '#f3f4f6',
+      padding: '4px 8px',
+      borderRadius: '4px',
+    }
+  };
 
-            <div style={styles.info}>
-                <div style={styles.phone}>
-                    {isScheduledOrder 
-                        ? (callData.customerPhone || 'N/A')
-                        : (callData.caller || 'Unknown')
-                    }
-                </div>
-                <div style={styles.name}>
-                    {isScheduledOrder 
-                        ? (callData.customerName || 'Unknown Customer')
-                        : (callData.name || callData.userName || 'Unknown Caller')
-                    }
-                </div>
-            </div>
+  const handleClick = () => {
+    onAccept(callData);
+  };
 
-            {isScheduledOrder ? (
-                <div style={styles.metaRow}>
-                    <div style={styles.meta}>
-                        <span style={{fontSize: '1.1em'}}>🆔</span> 
-                        <span>Order #{callData.orderId || callData.id}</span>
-                    </div>
-                    {callData.address && (
-                        <div style={styles.addressBox}>
-                            <span style={{fontSize: '1.1em', marginTop: '2px'}}>📍</span> 
-                            <span style={{flex: 1}}>{callData.address}</span>
-                        </div>
-                    )}
-                </div>
-            ) : (
-                <>
-                    <div style={styles.meta}>
-                        <span style={{fontSize: '1.1em'}}>🎫</span> 
-                        <span>{callData.ticket || 'N/A'}</span>
-                    </div>
-                    {callData.dispatchDetails?.address && (
-                        <div style={styles.addressBox}>
-                            <span style={{fontSize: '1.1em', marginTop: '2px'}}>📍</span> 
-                            <span style={{flex: 1}}>{callData.dispatchDetails.address}</span>
-                        </div>
-                    )}
-                </>
-            )}
+  // Format created time for placed orders
+  const formatTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    return date.toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
-            <button 
-                style={styles.button}
-                onClick={() => onAccept(callData)}
-                onMouseEnter={(e) => handleButtonHover(e, true)}
-                onMouseLeave={(e) => handleButtonHover(e, false)}
-            >
-                {isScheduledOrder ? (
-                    <>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                        Assign to Me
-                    </>
-                ) : (
-                    <>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-                        </svg>
-                        Answer Call
-                    </>
-                )}
-            </button>
+  return (
+    <div style={styles.card} onClick={handleClick}>
+      <div style={styles.header}>
+        <span style={styles.icon}>{icon}</span>
+        <span style={styles.badge}>
+          {isPlacedOrder ? 'App Order' : isScheduledOrder ? 'Scheduled' : 'Live Call'}
+        </span>
+      </div>
+
+      <div style={styles.content}>
+        <h3 style={styles.title}>
+          {isPlacedOrder || isScheduledOrder ? customerName : name}
+        </h3>
+
+        {/* Phone Number */}
+        <div style={styles.infoRow}>
+          <span style={styles.label}>📱 Phone:</span>
+          <span style={styles.value}>
+            {isPlacedOrder || isScheduledOrder ? customerPhone : caller}
+          </span>
         </div>
-    );
+
+        {/* Status/Category */}
+        {isPlacedOrder ? (
+          <div style={styles.infoRow}>
+            <span style={styles.label}>🔧 Service:</span>
+            <span style={styles.value}>{serviceCategory}</span>
+          </div>
+        ) : (
+          <div style={styles.infoRow}>
+            <span style={styles.label}>📋 Status:</span>
+            <span style={styles.value}>
+              {isScheduledOrder ? 'Scheduled Service' : subscriptionStatus}
+            </span>
+          </div>
+        )}
+
+        {/* Time Info */}
+        {isScheduledOrder && scheduledTime && (
+          <div style={styles.infoRow}>
+            <span style={styles.label}>🕒 Time:</span>
+            <span style={styles.value}>{scheduledTime}</span>
+          </div>
+        )}
+
+        {isPlacedOrder && createdAt && (
+          <div style={styles.infoRow}>
+            <span style={styles.label}>🕒 Placed:</span>
+            <span style={styles.value}>{formatTime(createdAt)}</span>
+          </div>
+        )}
+
+        {/* Ticket/Description */}
+        {isPlacedOrder ? (
+          <div style={styles.infoRow}>
+            <span style={styles.label}>📝 Details:</span>
+            <span style={styles.value}>{workDescription}</span>
+          </div>
+        ) : (
+          <div style={styles.infoRow}>
+            <span style={styles.label}>🎫 Ticket:</span>
+            <span style={styles.value}>{ticket}</span>
+          </div>
+        )}
+
+        {/* Address */}
+        {(isScheduledOrder || isPlacedOrder) && address && (
+          <div style={styles.address}>
+            <strong>📍 Address:</strong> {address}
+          </div>
+        )}
+      </div>
+
+      <div style={styles.footer}>
+        {orderId && (
+          <span style={styles.orderIdBadge}>
+            Order: {orderId}
+          </span>
+        )}
+        <button
+          style={styles.button}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.05)';
+            e.currentTarget.style.boxShadow = '0 4px 8px rgba(0, 0, 0, 0.2)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.1)';
+          }}
+        >
+          {isPlacedOrder ? 'Dispatch' : isScheduledOrder ? 'Assign' : 'Accept'}
+        </button>
+      </div>
+    </div>
+  );
 }
