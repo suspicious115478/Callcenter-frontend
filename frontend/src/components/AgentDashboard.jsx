@@ -13,8 +13,8 @@ const auth = getAuth(app);
 const db = getDatabase(app);
 
 // Initialize Supabase Client (MAIN DB)
-const supabaseUrl = 'https://wbtslpyulsskgdtkknaf.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndidHNscHl1bHNza2dkdGtrbmFmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM2NDc0MDgsImV4cCI6MjA3OTIyMzQwOH0.BcvA4VFPybxQvQRNpt1e0NvDNATrhddx5RgvWAYgQM0';
+const supabaseUrl = 'https://ekcwbxeotghlpauetzlj.supabase.co';
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVrY3dieGVvdGdobHBhdWV0emxqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjM3MTA4MTMsImV4cCI6MjA3OTI4NjgxM30.efrt5GUyOIRpQtHNKOkGEUEwDdqe9Sg1Ehu26nI_OQQ';
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Initialize Employee Supabase Client
@@ -850,4 +850,5 @@ export default function AgentDashboard() {
     </div>
   );
 }
+
 
