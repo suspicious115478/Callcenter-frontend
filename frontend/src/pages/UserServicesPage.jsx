@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CallNavigationBar } from './components/CallNavigationBar';
-import { useCallSession } from './components/CallSessionContext';
+import { CallNavigationBar } from '../components/CallNavigationBar';
+import { useCallSession } from '../components/CallSessionContext';
 const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>;
 
 // Subcategory data
