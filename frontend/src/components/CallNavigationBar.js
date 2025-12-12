@@ -14,7 +14,7 @@ export const CallNavigationBar = () => {
     { 
       id: 'dashboard', 
       label: 'Notes', 
-      path: `/dashboard/${sessionData.dashboard?.userId}?phoneNumber=${sessionData.dashboard?.phoneNumber}`,
+      path: `/dashboard/${sessionData.dashboard?.userId}`,
       icon: '📝',
       isCompleted: !!sessionData.dashboard?.ticketId
     },
@@ -47,7 +47,6 @@ export const CallNavigationBar = () => {
     location.pathname.includes(step.path.split('?')[0])
   );
 
-  // 🔥 FIX: Move buildNavigationState BEFORE handleStepClick
   const buildNavigationState = (stepId) => {
     const dashboardData = sessionData.dashboard || {};
     const servicesData = sessionData.services || {};
@@ -55,7 +54,11 @@ export const CallNavigationBar = () => {
 
     switch (stepId) {
       case 'dashboard':
-        return {};
+        // For dashboard, we need userId and phoneNumber
+        return {
+          phoneNumber: dashboardData.phoneNumber,
+          userId: dashboardData.userId
+        };
       
       case 'services':
         return {
@@ -103,10 +106,17 @@ export const CallNavigationBar = () => {
     // Build navigation state based on step
     const navigationState = buildNavigationState(step.id);
     
-    // For dashboard, navigate with query params in URL
+    // ✅ FIX: For dashboard, construct the URL with query params AND pass state
     if (step.id === 'dashboard') {
-      navigate(step.path);
+      const phoneNumber = sessionData.dashboard?.phoneNumber || '';
+      const userId = sessionData.dashboard?.userId || '';
+      
+      // Navigate with both query params AND state
+      navigate(`/dashboard/${userId}?phoneNumber=${phoneNumber}`, {
+        state: navigationState
+      });
     } else {
+      // For other steps, just pass state
       navigate(step.path, { state: navigationState });
     }
   };
