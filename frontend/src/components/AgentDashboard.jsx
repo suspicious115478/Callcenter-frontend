@@ -420,7 +420,7 @@ export default function AgentDashboard() {
     });
   };
 
-  // 🚀 NEW: Handle App Order Dispatch
+    // 🚀 NEW: Handle App Order Dispatch
   const handleAppOrderDispatch = async (order) => {
     await updateAgentStatus("busy");
     
@@ -461,11 +461,15 @@ export default function AgentDashboard() {
       selectedServices[order.serviceCategory] = subcategories;
     }
 
+    // Generate a ticket ID for app orders (format: APP_TKT_timestamp)
+    const appTicketId = `APP_TKT_${Date.now()}`;
+
     // Navigate to ServiceManSelectionPage
     navigate('/user/servicemen', {
       state: {
         orderId: order.orderId,
         isAppOrder: true,
+        ticketId: appTicketId, // 🔥 FIX: Include ticket ID
         phoneNumber: order.customerPhone,
         selectedServices: selectedServices,
         requestDetails: order.workDescription || 'App Order',
@@ -850,5 +854,3 @@ export default function AgentDashboard() {
     </div>
   );
 }
-
-
