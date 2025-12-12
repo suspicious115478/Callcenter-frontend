@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { getAuth } from 'firebase/auth';
 import { app } from '../config';
 import { CallNavigationBar } from './components/CallNavigationBar';
+import { useCallSession } from './components/CallSessionContext';
 const API_BASE_URL = 'https://callcenter-baclend.onrender.com';
 const auth = getAuth(app);
 
@@ -214,7 +215,7 @@ export function ServiceManSelectionPage() {
     const [servicemanByCategory, setServicemanByCategory] = useState({});
     const [selectedServicemen, setSelectedServicemen] = useState({});
     const [dispatchStatus, setDispatchStatus] = useState(null);
-
+    const { updateStepData, endCallSession } = useCallSession();
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
         return () => clearInterval(timer);
@@ -377,7 +378,6 @@ export function ServiceManSelectionPage() {
                 .map(([categoryName, serviceman]) => {
                     const subcategories = selectedServices[categoryName] || [];
 
-                    // 🔥 FIX: For app orders, use the base order_id. For regular orders, append category.
                     const dispatchOrderId = isAppOrder ? orderId : `${orderId}_${categoryName}`;
 
                     const dispatchData = {
@@ -386,15 +386,14 @@ export function ServiceManSelectionPage() {
                         request_address: fetchedAddressLine,
                         order_status: 'Assigned',
                         order_request: `${activeRequest} | Subcategories: ${subcategories.join(', ')}`,
-                        order_id: dispatchOrderId, // 🔥 Use conditional order_id
+                        order_id: dispatchOrderId,
                         ticket_id: activeTicketId,
                         phone_number: activePhoneNumber,
                         admin_id: adminId,
                         previous_order_id: previousOrderId || null,
                         isScheduledUpdate: isScheduledDispatch,
-                        isAppOrderUpdate: isAppOrder, // 🚀 NEW: Flag for app order
+                        isAppOrderUpdate: isAppOrder,
                         selected_subcategories: subcategories,
-                        // 🚀 NEW: Pass IDs for app orders
                         customer_user_id: passedUserId,
                         customer_member_id: passedMemberId,
                         customer_address_id: passedAddressId
@@ -412,7 +411,19 @@ export function ServiceManSelectionPage() {
 
             if (allSuccessful) {
                 setDispatchStatus(`✅ DISPATCH SUCCESSFUL: All ${selectedCount} servicemen assigned!`);
-                setTimeout(() => navigate('/'), 3000);
+                
+                // ✅ ADD THESE LINES - Update session data and end call
+                updateStepData('serviceman', {
+                    selectedServicemen: selectedServicemen,
+                    dispatchedAt: new Date().toISOString(),
+                    dispatchSuccessful: true
+                });
+
+                // End the call session
+                setTimeout(() => {
+                    endCallSession();
+                    navigate('/');
+                }, 3000);
             } else {
                 setDispatchStatus(`⚠️ Some dispatches failed. Please check logs.`);
             }
