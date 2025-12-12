@@ -14,7 +14,7 @@ export const CallNavigationBar = () => {
     { 
       id: 'dashboard', 
       label: 'Notes', 
-      path: `/dashboard/${sessionData.dashboard?.userId}`,
+      path: `/dashboard`,
       icon: '📝',
       isCompleted: !!sessionData.dashboard?.ticketId
     },
@@ -43,9 +43,13 @@ export const CallNavigationBar = () => {
     }
   ];
 
-  const currentStepIndex = steps.findIndex(step => 
-    location.pathname.includes(step.path.split('?')[0])
-  );
+  const currentStepIndex = steps.findIndex(step => {
+    // Special handling for dashboard route
+    if (step.id === 'dashboard') {
+      return location.pathname.startsWith('/dashboard');
+    }
+    return location.pathname.includes(step.path.split('?')[0]);
+  });
 
   const buildNavigationState = (stepId) => {
     const dashboardData = sessionData.dashboard || {};
@@ -111,8 +115,11 @@ export const CallNavigationBar = () => {
       const phoneNumber = sessionData.dashboard?.phoneNumber || '';
       const userId = sessionData.dashboard?.userId || '';
       
+      // If userId is available, use it in the URL, otherwise use a fallback
+      const dashboardPath = userId ? `/dashboard/${userId}` : '/dashboard/active';
+      
       // Navigate with both query params AND state
-      navigate(`/dashboard/${userId}?phoneNumber=${phoneNumber}`, {
+      navigate(`${dashboardPath}?phoneNumber=${phoneNumber}`, {
         state: navigationState
       });
     } else {
