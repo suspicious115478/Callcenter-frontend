@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CallNavigationBar } from './components/CallNavigationBar';
+import { useCallSession } from './components/CallSessionContext';
 const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>;
 
 // Subcategory data
@@ -322,7 +323,7 @@ export default function UserServicesPage() {
     const [activeModalService, setActiveModalService] = useState(null);
     const [activeSubcategoryList, setActiveSubcategoryList] = useState([]);
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
-
+    const { updateStepData } = useCallSession();
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
         return () => clearInterval(timer);
@@ -386,13 +387,18 @@ export default function UserServicesPage() {
             }
         }
 
+        // ✅ ADD THESE LINES - Update session data
+        updateStepData('services', {
+            selectedServices: selectedServices
+        });
+
         navigate('/user/servicemen', {
             state: {
                 ticketId,
                 requestDetails,
                 selectedAddressId,
                 phoneNumber,
-                selectedServices, // Pass entire object: { serviceName: [subcategories] }
+                selectedServices,
             }
         });
     };
@@ -415,6 +421,11 @@ export default function UserServicesPage() {
                 return;
             }
         }
+
+        // ✅ ADD THESE LINES - Update session data
+        updateStepData('services', {
+            selectedServices: selectedServices
+        });
 
         navigate('/user/scheduling', {
             state: {
