@@ -4,14 +4,12 @@ import { getAuth } from 'firebase/auth';
 import { app } from '../config'; 
 import { CallNavigationBar } from '../components/CallNavigationBar';
 import { useCallSession } from '../components/CallSessionContext';
+
 const API_BASE_URL = 'https://callcenter-baclend.onrender.com';
 const auth = getAuth(app);
 
-// Icons
 const CalendarIcon = () => <span style={{ fontSize: '1.25rem' }}>📅</span>;
 const ClockIcon = () => <span>⏰</span>;
-
-// --- HELPERS ---
 
 const generateUniqueOrderId = () => {
     const now = new Date();
@@ -35,14 +33,9 @@ const fetchAgentAdminId = async (firebaseUid) => {
     }
 };
 
-/**
- * 🔥 UPDATED: Fetches member_id AND customer_name using the new backend endpoint
- */
 const fetchMemberIdAndName = async (phoneNumber) => {
     if (!phoneNumber) return { memberId: null, customerName: null };
     const url = `${API_BASE_URL}/call/memberid/lookup`;
-    
-    console.log(`[MEMBER ID & NAME FETCH] Requesting for phone: ${phoneNumber}`);
     
     try {
         const response = await fetch(url, {
@@ -53,16 +46,12 @@ const fetchMemberIdAndName = async (phoneNumber) => {
         
         if (!response.ok) {
             if (response.status === 404) {
-                console.warn("[MEMBER ID & NAME] Not found - New customer");
                 return { memberId: 'Not Found', customerName: 'New Customer' };
             }
             throw new Error(`HTTP Error! Status: ${response.status}`);
         }
         
         const data = await response.json();
-        console.log("[MEMBER ID & NAME SUCCESS]", data);
-        
-        // Extract both member_id and customer_name from response
         return { 
             memberId: data.member_id || 'Not Found', 
             customerName: data.customer_name || 'Unknown Customer' 
@@ -74,7 +63,6 @@ const fetchMemberIdAndName = async (phoneNumber) => {
     }
 };
 
-// --- STYLES ---
 const styles = {
     container: {
         display: 'flex', flexDirection: 'column', minHeight: '100vh', 
@@ -106,18 +94,23 @@ const TIME_SLOTS = [
 export default function SchedulingPage() {
     const location = useLocation();
     const navigate = useNavigate();
+    const { updateStepData, endCallSession, getStepData } = useCallSession();
+    
+    // 🔥 RESTORE FROM CONTEXT FIRST
+    const savedSchedulingData = getStepData('scheduling');
+    const savedServicesData = getStepData('services');
+    const savedDashboardData = getStepData('dashboard');
 
-    // 1. Extract State
-    const { 
-    ticketId, 
-    requestDetails, 
-    selectedAddressId, 
-    selectedServices,  // ✅ Get the full object
-    phoneNumber,
-    request_address
-} = location.state || {};
+    // Get data from location.state or saved context
+    const ticketId = location.state?.ticketId || savedDashboardData.ticketId;
+    const requestDetails = location.state?.requestDetails || savedDashboardData.requestDetails;
+    const selectedAddressId = location.state?.selectedAddressId || savedDashboardData.selectedAddressId;
+    const selectedServices = location.state?.selectedServices || savedServicesData.selectedServices;
+    const phoneNumber = location.state?.phoneNumber || savedDashboardData.phoneNumber;
+    const request_address = location.state?.request_address;
+
     const serviceName = selectedServices ? Object.keys(selectedServices)[0] : null;
-    // 2. Local State
+    
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
     const [orderId, setOrderId] = useState(null);
     const [adminId, setAdminId] = useState('Fetching...');
@@ -125,27 +118,24 @@ export default function SchedulingPage() {
     const [customerName, setCustomerName] = useState('Searching...'); 
     const [fetchedAddressLine, setFetchedAddressLine] = useState(request_address || 'Loading address...');
     
-    // Scheduling State
-    const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-    const [selectedTime, setSelectedTime] = useState(null);
+    // 🔥 RESTORE SCHEDULING STATE IF IT EXISTS
+    const [selectedDate, setSelectedDate] = useState(
+        savedSchedulingData.selectedDate || new Date().toISOString().split('T')[0]
+    );
+    const [selectedTime, setSelectedTime] = useState(savedSchedulingData.selectedTime || null);
     const [statusMessage, setStatusMessage] = useState(null);
 
-    // 3. Effects
-    const { updateStepData, endCallSession } = useCallSession();
-    // Clock
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
         return () => clearInterval(timer);
     }, []);
 
-    // Generate Order ID
     useEffect(() => {
         const newOrderId = generateUniqueOrderId();
         setOrderId(newOrderId);
         console.log(`[ORDER CREATION] Generated unique Order ID: ${newOrderId}`);
     }, []);
 
-    // Fetch Admin ID
     useEffect(() => {
         const user = auth.currentUser;
         if (user) {
@@ -156,14 +146,12 @@ export default function SchedulingPage() {
         }
     }, []);
 
-    // 🔥 FIXED: Fetch Member ID AND Customer Name together
     useEffect(() => {
         if (phoneNumber) {
             setMemberId('Searching...');
             setCustomerName('Searching...');
             
             fetchMemberIdAndName(phoneNumber).then(({ memberId, customerName }) => {
-                console.log(`[SCHEDULING PAGE] Fetched - Member ID: ${memberId}, Name: ${customerName}`);
                 setMemberId(memberId);
                 setCustomerName(customerName);
             });
@@ -173,7 +161,6 @@ export default function SchedulingPage() {
         }
     }, [phoneNumber]);
 
-    // Fetch Address Details
     useEffect(() => {
         if (selectedAddressId && !request_address) {
             const fetchAddress = async () => {
@@ -195,7 +182,6 @@ export default function SchedulingPage() {
         }
     }, [selectedAddressId, request_address]);
 
-    // 4. Handle Confirm Schedule
     const handleConfirmSchedule = async () => {
         if (!selectedDate || !selectedTime) {
             setStatusMessage('❗️ Please select both a Date and a Time.');
@@ -245,7 +231,6 @@ export default function SchedulingPage() {
 
             setStatusMessage(`✅ SCHEDULED SUCCESSFUL: Order ID ${orderId}`);
 
-            // ✅ ADD THESE LINES - Update session data and end call
             updateStepData('scheduling', {
                 selectedDate: selectedDate,
                 selectedTime: selectedTime,
@@ -253,7 +238,6 @@ export default function SchedulingPage() {
                 orderId: orderId
             });
 
-            // End the call session since scheduling is complete
             setTimeout(() => {
                 endCallSession();
                 navigate('/');
@@ -275,156 +259,148 @@ export default function SchedulingPage() {
     }
 
     return (
-         <>
-    <CallNavigationBar />
-        <div style={styles.container}>
-            {/* Header */}
-            <header style={styles.header}>
-                <div style={styles.brand}>
-                    <CalendarIcon />
-                    <span>CC Agent Console: Appointment Scheduling</span>
-                </div>
-                <div style={styles.headerRight}>
-                    <span style={styles.clock}>{currentTime}</span>
-                    <div style={styles.avatar}>AG</div>
-                </div>
-            </header>
+        <>
+            <CallNavigationBar />
+            <div style={styles.container}>
+                <header style={styles.header}>
+                    <div style={styles.brand}>
+                        <CalendarIcon />
+                        <span>CC Agent Console: Appointment Scheduling</span>
+                    </div>
+                    <div style={styles.headerRight}>
+                        <span style={styles.clock}>{currentTime}</span>
+                        <div style={styles.avatar}>AG</div>
+                    </div>
+                </header>
 
-            <div style={styles.mainContent}>
-                
-                {/* Left Column: Context */}
-                <div style={{ width: window.innerWidth > 1024 ? '35%' : '100%' }}>
-                    <div style={styles.card}>
-                        <h2 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '16px', borderBottom: '1px solid #eee', paddingBottom: '8px' }}>
-                            📋 Request Context
-                        </h2>
-                        
-                        <div style={{ marginBottom: '16px' }}>
-                            <label style={{ display: 'block', fontSize: '0.85rem', color: '#6b7280' }}>Service</label>
-                            <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#10b981' }}>{serviceName}</div>
-                        </div>
+                <div style={styles.mainContent}>
+                    <div style={{ width: window.innerWidth > 1024 ? '35%' : '100%' }}>
+                        <div style={styles.card}>
+                            <h2 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '16px', borderBottom: '1px solid #eee', paddingBottom: '8px' }}>
+                                📋 Request Context
+                            </h2>
+                            
+                            <div style={{ marginBottom: '16px' }}>
+                                <label style={{ display: 'block', fontSize: '0.85rem', color: '#6b7280' }}>Service</label>
+                                <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#10b981' }}>{serviceName}</div>
+                            </div>
 
-                        <div style={{ marginBottom: '12px' }}>
-                            <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
-                                **Ticket ID:** <span style={{ fontWeight: '600', backgroundColor: '#e5e7eb', padding: '2px 8px', borderRadius: '4px' }}>{ticketId}</span>
-                            </p>
-                            <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
-                                **New Order ID:** <span style={{ fontWeight: '600', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5' }}>{orderId || '...'}</span>
-                            </p>
-                        </div>
+                            <div style={{ marginBottom: '12px' }}>
+                                <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
+                                    **Ticket ID:** <span style={{ fontWeight: '600', backgroundColor: '#e5e7eb', padding: '2px 8px', borderRadius: '4px' }}>{ticketId}</span>
+                                </p>
+                                <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
+                                    **New Order ID:** <span style={{ fontWeight: '600', backgroundColor: '#eef2ff', padding: '2px 8px', borderRadius: '4px', color: '#4f46e5' }}>{orderId || '...'}</span>
+                                </p>
+                            </div>
 
-                        <div style={{ marginBottom: '12px', borderTop: '1px solid #eee', paddingTop: '12px' }}>
-                            <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
-                                **Customer Phone:** <span style={{ fontWeight: '600' }}>{phoneNumber}</span>
-                            </p>
-                            <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
-                                **Name:** <span style={{ 
-                                    fontWeight: '600', 
-                                    color: customerName === 'Searching...' ? '#9ca3af' : 
-                                           customerName.includes('Error') ? '#ef4444' : 
-                                           customerName === 'New Customer' ? '#f59e0b' : '#10b981' 
-                                }}>
-                                    {customerName}
-                                </span>
-                            </p>
-                            <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
-                                **Member ID:** <span style={{ fontWeight: '600', color: memberId === 'Not Found' ? '#ef4444' : '#4f46e5' }}>{memberId}</span>
-                            </p>
-                            <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
-                                **Admin ID:** <span style={{ fontWeight: '600' }}>{adminId}</span>
-                            </p>
-                        </div>
+                            <div style={{ marginBottom: '12px', borderTop: '1px solid #eee', paddingTop: '12px' }}>
+                                <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
+                                    **Customer Phone:** <span style={{ fontWeight: '600' }}>{phoneNumber}</span>
+                                </p>
+                                <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
+                                    **Name:** <span style={{ 
+                                        fontWeight: '600', 
+                                        color: customerName === 'Searching...' ? '#9ca3af' : 
+                                               customerName.includes('Error') ? '#ef4444' : 
+                                               customerName === 'New Customer' ? '#f59e0b' : '#10b981' 
+                                    }}>
+                                        {customerName}
+                                    </span>
+                                </p>
+                                <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
+                                    **Member ID:** <span style={{ fontWeight: '600', color: memberId === 'Not Found' ? '#ef4444' : '#4f46e5' }}>{memberId}</span>
+                                </p>
+                                <p style={{ fontSize: '0.9rem', color: '#4b5563', marginBottom: '4px' }}>
+                                    **Admin ID:** <span style={{ fontWeight: '600' }}>{adminId}</span>
+                                </p>
+                            </div>
 
-                        <div style={{ marginBottom: '16px', backgroundColor: '#f9fafb', padding: '10px', borderRadius: '8px' }}>
-                            <label style={{ display: 'block', fontSize: '0.85rem', color: '#6b7280' }}>Address</label>
-                            <div style={{ fontSize: '0.9rem', fontWeight: '500' }}>{fetchedAddressLine}</div>
-                        </div>
+                            <div style={{ marginBottom: '16px', backgroundColor: '#f9fafb', padding: '10px', borderRadius: '8px' }}>
+                                <label style={{ display: 'block', fontSize: '0.85rem', color: '#6b7280' }}>Address</label>
+                                <div style={{ fontSize: '0.9rem', fontWeight: '500' }}>{fetchedAddressLine}</div>
+                            </div>
 
-                        <div>
-                            <label style={{ display: 'block', fontSize: '0.85rem', color: '#6b7280' }}>Customer Note</label>
-                            <div style={{ fontSize: '0.9rem', fontStyle: 'italic' }}>"{requestDetails}"</div>
+                            <div>
+                                <label style={{ display: 'block', fontSize: '0.85rem', color: '#6b7280' }}>Customer Note</label>
+                                <div style={{ fontSize: '0.9rem', fontStyle: 'italic' }}>"{requestDetails}"</div>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                {/* Right Column: Scheduling Inputs */}
-                <div style={{ width: window.innerWidth > 1024 ? '65%' : '100%' }}>
-                    <div style={styles.card}>
-                        <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1f2937', marginBottom: '24px', borderBottom: '1px solid #e5e7eb', paddingBottom: '16px' }}>
-                            Select Appointment Slot
-                        </h1>
+                    <div style={{ width: window.innerWidth > 1024 ? '65%' : '100%' }}>
+                        <div style={styles.card}>
+                            <h1 style={{ fontSize: '1.5rem', fontWeight: '700', color: '#1f2937', marginBottom: '24px', borderBottom: '1px solid #e5e7eb', paddingBottom: '16px' }}>
+                                Select Appointment Slot
+                            </h1>
 
-                        {/* Date Input */}
-                        <div style={{ marginBottom: '32px' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600', color: '#374151' }}>
-                                <CalendarIcon /> Pick a Date
-                            </label>
-                            <input 
-                                type="date" 
-                                style={styles.inputDate}
-                                value={selectedDate}
-                                onChange={(e) => setSelectedDate(e.target.value)}
-                                min={new Date().toISOString().split('T')[0]}
-                            />
-                        </div>
-
-                        {/* Time Slots */}
-                        <div style={{ marginBottom: '32px' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600', color: '#374151' }}>
-                                <ClockIcon /> Pick a Time Slot
-                            </label>
-                            <div style={styles.timeSlotGrid}>
-                                {TIME_SLOTS.map(time => (
-                                    <div 
-                                        key={time}
-                                        style={selectedTime === time ? { ...styles.timeSlot, ...styles.timeSlotSelected } : styles.timeSlot}
-                                        onClick={() => setSelectedTime(time)}
-                                    >
-                                        {time}
-                                    </div>
-                                ))}
+                            <div style={{ marginBottom: '32px' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600', color: '#374151' }}>
+                                    <CalendarIcon /> Pick a Date
+                                </label>
+                                <input 
+                                    type="date" 
+                                    style={styles.inputDate}
+                                    value={selectedDate}
+                                    onChange={(e) => setSelectedDate(e.target.value)}
+                                    min={new Date().toISOString().split('T')[0]}
+                                />
                             </div>
-                        </div>
 
-                        {/* Status Message */}
-                        {statusMessage && (
-                            <div style={{ 
-                                padding: '12px', 
-                                borderRadius: '8px', 
-                                marginBottom: '20px', 
-                                fontWeight: '600',
-                                backgroundColor: statusMessage.includes('SUCCESS') ? '#ecfdf5' : '#fef2f2',
-                                color: statusMessage.includes('SUCCESS') ? '#047857' : '#b91c1c',
-                                border: `1px solid ${statusMessage.includes('SUCCESS') ? '#10b981' : '#ef4444'}`
-                            }}>
-                                {statusMessage}
+                            <div style={{ marginBottom: '32px' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600', color: '#374151' }}>
+                                    <ClockIcon /> Pick a Time Slot
+                                </label>
+                                <div style={styles.timeSlotGrid}>
+                                    {TIME_SLOTS.map(time => (
+                                        <div 
+                                            key={time}
+                                            style={selectedTime === time ? { ...styles.timeSlot, ...styles.timeSlotSelected } : styles.timeSlot}
+                                            onClick={() => setSelectedTime(time)}
+                                        >
+                                            {time}
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                        )}
 
-                        {/* Confirm Button */}
-                        <button 
-                            onClick={handleConfirmSchedule}
-                            disabled={!selectedDate || !selectedTime || statusMessage?.includes('Scheduling') || statusMessage?.includes('SUCCESS')}
-                            style={{
-                                width: '100%',
-                                padding: '16px',
-                                borderRadius: '8px',
-                                border: 'none',
-                                fontWeight: '700',
-                                fontSize: '1.1rem',
-                                cursor: (!selectedDate || !selectedTime) ? 'not-allowed' : 'pointer',
-                                backgroundColor: (!selectedDate || !selectedTime) ? '#9ca3af' : '#4f46e5',
-                                color: 'white',
-                                transition: 'background-color 0.3s',
-                                boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.3)',
-                            }}
-                        >
-                            {statusMessage?.includes('Scheduling') ? 'Creating Appointment...' : 'Confirm Schedule (No Dispatch)'}
-                        </button>
+                            {statusMessage && (
+                                <div style={{ 
+                                    padding: '12px', 
+                                    borderRadius: '8px', 
+                                    marginBottom: '20px', 
+                                    fontWeight: '600',
+                                    backgroundColor: statusMessage.includes('SUCCESS') ? '#ecfdf5' : '#fef2f2',
+                                    color: statusMessage.includes('SUCCESS') ? '#047857' : '#b91c1c',
+                                    border: `1px solid ${statusMessage.includes('SUCCESS') ? '#10b981' : '#ef4444'}`
+                                }}>
+                                    {statusMessage}
+                                </div>
+                            )}
+
+                            <button 
+                                onClick={handleConfirmSchedule}
+                                disabled={!selectedDate || !selectedTime || statusMessage?.includes('Scheduling') || statusMessage?.includes('SUCCESS')}
+                                style={{
+                                    width: '100%',
+                                    padding: '16px',
+                                    borderRadius: '8px',
+                                    border: 'none',
+                                    fontWeight: '700',
+                                    fontSize: '1.1rem',
+                                    cursor: (!selectedDate || !selectedTime) ? 'not-allowed' : 'pointer',
+                                    backgroundColor: (!selectedDate || !selectedTime) ? '#9ca3af' : '#4f46e5',
+                                    color: 'white',
+                                    transition: 'background-color 0.3s',
+                                    boxShadow: '0 4px 6px -1px rgba(79, 70, 229, 0.3)',
+                                }}
+                            >
+                                {statusMessage?.includes('Scheduling') ? 'Creating Appointment...' : 'Confirm Schedule (No Dispatch)'}
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-         </>
+        </>
     );
 }
