@@ -109,14 +109,14 @@ export default function SchedulingPage() {
 
     // 1. Extract State
     const { 
-        ticketId, 
-        requestDetails, 
-        selectedAddressId, 
-        serviceName, 
-        phoneNumber,
-        request_address
-    } = location.state || {};
-
+    ticketId, 
+    requestDetails, 
+    selectedAddressId, 
+    selectedServices,  // ✅ Get the full object
+    phoneNumber,
+    request_address
+} = location.state || {};
+    const serviceName = selectedServices ? Object.keys(selectedServices)[0] : null;
     // 2. Local State
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
     const [orderId, setOrderId] = useState(null);
