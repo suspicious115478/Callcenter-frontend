@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getAuth } from 'firebase/auth';
 import { app } from '../config';
-
+import { CallNavigationBar } from './components/CallNavigationBar';
 const API_BASE_URL = 'https://callcenter-baclend.onrender.com';
 const auth = getAuth(app);
 
@@ -439,6 +439,8 @@ export function ServiceManSelectionPage() {
     const totalCategories = Object.keys(selectedServices).length;
 
     return (
+         <>
+    <CallNavigationBar />
         <div style={styles.container}>
             <header style={styles.header}>
                 <div style={styles.brand}>
@@ -573,5 +575,6 @@ export function ServiceManSelectionPage() {
                 </div>
             </div>
         </div>
+         </>
     );
 }
