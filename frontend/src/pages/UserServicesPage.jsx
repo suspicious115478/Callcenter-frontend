@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CallNavigationBar } from '../components/CallNavigationBar';
 import { useCallSession } from '../components/CallSessionContext';
+
 const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>;
 
 // Subcategory data
@@ -311,19 +312,24 @@ const CallContext = ({ ticketId, phoneNumber, requestDetails }) => {
 export default function UserServicesPage() {
     const location = useLocation();
     const navigate = useNavigate();
+    const { updateStepData, getStepData } = useCallSession();
 
-    const ticketId = location.state?.ticketId;
-    const requestDetails = location.state?.requestDetails;
-    const selectedAddressId = location.state?.selectedAddressId;
-    const phoneNumber = location.state?.phoneNumber;
+    // 🔥 RESTORE FROM CONTEXT FIRST, THEN FALLBACK TO LOCATION.STATE
+    const savedServicesData = getStepData('services');
+    const savedDashboardData = getStepData('dashboard');
 
-    // 🚀 NEW: Store multiple selected services with their subcategories
-    const [selectedServices, setSelectedServices] = useState({}); // { serviceName: [subcategories] }
+    const ticketId = location.state?.ticketId || savedDashboardData.ticketId;
+    const requestDetails = location.state?.requestDetails || savedDashboardData.requestDetails;
+    const selectedAddressId = location.state?.selectedAddressId || savedDashboardData.selectedAddressId;
+    const phoneNumber = location.state?.phoneNumber || savedDashboardData.phoneNumber;
+
+    // 🔥 RESTORE SELECTED SERVICES FROM SAVED STATE
+    const [selectedServices, setSelectedServices] = useState(savedServicesData.selectedServices || {});
     const [showSubcategoryModal, setShowSubcategoryModal] = useState(false);
     const [activeModalService, setActiveModalService] = useState(null);
     const [activeSubcategoryList, setActiveSubcategoryList] = useState([]);
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
-    const { updateStepData } = useCallSession();
+
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
         return () => clearInterval(timer);
@@ -341,12 +347,10 @@ export default function UserServicesPage() {
         const subcategoryList = getSubcategoryList(serviceName);
 
         if (subcategoryList) {
-            // Service with subcategories - open modal
             setActiveModalService(service);
             setActiveSubcategoryList(subcategoryList);
             setShowSubcategoryModal(true);
         } else {
-            // Service without subcategories - toggle selection
             setSelectedServices(prev => {
                 const newSelection = { ...prev };
                 if (newSelection[serviceName]) {
@@ -374,7 +378,6 @@ export default function UserServicesPage() {
             return;
         }
 
-        // Validate subcategories for services that require them
         for (const [serviceName, subcategories] of Object.entries(selectedServices)) {
             const requiresSubcategories = ['Cleaning', 'Plumber', 'Carpenter'].includes(serviceName);
             if (requiresSubcategories && (!subcategories || subcategories.length === 0)) {
@@ -387,7 +390,6 @@ export default function UserServicesPage() {
             }
         }
 
-        // ✅ ADD THESE LINES - Update session data
         updateStepData('services', {
             selectedServices: selectedServices
         });
@@ -409,7 +411,6 @@ export default function UserServicesPage() {
             return;
         }
 
-        // Same validation as above
         for (const [serviceName, subcategories] of Object.entries(selectedServices)) {
             const requiresSubcategories = ['Cleaning', 'Plumber', 'Carpenter'].includes(serviceName);
             if (requiresSubcategories && (!subcategories || subcategories.length === 0)) {
@@ -422,7 +423,6 @@ export default function UserServicesPage() {
             }
         }
 
-        // ✅ ADD THESE LINES - Update session data
         updateStepData('services', {
             selectedServices: selectedServices
         });
