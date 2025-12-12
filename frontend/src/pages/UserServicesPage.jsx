@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-
+import { CallNavigationBar } from './components/CallNavigationBar';
 const PhoneIcon = () => <span style={{ fontSize: '1.25rem' }}>📞</span>;
 
 // Subcategory data
@@ -438,6 +438,8 @@ export default function UserServicesPage() {
     const selectedCount = Object.keys(selectedServices).length;
 
     return (
+        <>
+    <CallNavigationBar />
         <div style={styles.container}>
             <header style={styles.header}>
                 <div style={styles.brand}>
@@ -517,5 +519,6 @@ export default function UserServicesPage() {
                 </button>
             </div>
         </div>
+        </>
     );
 }
