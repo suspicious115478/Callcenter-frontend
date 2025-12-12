@@ -10,104 +10,107 @@ export const CallNavigationBar = () => {
   // Don't show navbar if no active call
   if (!callSession?.isActive) return null;
 
-  const steps = [
-    { 
-      id: 'dashboard', 
-      label: 'Notes', 
-      path: `/dashboard/${sessionData.dashboard?.userId}`,
-      icon: '📝',
-      isCompleted: !!sessionData.dashboard?.ticketId
-    },
-    { 
-      id: 'services', 
-      label: 'Services', 
-      path: '/user/services',
-      icon: '🛠️',
-      isCompleted: sessionData.services?.selectedServices && 
-                   Object.keys(sessionData.services.selectedServices).length > 0
-    },
-    { 
-      id: 'scheduling', 
-      label: 'Schedule', 
-      path: '/user/scheduling',
-      icon: '📅',
-      isCompleted: !!sessionData.scheduling?.selectedDate,
-      isOptional: true
-    },
-    { 
-      id: 'serviceman', 
-      label: 'Dispatch', 
-      path: '/user/servicemen',
-      icon: '👷',
-      isCompleted: false
-    }
-  ];
+ const steps = [
+  { 
+    id: 'dashboard', 
+    label: 'Notes', 
+    path: `/dashboard/${sessionData.dashboard?.userId}?phoneNumber=${sessionData.dashboard?.phoneNumber}`, // 🔥 FIX: Add query param
+    icon: '📝',
+    isCompleted: !!sessionData.dashboard?.ticketId
+  },
+  { 
+    id: 'services', 
+    label: 'Services', 
+    path: '/user/services',
+    icon: '🛠️',
+    isCompleted: sessionData.services?.selectedServices && 
+                 Object.keys(sessionData.services.selectedServices).length > 0
+  },
+  { 
+    id: 'scheduling', 
+    label: 'Schedule', 
+    path: '/user/scheduling',
+    icon: '📅',
+    isCompleted: !!sessionData.scheduling?.selectedDate,
+    isOptional: true
+  },
+  { 
+    id: 'serviceman', 
+    label: 'Dispatch', 
+    path: '/user/servicemen',
+    icon: '👷',
+    isCompleted: false
+  }
+];
 
   const currentStepIndex = steps.findIndex(step => 
     location.pathname.includes(step.path.split('?')[0])
   );
 
   const handleStepClick = (step, index) => {
-    // Prevent skipping ahead
-    if (index > 0 && index > currentStepIndex + 1) {
-      const prevStep = steps[index - 1];
-      if (!prevStep.isCompleted && !prevStep.isOptional) {
-        alert(`Please complete "${prevStep.label}" step first`);
-        return;
-      }
+  // Prevent skipping ahead
+  if (index > 0 && index > currentStepIndex + 1) {
+    const prevStep = steps[index - 1];
+    if (!prevStep.isCompleted && !prevStep.isOptional) {
+      alert(`Please complete "${prevStep.label}" step first`);
+      return;
     }
+  }
 
-    // Build navigation state based on step
-    const navigationState = buildNavigationState(step.id);
-    
+  // Build navigation state based on step
+  const navigationState = buildNavigationState(step.id);
+  
+  // 🔥 FIX: For dashboard, use navigate with query params already in path
+  if (step.id === 'dashboard') {
+    navigate(step.path); // Path already has query param
+  } else {
     navigate(step.path, { state: navigationState });
-  };
+  }
+};
+ const buildNavigationState = (stepId) => {
+  const dashboardData = sessionData.dashboard || {};
+  const servicesData = sessionData.services || {};
+  const schedulingData = sessionData.scheduling || {};
 
-  const buildNavigationState = (stepId) => {
-    const dashboardData = sessionData.dashboard || {};
-    const servicesData = sessionData.services || {};
-    const schedulingData = sessionData.scheduling || {};
-
-    switch (stepId) {
-      case 'dashboard':
-        return {
-          userId: dashboardData.userId,
-          phoneNumber: dashboardData.phoneNumber
-        };
-      
-      case 'services':
-        return {
-          ticketId: dashboardData.ticketId,
-          requestDetails: dashboardData.requestDetails,
-          selectedAddressId: dashboardData.selectedAddressId,
-          phoneNumber: dashboardData.phoneNumber
-        };
-      
-      case 'scheduling':
-        return {
-          ticketId: dashboardData.ticketId,
-          requestDetails: dashboardData.requestDetails,
-          selectedAddressId: dashboardData.selectedAddressId,
-          serviceName: Object.keys(servicesData.selectedServices || {})[0],
-          phoneNumber: dashboardData.phoneNumber,
-          selectedServices: servicesData.selectedServices
-        };
-      
-      case 'serviceman':
-        return {
-          ticketId: dashboardData.ticketId,
-          requestDetails: dashboardData.requestDetails,
-          selectedAddressId: dashboardData.selectedAddressId,
-          selectedServices: servicesData.selectedServices,
-          phoneNumber: dashboardData.phoneNumber,
-          scheduledDate: schedulingData.selectedDate,
-          scheduledTime: schedulingData.selectedTime
-        };
-      
-      default:
-        return {};
-    }
-  };
+  switch (stepId) {
+    case 'dashboard':
+      // 🔥 FIX: Return path with query parameter for phoneNumber
+      return {
+        // No state needed - phone number will be in URL query
+      };
+    
+    case 'services':
+      return {
+        ticketId: dashboardData.ticketId,
+        requestDetails: dashboardData.requestDetails,
+        selectedAddressId: dashboardData.selectedAddressId,
+        phoneNumber: dashboardData.phoneNumber
+      };
+    
+    case 'scheduling':
+      return {
+        ticketId: dashboardData.ticketId,
+        requestDetails: dashboardData.requestDetails,
+        selectedAddressId: dashboardData.selectedAddressId,
+        phoneNumber: dashboardData.phoneNumber,
+        selectedServices: servicesData.selectedServices // 🔥 FIX: Pass full selectedServices object
+      };
+    
+    case 'serviceman':
+      return {
+        ticketId: dashboardData.ticketId,
+        requestDetails: dashboardData.requestDetails,
+        selectedAddressId: dashboardData.selectedAddressId,
+        selectedServices: servicesData.selectedServices,
+        phoneNumber: dashboardData.phoneNumber,
+        scheduledDate: schedulingData.selectedDate,
+        scheduledTime: schedulingData.selectedTime
+      };
+    
+    default:
+      return {};
+  }
+};
 
   const handleEndCall = () => {
     if (window.confirm('Are you sure you want to end this call session? All unsaved data will be lost.')) {
