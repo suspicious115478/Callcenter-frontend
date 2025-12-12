@@ -4,6 +4,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 // Using a placeholder URL internally to resolve the 'Could not resolve' error.
 import { BACKEND_URL } from '../config';
 import { CallNavigationBar } from './components/CallNavigationBar';
+import { useCallSession } from './components/CallSessionContext';
 export default function UserDashboardPage() {
     
     // 1. URL PARAMETERS (e.g., /dashboard/1)
@@ -29,7 +30,7 @@ export default function UserDashboardPage() {
     // 🚀 NEW STATE: Assigned Orders
     const [assignedOrders, setAssignedOrders] = useState([]);
     const [ordersLoading, setOrdersLoading] = useState(false);
-
+    const { updateStepData } = useCallSession();
     useEffect(() => {
         // Clock timer for the header
         const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
@@ -175,6 +176,16 @@ export default function UserDashboardPage() {
             const result = await response.json();
 
             console.log(`Ticket ${result.ticket_id} created. Navigating to service selection.`);
+
+            // ✅ ADD THESE LINES - Update session data
+            updateStepData('dashboard', {
+                notes: notes.trim(),
+                ticketId: result.ticket_id,
+                requestDetails: result.requestDetails || notes.trim(),
+                selectedAddressId: selectedAddressId,
+                userId: userId,
+                phoneNumber: phoneNumber
+            });
 
             navigate('/user/services', {
                 state: {
@@ -543,6 +554,7 @@ export default function UserDashboardPage() {
             </>
     );
 }
+
 
 
 
