@@ -19,7 +19,7 @@ import EmployeeHelpDeskPage from "./pages/EmployeeHelpDeskPage";
 import SchedulingPage from "./pages/SchedulingPage";
 // Components
 import AgentDashboard from "./components/AgentDashboard";
-
+import { CallSessionProvider } from './components/CallSessionContext';
 
 // --- Protected Route Component (Auth Guard) ---
 const ProtectedRoute = ({ children, isAuthenticated }) => {
@@ -74,6 +74,7 @@ function App() {
     }
 
     return (
+        <CallSessionProvider>
         <Router>
             <div className="app-container">
                 <Routes>
@@ -112,9 +113,11 @@ function App() {
                 </Routes>
             </div>
         </Router>
+    </CallSessionProvider>
     );
 }
 
 export default App;
+
 
 
