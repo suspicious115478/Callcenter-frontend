@@ -377,13 +377,16 @@ export function ServiceManSelectionPage() {
                 .map(([categoryName, serviceman]) => {
                     const subcategories = selectedServices[categoryName] || [];
 
+                    // 🔥 FIX: For app orders, use the base order_id. For regular orders, append category.
+                    const dispatchOrderId = isAppOrder ? orderId : `${orderId}_${categoryName}`;
+
                     const dispatchData = {
                         user_id: serviceman.user_id,
                         category: categoryName,
                         request_address: fetchedAddressLine,
                         order_status: 'Assigned',
                         order_request: `${activeRequest} | Subcategories: ${subcategories.join(', ')}`,
-                        order_id: `${orderId}_${categoryName}`,
+                        order_id: dispatchOrderId, // 🔥 Use conditional order_id
                         ticket_id: activeTicketId,
                         phone_number: activePhoneNumber,
                         admin_id: adminId,
