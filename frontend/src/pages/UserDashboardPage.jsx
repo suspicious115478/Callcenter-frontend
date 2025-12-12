@@ -3,7 +3,7 @@ import { useParams, useNavigate, useLocation } from 'react-router-dom';
 
 // Using a placeholder URL internally to resolve the 'Could not resolve' error.
 import { BACKEND_URL } from '../config';
-
+import { CallNavigationBar } from './components/CallNavigationBar';
 export default function UserDashboardPage() {
     
     // 1. URL PARAMETERS (e.g., /dashboard/1)
@@ -407,6 +407,8 @@ export default function UserDashboardPage() {
     // --------------------------------------------------------
 
     return (
+        <>
+    <CallNavigationBar />
         <div style={styles.container}>
             {/* HEADER */}
             <header style={styles.header}>
@@ -538,7 +540,9 @@ export default function UserDashboardPage() {
                 </main>
             </div>
         </div>
+            </>
     );
 }
+
 
 
