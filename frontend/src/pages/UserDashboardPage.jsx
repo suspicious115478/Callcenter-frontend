@@ -1,43 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom'; 
-
-// Using a placeholder URL internally to resolve the 'Could not resolve' error.
 import { BACKEND_URL } from '../config';
 import { CallNavigationBar } from '../components/CallNavigationBar';
 import { useCallSession } from '../components/CallSessionContext';
+
 export default function UserDashboardPage() {
-    
-    // 1. URL PARAMETERS (e.g., /dashboard/1)
     const { userId } = useParams();
-    
-    // 2. QUERY PARAMETERS (e.g., ?phoneNumber=...)
     const location = useLocation();
     const queryParams = new URLSearchParams(location.search);
     const phoneNumber = queryParams.get('phoneNumber'); 
 
     const navigate = useNavigate();
-    const [notes, setNotes] = useState('');
+    const { updateStepData, sessionData, getStepData } = useCallSession();
+    
+    // 🔥 RESTORE SAVED STATE IF IT EXISTS
+    const savedDashboardData = getStepData('dashboard');
+    
+    const [notes, setNotes] = useState(savedDashboardData.notes || '');
     const [isSaving, setIsSaving] = useState(false);
     const [saveMessage, setSaveMessage] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
     const [subscriptionStatus] = useState('Premium');
 
-    // STATE FOR ADDRESS MANAGEMENT
     const [userAddresses, setUserAddresses] = useState([]);
-    const [selectedAddressId, setSelectedAddressId] = useState(null);
+    const [selectedAddressId, setSelectedAddressId] = useState(savedDashboardData.selectedAddressId || null);
     const [addressFetchMessage, setAddressFetchMessage] = useState('Fetching addresses...');
 
-    // 🚀 NEW STATE: Assigned Orders
     const [assignedOrders, setAssignedOrders] = useState([]);
     const [ordersLoading, setOrdersLoading] = useState(false);
-    const { updateStepData } = useCallSession();
+
     useEffect(() => {
-        // Clock timer for the header
         const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
         return () => clearInterval(timer);
     }, []);
 
-    // EFFECT 1: Fetch addresses
     useEffect(() => {
         const fetchAddresses = async () => {
             if (!userId) {
@@ -57,7 +53,10 @@ export default function UserDashboardPage() {
 
                 if (addresses.length > 0) {
                     setUserAddresses(addresses);
-                    setSelectedAddressId(addresses[0].address_id);
+                    // 🔥 Only set default address if none is saved
+                    if (!savedDashboardData.selectedAddressId) {
+                        setSelectedAddressId(addresses[0].address_id);
+                    }
                     setAddressFetchMessage(`${addresses.length} addresses loaded.`);
                 } else {
                     setAddressFetchMessage('No addresses found for this user.');
@@ -74,14 +73,12 @@ export default function UserDashboardPage() {
         fetchAddresses();
     }, [userId]);
 
-    // 🚀 EFFECT 2: Fetch Assigned Orders for this Phone Number
     useEffect(() => {
         const fetchAssignedOrders = async () => {
             if (!phoneNumber) return;
             
             setOrdersLoading(true);
             try {
-                // We will create this endpoint in the backend next
                 const response = await fetch(`${BACKEND_URL}/call/orders/assigned?phoneNumber=${phoneNumber}`);
                 
                 if (response.ok) {
@@ -100,7 +97,6 @@ export default function UserDashboardPage() {
         fetchAssignedOrders();
     }, [phoneNumber]);
 
-    // 🚀 FUNCTION: Cancel an Assigned Order
     const handleCancelOrder = async (orderId) => {
         if(!window.confirm("Are you sure the customer wants to cancel this order?")) return;
 
@@ -112,7 +108,6 @@ export default function UserDashboardPage() {
             });
 
             if (response.ok) {
-                // Remove the cancelled order from the UI list immediately
                 setAssignedOrders(prev => prev.filter(order => order.order_id !== orderId));
                 alert("Order cancelled successfully.");
             } else {
@@ -124,7 +119,6 @@ export default function UserDashboardPage() {
         }
     };
 
-    // --- FUNCTION: Save Notes to Backend as a Ticket and Navigate ---
     const saveNotesAsTicket = async () => {
         if (!notes.trim()) {
             setSaveMessage('Error: Notes cannot be empty.');
@@ -177,7 +171,6 @@ export default function UserDashboardPage() {
 
             console.log(`Ticket ${result.ticket_id} created. Navigating to service selection.`);
 
-            // ✅ ADD THESE LINES - Update session data
             updateStepData('dashboard', {
                 notes: notes.trim(),
                 ticketId: result.ticket_id,
@@ -204,9 +197,7 @@ export default function UserDashboardPage() {
             setTimeout(() => setSaveMessage(''), 5000);
         }
     };
-    // --------------------------------------------------------
 
-    // --- INLINE STYLES ADAPTED FOR COMPILATION ---
     const styles = {
         container: {
             display: 'flex',
@@ -263,7 +254,7 @@ export default function UserDashboardPage() {
             overflow: 'hidden',
         },
         sidebar: {
-            width: '320px', // Slightly wider to accommodate cards
+            width: '320px',
             backgroundColor: 'white',
             borderRight: '1px solid #e5e7eb',
             padding: '24px',
@@ -271,7 +262,7 @@ export default function UserDashboardPage() {
             flexDirection: 'column',
             gap: '24px',
             flexShrink: 0,
-            overflowY: 'auto', // Allow scrolling in sidebar if many orders
+            overflowY: 'auto',
         },
         contentArea: {
             flex: 1,
@@ -379,10 +370,9 @@ export default function UserDashboardPage() {
             borderRadius: '4px',
             fontFamily: 'monospace',
         },
-        // 🚀 NEW STYLES FOR ORDER CARDS
         orderCard: {
             border: '1px solid #fee2e2',
-            backgroundColor: '#fff1f2', // Light red background to indicate 'Action Needed'
+            backgroundColor: '#fff1f2',
             borderRadius: '8px',
             padding: '12px',
             marginBottom: '12px',
@@ -415,147 +405,135 @@ export default function UserDashboardPage() {
             fontStyle: 'italic',
         }
     };
-    // --------------------------------------------------------
 
     return (
         <>
-    <CallNavigationBar />
-        <div style={styles.container}>
-            {/* HEADER */}
-            <header style={styles.header}>
-                <div style={styles.brand}>
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
-                    </svg>
-                    <span>CC Agent Console: Active Call</span>
-                </div>
-                <div style={styles.headerRight}>
-                    <span style={styles.clock}>{currentTime}</span>
-                    <div style={styles.avatar}>AG</div>
-                </div>
-            </header>
-
-            <div style={styles.main}>
-                {/* SIDEBAR - Used to display User/Call Info */}
-                <aside style={styles.sidebar}>
-                    <div style={{ ...styles.card, ...styles.userInfoBlock }}>
-                        <div style={styles.userInfoTitle}>☎️ Customer Details</div>
-
-                        <div style={styles.infoRow}>
-                            <span style={styles.infoKey}>Calling Phone No.</span>
-                            <span style={styles.phoneNumberDisplay}>
-                                {phoneNumber || 'N/A'}
-                            </span>
-                        </div>
-                        
-                        <div style={styles.infoRow}>
-                            <span style={styles.infoKey}>User ID</span>
-                            <span style={styles.infoVal}>{userId}</span>
-                        </div>
-
-                        <div style={styles.infoRow}>
-                            <span style={styles.infoKey}>Subscription</span>
-                            <span style={styles.subscriptionBadge}>{subscriptionStatus}</span>
-                        </div>
+            <CallNavigationBar />
+            <div style={styles.container}>
+                <header style={styles.header}>
+                    <div style={styles.brand}>
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path>
+                        </svg>
+                        <span>CC Agent Console: Active Call</span>
                     </div>
+                    <div style={styles.headerRight}>
+                        <span style={styles.clock}>{currentTime}</span>
+                        <div style={styles.avatar}>AG</div>
+                    </div>
+                </header>
 
-                    {/* ADDRESS SELECTION CARD */}
-                    <div style={styles.card}>
-                        <div style={styles.userInfoTitle}>🏠 Select Address</div>
-                        <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '10px' }}>
-                            {addressFetchMessage}
-                        </p>
-                        {userAddresses.length > 0 ? (
-                            <div>
-                                {userAddresses.map((address) => (
-                                    <div
-                                        key={address.address_id}
-                                        style={{
-                                            ...styles.addressItem,
-                                            ...(selectedAddressId === address.address_id ? styles.addressSelected : {})
-                                        }}
-                                        onClick={() => setSelectedAddressId(address.address_id)}
-                                    >
-                                        {address.address_line}
-                                    </div>
-                                ))}
+                <div style={styles.main}>
+                    <aside style={styles.sidebar}>
+                        <div style={{ ...styles.card, ...styles.userInfoBlock }}>
+                            <div style={styles.userInfoTitle}>☎️ Customer Details</div>
+
+                            <div style={styles.infoRow}>
+                                <span style={styles.infoKey}>Calling Phone No.</span>
+                                <span style={styles.phoneNumberDisplay}>
+                                    {phoneNumber || 'N/A'}
+                                </span>
                             </div>
-                        ) : (
-                            <p style={{ fontSize: '0.875rem', color: '#ef4444' }}>
-                                No addresses to select.
+                            
+                            <div style={styles.infoRow}>
+                                <span style={styles.infoKey}>User ID</span>
+                                <span style={styles.infoVal}>{userId}</span>
+                            </div>
+
+                            <div style={styles.infoRow}>
+                                <span style={styles.infoKey}>Subscription</span>
+                                <span style={styles.subscriptionBadge}>{subscriptionStatus}</span>
+                            </div>
+                        </div>
+
+                        <div style={styles.card}>
+                            <div style={styles.userInfoTitle}>🏠 Select Address</div>
+                            <p style={{ fontSize: '0.8rem', color: '#6b7280', marginBottom: '10px' }}>
+                                {addressFetchMessage}
                             </p>
-                        )}
-                    </div>
-
-                    {/* 🚀 NEW SECTION: ACTIVE ASSIGNED ORDERS */}
-                    <div style={styles.card}>
-                        <div style={styles.userInfoTitle}>🚀 Active Orders</div>
-                        <p style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '10px' }}>
-                            Orders currently "Assigned" to this caller.
-                        </p>
-
-                        {ordersLoading ? (
-                            <p style={styles.emptyState}>Loading orders...</p>
-                        ) : assignedOrders.length > 0 ? (
-                            <div>
-                                {assignedOrders.map((order) => (
-                                    <div key={order.order_id} style={styles.orderCard}>
-                                        <div style={styles.orderHeader}>
-                                            <span>#{order.order_id}</span>
-                                            <span>{order.order_status}</span>
-                                        </div>
-                                        {/* Display specific details from your DB here, e.g., Ticket Title */}
-                                        <div style={{fontSize: '0.8rem', marginBottom: '6px', color: '#4b5563'}}>
-                                            {order.request_details || "Service Request"}
-                                        </div>
-                                        <button 
-                                            style={styles.cancelBtn}
-                                            onClick={() => handleCancelOrder(order.order_id)}
+                            {userAddresses.length > 0 ? (
+                                <div>
+                                    {userAddresses.map((address) => (
+                                        <div
+                                            key={address.address_id}
+                                            style={{
+                                                ...styles.addressItem,
+                                                ...(selectedAddressId === address.address_id ? styles.addressSelected : {})
+                                            }}
+                                            onClick={() => setSelectedAddressId(address.address_id)}
                                         >
-                                            Cancel Order
-                                        </button>
-                                    </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p style={styles.emptyState}>No active "Assigned" orders found.</p>
-                        )}
-                    </div>
-                </aside>
+                                            {address.address_line}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p style={{ fontSize: '0.875rem', color: '#ef4444' }}>
+                                    No addresses to select.
+                                </p>
+                            )}
+                        </div>
 
-                {/* CONTENT AREA - Used for Note Taking */}
-                <main style={styles.contentArea}>
-                    <h2 style={styles.title}>📝 Active Call Notes</h2>
+                        <div style={styles.card}>
+                            <div style={styles.userInfoTitle}>🚀 Active Orders</div>
+                            <p style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '10px' }}>
+                                Orders currently "Assigned" to this caller.
+                            </p>
 
-                    <div style={styles.card}>
-                        <textarea
-                            style={styles.notesTextarea}
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                            placeholder="Start taking notes on the user's request, issues, or actions taken..."
-                        />
-                    </div>
+                            {ordersLoading ? (
+                                <p style={styles.emptyState}>Loading orders...</p>
+                            ) : assignedOrders.length > 0 ? (
+                                <div>
+                                    {assignedOrders.map((order) => (
+                                        <div key={order.order_id} style={styles.orderCard}>
+                                            <div style={styles.orderHeader}>
+                                                <span>#{order.order_id}</span>
+                                                <span>{order.order_status}</span>
+                                            </div>
+                                            <div style={{fontSize: '0.8rem', marginBottom: '6px', color: '#4b5563'}}>
+                                                {order.request_details || "Service Request"}
+                                            </div>
+                                            <button 
+                                                style={styles.cancelBtn}
+                                                onClick={() => handleCancelOrder(order.order_id)}
+                                            >
+                                                Cancel Order
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p style={styles.emptyState}>No active "Assigned" orders found.</p>
+                            )}
+                        </div>
+                    </aside>
 
-                    <div style={{ marginTop: '20px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                        {saveMessage && (
-                            <span style={styles.message}>{saveMessage}</span>
-                        )}
-                        <button
-                            onClick={saveNotesAsTicket}
-                            disabled={isSaving || !phoneNumber || (userAddresses.length > 0 && !selectedAddressId)}
-                            style={styles.saveButton}
-                        >
-                            {isSaving ? 'Saving...' : 'Save Notes & Select Service'}
-                        </button>
-                    </div>
-                </main>
+                    <main style={styles.contentArea}>
+                        <h2 style={styles.title}>📝 Active Call Notes</h2>
+
+                        <div style={styles.card}>
+                            <textarea
+                                style={styles.notesTextarea}
+                                value={notes}
+                                onChange={(e) => setNotes(e.target.value)}
+                                placeholder="Start taking notes on the user's request, issues, or actions taken..."
+                            />
+                        </div>
+
+                        <div style={{ marginTop: '20px', textAlign: 'right', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                            {saveMessage && (
+                                <span style={styles.message}>{saveMessage}</span>
+                            )}
+                            <button
+                                onClick={saveNotesAsTicket}
+                                disabled={isSaving || !phoneNumber || (userAddresses.length > 0 && !selectedAddressId)}
+                                style={styles.saveButton}
+                            >
+                                {isSaving ? 'Saving...' : 'Save Notes & Select Service'}
+                            </button>
+                        </div>
+                    </main>
+                </div>
             </div>
-        </div>
-            </>
+        </>
     );
 }
-
-
-
-
-
