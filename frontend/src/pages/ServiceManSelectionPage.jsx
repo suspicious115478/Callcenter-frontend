@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getAuth } from 'firebase/auth';
 import { app } from '../config';
-import { CallNavigationBar } from './components/CallNavigationBar';
-import { useCallSession } from './components/CallSessionContext';
+import { CallNavigationBar } from '../components/CallNavigationBar';
+import { useCallSession } from '../components/CallSessionContext';
 const API_BASE_URL = 'https://callcenter-baclend.onrender.com';
 const auth = getAuth(app);
 
