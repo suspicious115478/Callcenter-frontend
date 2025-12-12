@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { getAuth } from 'firebase/auth'; 
 import { app } from '../config'; 
 import { CallNavigationBar } from './components/CallNavigationBar';
+import { useCallSession } from './components/CallSessionContext';
 const API_BASE_URL = 'https://callcenter-baclend.onrender.com';
 const auth = getAuth(app);
 
@@ -130,7 +131,7 @@ export default function SchedulingPage() {
     const [statusMessage, setStatusMessage] = useState(null);
 
     // 3. Effects
-
+    const { updateStepData, endCallSession } = useCallSession();
     // Clock
     useEffect(() => {
         const timer = setInterval(() => setCurrentTime(new Date().toLocaleTimeString()), 1000);
@@ -213,9 +214,8 @@ export default function SchedulingPage() {
         
         const scheduledDateTime = `${selectedDate} ${selectedTime}`;
         
-        // 🔥 FIXED: Include customer_name in the payload
         const scheduleData = {
-            user_id: null, // No serviceman assigned yet
+            user_id: null,
             category: serviceName,
             request_address: fetchedAddressLine,
             order_status: 'Scheduled',
@@ -226,7 +226,7 @@ export default function SchedulingPage() {
             admin_id: adminId,
             scheduled_time: scheduledDateTime,
             previous_order_id: null,
-            customer_name: customerName, // ⭐ Customer name is now correctly fetched
+            customer_name: customerName,
         };
 
         console.log("[SCHEDULING] Payload being sent:", scheduleData);
@@ -244,8 +244,18 @@ export default function SchedulingPage() {
             }
 
             setStatusMessage(`✅ SCHEDULED SUCCESSFUL: Order ID ${orderId}`);
-            
+
+            // ✅ ADD THESE LINES - Update session data and end call
+            updateStepData('scheduling', {
+                selectedDate: selectedDate,
+                selectedTime: selectedTime,
+                scheduledDateTime: scheduledDateTime,
+                orderId: orderId
+            });
+
+            // End the call session since scheduling is complete
             setTimeout(() => {
+                endCallSession();
                 navigate('/');
             }, 2000);
 
