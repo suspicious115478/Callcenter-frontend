@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { getAuth } from 'firebase/auth'; 
 import { app } from '../config'; 
-
+import { CallNavigationBar } from './components/CallNavigationBar';
 const API_BASE_URL = 'https://callcenter-baclend.onrender.com';
 const auth = getAuth(app);
 
@@ -265,6 +265,8 @@ export default function SchedulingPage() {
     }
 
     return (
+         <>
+    <CallNavigationBar />
         <div style={styles.container}>
             {/* Header */}
             <header style={styles.header}>
@@ -413,5 +415,6 @@ export default function SchedulingPage() {
                 </div>
             </div>
         </div>
+         </>
     );
 }
