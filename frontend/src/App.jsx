@@ -98,7 +98,8 @@ function App() {
 
                     {/* Target for UNVERIFIED calls */}
                     <Route path="/new-call/search" element={<ProtectedRoute isAuthenticated={isAuthenticated}><NewCallSearchPage /></ProtectedRoute>} />
-                    
+                    <Route path="/dashboard/:userId" element={<UserDashboardPage />} />
+                    <Route path="/dashboard/active" element={<UserDashboardPage />} />
                     {/* User Dashboard */}
                     <Route path="/user/dashboard/:userId" element={<ProtectedRoute isAuthenticated={isAuthenticated}><UserDashboardPage /></ProtectedRoute>} />
                     
@@ -118,6 +119,7 @@ function App() {
 }
 
 export default App;
+
 
 
 
