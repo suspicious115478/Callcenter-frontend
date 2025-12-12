@@ -7,7 +7,7 @@ import { useNavigate } from "react-router-dom";
 import { getAuth, signOut, onAuthStateChanged } from "firebase/auth";
 import { getDatabase, ref, get } from "firebase/database"; 
 import { app } from "../config"; 
-
+import { useCallSession } from './components/CallSessionContext';
 // Initialize Firebase Auth & DB
 const auth = getAuth(app); 
 const db = getDatabase(app);
@@ -31,7 +31,7 @@ export default function AgentDashboard() {
   const [appOrders, setAppOrders] = useState([]); // 🚀 NEW: App-placed orders
   const [currentTime, setCurrentTime] = useState(new Date().toLocaleTimeString());
   const [agentDbId, setAgentDbId] = useState(null); 
-
+ const { startCallSession } = useCallSession();
   // --- HELPER: Parse scheduled time string ---
   const parseScheduledTime = (timeString) => {
     try {
@@ -347,9 +347,20 @@ export default function AgentDashboard() {
     };
   }, []);
 
-  // Handle Accept Call
-  const handleCallAccept = async (acceptedCall) => {
+ const handleCallAccept = async (acceptedCall) => {
     await updateAgentStatus("busy");
+
+    // ✅ ADD THESE LINES - Start the call session
+    startCallSession({
+      userId: acceptedCall.userId || null,
+      phoneNumber: acceptedCall.caller || acceptedCall.customerPhone,
+      callerNumber: acceptedCall.caller || acceptedCall.customerPhone,
+      customerName: acceptedCall.userName || acceptedCall.customerName,
+      ticketId: acceptedCall.ticketId || null,
+      requestDetails: acceptedCall.requestDetails || 'New call',
+      selectedAddressId: acceptedCall.selectedAddressId || null,
+      dispatchData: acceptedCall.dispatchDetails || null
+    });
 
     const dashboardLink = acceptedCall.dashboardLink;
     const callerNumber = acceptedCall.caller || null;
@@ -377,10 +388,23 @@ export default function AgentDashboard() {
   };
 
   // Handle Assign Scheduled Order
-  const handleOrderAssign = async (order) => {
+ const handleOrderAssign = async (order) => {
     await updateAgentStatus("busy");
     
     console.log("📋 Assigning scheduled order:", order);
+
+    // ✅ ADD THESE LINES - Start call session for scheduled order
+    startCallSession({
+      userId: null,
+      phoneNumber: order.customerPhone,
+      callerNumber: order.customerPhone,
+      customerName: order.customerName,
+      ticketId: order.orderDetails.ticket_id,
+      requestDetails: order.orderDetails.order_request || 'Scheduled Service',
+      selectedAddressId: null,
+      orderId: order.orderId,
+      isScheduledDispatch: true
+    });
     
     // Update status from 'Scheduled' to 'Scheduling' in Employee DB
     try {
@@ -421,10 +445,23 @@ export default function AgentDashboard() {
   };
 
     // 🚀 NEW: Handle App Order Dispatch
-  const handleAppOrderDispatch = async (order) => {
+   const handleAppOrderDispatch = async (order) => {
     await updateAgentStatus("busy");
     
     console.log("📱 Dispatching app-placed order:", order);
+
+    // ✅ ADD THESE LINES - Start call session for app order
+    startCallSession({
+      userId: order.orderDetails.user_id,
+      phoneNumber: order.customerPhone,
+      callerNumber: order.customerPhone,
+      customerName: order.customerName,
+      ticketId: `APP_TKT_${Date.now()}`,
+      requestDetails: order.workDescription || 'App Order',
+      selectedAddressId: order.orderDetails.address_id,
+      orderId: order.orderId,
+      isAppOrder: true
+    });
     
     // Update status from 'Placed' to 'Placing' in Main DB
     try {
@@ -461,7 +498,7 @@ export default function AgentDashboard() {
       selectedServices[order.serviceCategory] = subcategories;
     }
 
-    // Generate a ticket ID for app orders (format: APP_TKT_timestamp)
+    // Generate a ticket ID for app orders
     const appTicketId = `APP_TKT_${Date.now()}`;
 
     // Navigate to ServiceManSelectionPage
@@ -469,7 +506,7 @@ export default function AgentDashboard() {
       state: {
         orderId: order.orderId,
         isAppOrder: true,
-        ticketId: appTicketId, // 🔥 FIX: Include ticket ID
+        ticketId: appTicketId,
         phoneNumber: order.customerPhone,
         selectedServices: selectedServices,
         requestDetails: order.workDescription || 'App Order',
@@ -854,3 +891,4 @@ export default function AgentDashboard() {
     </div>
   );
 }
+
