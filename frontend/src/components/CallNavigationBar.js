@@ -7,295 +7,255 @@ export const CallNavigationBar = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Don't show navbar if no active call
+  // Hide navbar if no active call
   if (!callSession?.isActive) return null;
 
+  /* -------------------- STEPS -------------------- */
   const steps = [
-    { 
-      id: 'dashboard', 
-      label: 'Notes', 
-      path: `/dashboard`,
-      icon: '📝',
+    {
+      id: 'dashboard',
+      label: 'Notes',
+      path: '/dashboard',
       isCompleted: !!sessionData.dashboard?.ticketId
     },
-    { 
-      id: 'services', 
-      label: 'Services', 
+    {
+      id: 'services',
+      label: 'Services',
       path: '/user/services',
-      icon: '🛠️',
-      isCompleted: sessionData.services?.selectedServices && 
-                   Object.keys(sessionData.services.selectedServices).length > 0
+      isCompleted:
+        sessionData.services?.selectedServices &&
+        Object.keys(sessionData.services.selectedServices).length > 0
     },
-    { 
-      id: 'scheduling', 
-      label: 'Schedule', 
+    {
+      id: 'scheduling',
+      label: 'Schedule',
       path: '/user/scheduling',
-      icon: '📅',
       isCompleted: !!sessionData.scheduling?.selectedDate,
       isOptional: true
     },
-    { 
-      id: 'serviceman', 
-      label: 'Dispatch', 
+    {
+      id: 'serviceman',
+      label: 'Dispatch',
       path: '/user/servicemen',
-      icon: '👷',
       isCompleted: false
     }
   ];
 
   const currentStepIndex = steps.findIndex(step => {
-    // Special handling for dashboard route
     if (step.id === 'dashboard') {
       return location.pathname.startsWith('/dashboard');
     }
-    return location.pathname.includes(step.path.split('?')[0]);
+    return location.pathname.includes(step.path);
   });
 
+  /* -------------------- NAV STATE BUILDER -------------------- */
   const buildNavigationState = (stepId) => {
-    const dashboardData = sessionData.dashboard || {};
-    const servicesData = sessionData.services || {};
-    const schedulingData = sessionData.scheduling || {};
+    const dashboard = sessionData.dashboard || {};
+    const services = sessionData.services || {};
+    const scheduling = sessionData.scheduling || {};
 
     switch (stepId) {
       case 'dashboard':
-        // For dashboard, we need userId and phoneNumber
         return {
-          phoneNumber: dashboardData.phoneNumber,
-          userId: dashboardData.userId
+          phoneNumber: dashboard.phoneNumber,
+          userId: dashboard.userId
         };
-      
+
       case 'services':
         return {
-          ticketId: dashboardData.ticketId,
-          requestDetails: dashboardData.requestDetails,
-          selectedAddressId: dashboardData.selectedAddressId,
-          phoneNumber: dashboardData.phoneNumber
+          ticketId: dashboard.ticketId,
+          requestDetails: dashboard.requestDetails,
+          selectedAddressId: dashboard.selectedAddressId,
+          phoneNumber: dashboard.phoneNumber
         };
-      
+
       case 'scheduling':
         return {
-          ticketId: dashboardData.ticketId,
-          requestDetails: dashboardData.requestDetails,
-          selectedAddressId: dashboardData.selectedAddressId,
-          phoneNumber: dashboardData.phoneNumber,
-          selectedServices: servicesData.selectedServices
+          ticketId: dashboard.ticketId,
+          requestDetails: dashboard.requestDetails,
+          selectedAddressId: dashboard.selectedAddressId,
+          phoneNumber: dashboard.phoneNumber,
+          selectedServices: services.selectedServices
         };
-      
+
       case 'serviceman':
         return {
-          ticketId: dashboardData.ticketId,
-          requestDetails: dashboardData.requestDetails,
-          selectedAddressId: dashboardData.selectedAddressId,
-          selectedServices: servicesData.selectedServices,
-          phoneNumber: dashboardData.phoneNumber,
-          scheduledDate: schedulingData.selectedDate,
-          scheduledTime: schedulingData.selectedTime
+          ticketId: dashboard.ticketId,
+          requestDetails: dashboard.requestDetails,
+          selectedAddressId: dashboard.selectedAddressId,
+          selectedServices: services.selectedServices,
+          phoneNumber: dashboard.phoneNumber,
+          scheduledDate: scheduling.selectedDate,
+          scheduledTime: scheduling.selectedTime
         };
-      
+
       default:
         return {};
     }
   };
 
+  /* -------------------- STEP CLICK -------------------- */
   const handleStepClick = (step, index) => {
-    // Prevent skipping ahead
-    if (index > 0 && index > currentStepIndex + 1) {
-      const prevStep = steps[index - 1];
-      if (!prevStep.isCompleted && !prevStep.isOptional) {
-        alert(`Please complete "${prevStep.label}" step first`);
+    if (index > currentStepIndex + 1) {
+      const prev = steps[index - 1];
+      if (!prev.isCompleted && !prev.isOptional) {
+        alert(`Please complete "${prev.label}" first`);
         return;
       }
     }
 
-    // Build navigation state based on step
     const navigationState = buildNavigationState(step.id);
-    
-    // ✅ FIX: For dashboard, construct the URL with query params AND pass state
+
     if (step.id === 'dashboard') {
       const phoneNumber = sessionData.dashboard?.phoneNumber || '';
-      const userId = sessionData.dashboard?.userId || '';
-      
-      // If userId is available, use it in the URL, otherwise use a fallback
-      const dashboardPath = userId ? `/dashboard/${userId}` : '/dashboard/active';
-      
-      // Navigate with both query params AND state
-      navigate(`${dashboardPath}?phoneNumber=${phoneNumber}`, {
+      const userId = sessionData.dashboard?.userId;
+      const path = userId ? `/dashboard/${userId}` : '/dashboard/active';
+
+      navigate(`${path}?phoneNumber=${phoneNumber}`, {
         state: navigationState
       });
     } else {
-      // For other steps, just pass state
       navigate(step.path, { state: navigationState });
     }
   };
 
+  /* -------------------- END CALL -------------------- */
   const handleEndCall = () => {
-    if (window.confirm('Are you sure you want to end this call session? All unsaved data will be lost.')) {
+    if (window.confirm('End this call session? Unsaved data will be lost.')) {
       endCallSession();
       navigate('/');
     }
   };
 
+  /* -------------------- STYLES -------------------- */
   const styles = {
     navbar: {
       position: 'sticky',
       top: 0,
       zIndex: 1000,
-      backgroundColor: '#4f46e5',
-      borderBottom: '3px solid #4338ca',
-      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+      backgroundColor: '#0f172a',
+      borderBottom: '1px solid #1e293b'
     },
     container: {
-      maxWidth: '1400px',
+      maxWidth: '1600px',
       margin: '0 auto',
-      padding: '12px 24px',
+      padding: '10px 20px',
       display: 'flex',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: '24px',
-      flexWrap: 'wrap'
+      gap: '20px'
     },
-    leftSection: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '16px'
+
+    statusPill: {
+      padding: '6px 12px',
+      borderRadius: '999px',
+      backgroundColor: '#16a34a',
+      color: '#fff',
+      fontSize: '0.75rem',
+      fontWeight: 700,
+      letterSpacing: '0.05em'
     },
-    callIndicator: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      color: 'white',
-      fontWeight: '600',
-      fontSize: '0.95rem'
-    },
-    pulseDot: {
-      width: '10px',
-      height: '10px',
-      borderRadius: '50%',
-      backgroundColor: '#ef4444',
-      animation: 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite'
-    },
-    stepsContainer: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      flex: 1,
-      minWidth: '600px'
-    },
-    stepButton: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      padding: '8px 16px',
-      borderRadius: '8px',
-      border: 'none',
-      fontSize: '0.875rem',
-      fontWeight: '600',
-      cursor: 'pointer',
-      transition: 'all 0.2s',
-      backgroundColor: 'rgba(255, 255, 255, 0.1)',
-      color: 'white',
-      whiteSpace: 'nowrap'
-    },
-    stepButtonActive: {
-      backgroundColor: 'white',
-      color: '#4f46e5',
-      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.2)'
-    },
-    stepButtonCompleted: {
-      backgroundColor: 'rgba(16, 185, 129, 0.2)',
-      color: '#d1fae5'
-    },
-    arrow: {
-      color: 'rgba(255, 255, 255, 0.5)',
-      fontSize: '1.2rem'
-    },
-    rightSection: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '16px'
-    },
-    sessionInfo: {
-      color: 'rgba(255, 255, 255, 0.9)',
-      fontSize: '0.8rem',
+
+    callerInfo: {
       display: 'flex',
       flexDirection: 'column',
-      alignItems: 'flex-end',
-      minWidth: '140px'
+      fontSize: '0.8rem',
+      color: '#e5e7eb'
     },
-    endCallButton: {
-      padding: '8px 20px',
-      borderRadius: '8px',
-      border: '2px solid white',
-      backgroundColor: '#ef4444',
-      color: 'white',
-      fontWeight: '700',
-      fontSize: '0.875rem',
-      cursor: 'pointer',
-      transition: 'all 0.2s',
+
+    stepsContainer: {
+      flex: 1,
       display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      whiteSpace: 'nowrap'
+      justifyContent: 'center',
+      gap: '12px'
+    },
+
+    step: {
+      padding: '6px 14px',
+      borderRadius: '6px',
+      fontSize: '0.75rem',
+      fontWeight: 600,
+      backgroundColor: '#020617',
+      color: '#94a3b8',
+      border: '1px solid #1e293b',
+      cursor: 'pointer'
+    },
+
+    stepActive: {
+      backgroundColor: '#2563eb',
+      borderColor: '#2563eb',
+      color: '#fff'
+    },
+
+    stepCompleted: {
+      backgroundColor: '#022c22',
+      borderColor: '#16a34a',
+      color: '#16a34a'
+    },
+
+    sessionMeta: {
+      textAlign: 'right',
+      fontSize: '0.7rem',
+      color: '#94a3b8'
+    },
+
+    endCall: {
+      marginLeft: '16px',
+      padding: '8px 16px',
+      borderRadius: '6px',
+      border: 'none',
+      backgroundColor: '#dc2626',
+      color: '#fff',
+      fontWeight: 700,
+      fontSize: '0.75rem',
+      cursor: 'pointer'
     }
   };
 
+  /* -------------------- RENDER -------------------- */
   return (
-    <>
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-        @media (max-width: 1200px) {
-          .nav-steps { flex-wrap: wrap; min-width: auto; }
-        }
-      `}</style>
-      <div style={styles.navbar}>
-        <div style={styles.container}>
-          <div style={styles.leftSection}>
-            <div style={styles.callIndicator}>
-              <div style={styles.pulseDot}></div>
-              <span>ACTIVE CALL</span>
-            </div>
-          </div>
+    <div style={styles.navbar}>
+      <div style={styles.container}>
 
-          <div style={styles.stepsContainer} className="nav-steps">
-            {steps.map((step, index) => (
-              <React.Fragment key={step.id}>
-                {index > 0 && <span style={styles.arrow}>→</span>}
-                <button
-                  style={{
-                    ...styles.stepButton,
-                    ...(currentStepIndex === index ? styles.stepButtonActive : {}),
-                    ...(step.isCompleted ? styles.stepButtonCompleted : {}),
-                    opacity: step.isOptional ? 0.8 : 1
-                  }}
-                  onClick={() => handleStepClick(step, index)}
-                  title={step.isOptional ? 'Optional step' : ''}
-                >
-                  <span>{step.icon}</span>
-                  <span>{step.label}</span>
-                  {step.isCompleted && <span>✓</span>}
-                </button>
-              </React.Fragment>
-            ))}
-          </div>
+        {/* LEFT */}
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <div style={styles.statusPill}>LIVE CALL</div>
 
-          <div style={styles.rightSection}>
-            <div style={styles.sessionInfo}>
-              <div>📞 {sessionData.dashboard?.phoneNumber || 'N/A'}</div>
-              <div style={{fontSize: '0.7rem', opacity: 0.7}}>
-                Session: {callSession?.sessionId?.toString().slice(-6)}
-              </div>
-            </div>
-
-            <button style={styles.endCallButton} onClick={handleEndCall}>
-              <span>📴</span>
-              <span>End Call</span>
-            </button>
+          <div style={styles.callerInfo}>
+            <div><strong>Caller:</strong> {sessionData.dashboard?.phoneNumber || 'Unknown'}</div>
+            <div><strong>Ticket:</strong> {sessionData.dashboard?.ticketId || '—'}</div>
           </div>
         </div>
+
+        {/* CENTER */}
+        <div style={styles.stepsContainer}>
+          {steps.map((step, index) => (
+            <button
+              key={step.id}
+              style={{
+                ...styles.step,
+                ...(index === currentStepIndex ? styles.stepActive : {}),
+                ...(step.isCompleted ? styles.stepCompleted : {})
+              }}
+              onClick={() => handleStepClick(step, index)}
+            >
+              {step.label.toUpperCase()}
+            </button>
+          ))}
+        </div>
+
+        {/* RIGHT */}
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          <div style={styles.sessionMeta}>
+            <div>SESSION</div>
+            <div>{callSession?.sessionId?.slice(-6)}</div>
+          </div>
+
+          <button style={styles.endCall} onClick={handleEndCall}>
+            END CALL
+          </button>
+        </div>
+
       </div>
-    </>
+    </div>
   );
 };
