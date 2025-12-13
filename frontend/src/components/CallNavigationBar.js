@@ -10,6 +10,18 @@ export const CallNavigationBar = () => {
   // Hide navbar if no active call
   if (!callSession?.isActive) return null;
 
+  /* -------------------- SAFE SESSION ID -------------------- */
+  const getShortSessionId = () => {
+    const id = callSession?.sessionId;
+
+    if (!id) return '—';
+    if (typeof id === 'string') return id.slice(-6);
+    if (typeof id === 'number') return String(id).slice(-6);
+    if (typeof id === 'object' && id.id) return String(id.id).slice(-6);
+
+    return '—';
+  };
+
   /* -------------------- STEPS -------------------- */
   const steps = [
     {
@@ -144,7 +156,6 @@ export const CallNavigationBar = () => {
       alignItems: 'center',
       gap: '20px'
     },
-
     statusPill: {
       padding: '6px 12px',
       borderRadius: '999px',
@@ -154,21 +165,18 @@ export const CallNavigationBar = () => {
       fontWeight: 700,
       letterSpacing: '0.05em'
     },
-
     callerInfo: {
       display: 'flex',
       flexDirection: 'column',
       fontSize: '0.8rem',
       color: '#e5e7eb'
     },
-
     stepsContainer: {
       flex: 1,
       display: 'flex',
       justifyContent: 'center',
       gap: '12px'
     },
-
     step: {
       padding: '6px 14px',
       borderRadius: '6px',
@@ -179,25 +187,21 @@ export const CallNavigationBar = () => {
       border: '1px solid #1e293b',
       cursor: 'pointer'
     },
-
     stepActive: {
       backgroundColor: '#2563eb',
       borderColor: '#2563eb',
       color: '#fff'
     },
-
     stepCompleted: {
       backgroundColor: '#022c22',
       borderColor: '#16a34a',
       color: '#16a34a'
     },
-
     sessionMeta: {
       textAlign: 'right',
       fontSize: '0.7rem',
       color: '#94a3b8'
     },
-
     endCall: {
       marginLeft: '16px',
       padding: '8px 16px',
@@ -247,7 +251,7 @@ export const CallNavigationBar = () => {
         <div style={{ display: 'flex', alignItems: 'center' }}>
           <div style={styles.sessionMeta}>
             <div>SESSION</div>
-            <div>{callSession?.sessionId?.slice(-6)}</div>
+            <div>{getShortSessionId()}</div>
           </div>
 
           <button style={styles.endCall} onClick={handleEndCall}>
