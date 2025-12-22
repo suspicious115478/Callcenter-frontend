@@ -532,7 +532,7 @@ export default function AgentDashboard() {
       await signOut(auth);
       setAgentDbId(null);
       console.log("Agent logged out successfully.");
-      navigate("/login");
+      navigate("./pages/Login");
     } catch (error) {
       console.error("Logout Error:", error);
       alert("Failed to log out. Please try again.");
@@ -892,6 +892,7 @@ export default function AgentDashboard() {
     </div>
   );
 }
+
 
 
 
